@@ -147,12 +147,17 @@ graph TB
 - Used as async context manager (`async with CanadaBuysScraper(...) as scraper`)
 
 **Key design decisions:**
-- `wait_until="networkidle"` — waits for all XHR/fetch calls to settle before scraping; handles JS-rendered result tables
-- CSS selector fallback chains — multiple selectors tried per field (e.g., listing page layout vs. alternate card layout) to handle CanadaBuys' occasionally inconsistent markup
-- Detail page fetched per new tender only — not for duplicates; reduces page loads by `skipped_count`
+- Two-step page loading: `wait_until="domcontentloaded"` then `wait_for_load_state("networkidle")` — more reliable than `networkidle` alone
+- Custom Chrome user-agent on browser context — CanadaBuys blocks default headless Playwright user-agents with 403
+- Link-based listing extraction — locates `<a>` tags matching tender-notice/award-notice/contract-history href patterns; regex fallback on `page.content()` if locators miss
+- Click-based pagination — `next_btn.click()` instead of `goto()` to handle relative query string URLs correctly
+- Cross-page dedup — `seen` set shared across all pages in a single scrape run
+- Regex detail extraction on raw `inner_text()` (newlines preserved) — more resilient to markup changes than CSS selectors
+- Contact tab click — detail pages use tabbed navigation; contact fields are hidden until "Contact information" tab is clicked
+- Dual search modes — `DAILY_URL` (Open + Last 24h) and `WEEKLY_URL` (Open + Goods + Last 7 days); auto-detected by day of week
 - `max_pages` safety cap (default: 10) prevents runaway pagination loops
 
-**Verification:** `python run.py --dry-run --limit 3` prints populated tender dicts with ≥8 of 11 fields non-empty
+**Verification:** `python run.py --dry-run --limit 3` prints populated tender dicts with all 11 fields non-empty
 
 ---
 
@@ -202,7 +207,7 @@ graph TB
 ```
 
 **Key design decisions:**
-- Keyed on solicitation number (government-assigned, guaranteed unique per tender)
+- Keyed on solicitation number when available, or `inquiry_link` URL as fallback (listing extraction doesn't provide solicitation numbers — they come from the detail page)
 - Stores CFlow `request_id` for traceability — if a CFlow record is questioned, the state file maps it back to the solicitation
 - `save()` called once after all tenders processed — if the run crashes mid-batch, only already-confirmed submissions are persisted; failed ones will retry next run
 - Graceful corruption recovery — malformed JSON logs a warning and starts fresh (worst case: one duplicate batch)
@@ -310,7 +315,7 @@ flowchart LR
 
     CB -->|GET rendered page| RAW
     RAW -->|CSS selector extraction| STRUCT
-    STRUCT -->|check solicitation_no| DEDUP
+    STRUCT -->|check sol_no or link| DEDUP
     DEDUP -->|new| PAYLOAD
     DEDUP -->|duplicate| STATE_F
     PAYLOAD -->|POST /api/v1/requests| CFLOW_REC

@@ -106,6 +106,10 @@ def test_build_payload_maps_all_11_fields():
 | `test_absolute_url_with_relative_path` | `_absolute("/en/tender/123")` → `"https://canadabuys.canada.ca/en/tender/123"` | P0 |
 | `test_absolute_url_already_absolute` | `_absolute("https://example.com/foo")` → unchanged | P1 |
 | `test_absolute_url_with_none` | `_absolute(None)` → `""` | P1 |
+| `test_clean_html_strips_tags` | `_clean_html("<b>bold</b>")` → `" bold "` | P1 |
+| `test_clean_html_decodes_entities` | `_clean_html("&amp;")` → `"&"` | P1 |
+| `test_capture_extracts_group` | `_capture("Foo 123 Bar", r"Foo\s+(\d+)")` → `"123"` | P0 |
+| `test_capture_returns_empty_on_no_match` | `_capture("no match", r"xyz")` → `""` | P0 |
 
 ---
 
@@ -179,9 +183,12 @@ async def test_create_request_success_returns_id():
 
 | Test | Description | Priority |
 |------|-------------|----------|
-| `test_agent_skips_duplicate_solicitations` | State pre-loaded with "PW-001" → agent processes 0 new, skipped=1 | P0 |
-| `test_agent_marks_state_on_success` | New tender submitted successfully → `state.already_processed("PW-NEW")` returns `True` after run | P0 |
-| `test_agent_does_not_mark_state_on_cflow_failure` | CFlow returns 500 → solicitation NOT in state → retried next run | P0 |
+| `test_agent_skips_duplicate_solicitations` | State pre-loaded with dedup key → agent processes 0 new, skipped=1 | P0 |
+| `test_agent_marks_state_on_success` | New tender submitted successfully → `state.already_processed(dedup_key)` returns `True` after run | P0 |
+| `test_agent_does_not_mark_state_on_cflow_failure` | CFlow returns 500 → dedup key NOT in state → retried next run | P0 |
+| `test_agent_uses_link_as_fallback_dedup_key` | Tender with empty solicitation_no → dedup key is `inquiry_link` URL | P0 |
+| `test_agent_fetches_detail_before_dedup` | Detail page is fetched before checking state (sol_no comes from detail) | P0 |
+| `test_agent_auto_detects_saturday` | When `weekday() == 5` → uses `WEEKLY_URL` search filter | P1 |
 | `test_agent_continues_after_single_failure` | 3 tenders; second CFlow call fails → 2 successes, 1 error, run completes | P0 |
 | `test_agent_sends_summary_notification` | Run completes → `notifier.send()` called once with correct `RunSummary` counts | P1 |
 | `test_agent_saves_state_after_run` | `state.save()` called exactly once at end of run | P1 |
@@ -194,13 +201,16 @@ These use Playwright's `page.route()` to serve fixture HTML files instead of hit
 
 | Test | Description | Priority |
 |------|-------------|----------|
-| `test_extract_listing_returns_title_and_sol_no` | Fixture HTML with 3 result rows → returns 3 dicts with `solicitation_title` and `solicitation_no` | P0 |
+| `test_extract_listing_returns_titles_and_links` | Fixture HTML with tender links → returns dicts with `solicitation_title` and `inquiry_link` | P0 |
 | `test_extract_listing_builds_absolute_links` | Relative href in fixture → `inquiry_link` is absolute URL | P0 |
-| `test_extract_detail_returns_contact_email` | Detail page fixture with mailto link → `contact_email` extracted correctly | P0 |
-| `test_extract_detail_returns_gsin` | Detail page fixture with GSIN field → `gsin_description` populated | P0 |
-| `test_pagination_follows_next_link` | Fixture page 1 has `rel="next"` link to page 2 → both pages scraped | P1 |
+| `test_extract_listing_deduplicates_across_calls` | Same page called twice with shared `seen` set → no duplicates | P0 |
+| `test_extract_detail_returns_contact_email` | Detail page text with "Email" line → `contact_email` extracted correctly via regex | P0 |
+| `test_extract_detail_returns_gsin` | Detail page text after "Related notices" → `gsin_description` populated | P0 |
+| `test_extract_detail_returns_closing_date` | Detail page text with "Closing date and time" → `closing_date` extracted | P0 |
+| `test_pagination_clicks_next` | Fixture page 1 has `rel="next"` link → click navigates to page 2 | P1 |
 | `test_pagination_stops_at_max_pages` | `max_pages=2`, portal has 3 pages → only 2 pages fetched | P1 |
-| `test_empty_results_page_returns_empty_list` | Fixture HTML with no result rows → returns `[]` (no exception) | P1 |
+| `test_empty_results_page_returns_empty_list` | Fixture HTML with no tender links → returns `[]` (no exception) | P1 |
+| `test_listing_regex_fallback` | Primary locator finds 0 links, regex fallback extracts from HTML | P1 |
 
 ```python
 # Example scraper integration test with mocked portal
@@ -220,11 +230,12 @@ async def test_extract_listing_returns_title_and_sol_no():
 
         scraper = CanadaBuysScraper(ScraperConfig())
         scraper._browser = browser
-        tenders = await scraper._extract_listing(page)
+        seen = set()
+        tenders = await scraper._extract_listing(page, seen)
 
-        assert len(tenders) == 3
-        assert tenders[0]["solicitation_title"] == "IT Security Assessment Services"
-        assert tenders[0]["solicitation_no"] == "PW-EZZ-123-00001"
+        assert len(tenders) >= 1
+        assert tenders[0]["solicitation_title"]  # non-empty
+        assert tenders[0]["inquiry_link"].startswith("https://canadabuys.canada.ca")
         await browser.close()
 ```
 

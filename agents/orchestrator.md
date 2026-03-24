@@ -49,21 +49,32 @@ After changing `agent.py`, `state.py`, or `notifier.py`:
 
 ## Patterns
 
-### Correct — per-tender try/except, never abort the batch
+### Correct — fetch detail first, then dedup, per-tender try/except
 
 ```python
 for tender in tenders:
-    sol_no = tender.get("solicitation_no", "").strip()
-    if not sol_no:
+    link = tender.get("inquiry_link", "").strip()
+    if not link:
         continue
-    if state.already_processed(sol_no):
+
+    # Fetch detail first — solicitation_no comes from the detail page
+    try:
+        detail = await scraper.fetch_tender_detail(link)
+        tender.update(detail)
+    except Exception as exc:
+        log.error("Failed to fetch detail for %s: %s", link, exc)
+        summary.error_count += 1
+        continue
+
+    sol_no = tender.get("solicitation_no", "").strip()
+    dedup_key = sol_no or link  # fallback to URL if no solicitation number
+    if state.already_processed(dedup_key):
         summary.skipped_count += 1
         continue
+
     try:
-        detail = await scraper.fetch_tender_detail(tender.get("inquiry_link", ""))
-        tender.update(detail)
         request_id = await cflow.create_sourcing_request(tender)
-        state.mark_processed(sol_no, request_id=request_id, title=tender.get("solicitation_title"))
+        state.mark_processed(dedup_key, request_id=request_id, title=tender.get("solicitation_title"))
         summary.new_count += 1
         summary.new_tenders.append(tender)
     except Exception as exc:
@@ -73,14 +84,19 @@ for tender in tenders:
         # DO NOT call state.mark_processed() here — let it retry next run
 ```
 
-### Wrong — marking state before CFlow confirms, or aborting on first error
+### Wrong — checking solicitation_no before fetching detail (it's empty from listing)
+
+```python
+sol_no = tender.get("solicitation_no", "").strip()
+if not sol_no:
+    continue  # Wrong — skips every tender since listing doesn't extract sol_no
+```
+
+### Wrong — marking state before CFlow confirms
 
 ```python
 state.mark_processed(sol_no)              # Wrong — marks before POST succeeds
 request_id = await cflow.create_sourcing_request(tender)  # If this raises, tender lost forever
-
-# Also wrong:
-request_id = await cflow.create_sourcing_request(tender)  # If uncaught, aborts entire batch
 ```
 
 ### Correct — save state once, after all tenders processed
@@ -108,7 +124,7 @@ These rules are **invariants** — never violate them:
 |------|--------|
 | `mark_processed()` only called after CFlow returns 200/201 | Failed submissions must retry next run |
 | `save()` called exactly once per run, after the loop | Atomic-style update; crash-safe |
-| State file keyed on `solicitation_no` only | Government-assigned, guaranteed unique |
+| State file keyed on `solicitation_no` or `inquiry_link` | `solicitation_no` preferred; `inquiry_link` used as fallback when sol_no is empty |
 | Corrupt state file → log warning + start fresh | Self-healing; worst case is one duplicate batch |
 | `--reset-state` deletes file before run | Clean reprocessing when explicitly requested |
 

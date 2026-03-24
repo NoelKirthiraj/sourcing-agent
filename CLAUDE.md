@@ -8,13 +8,16 @@ A scheduled Python agent that scrapes federal IT tender opportunities from Canad
 # Dry-run — scrape portal, print payloads, no CFlow records created
 python run.py --dry-run --limit 5
 
+# Dry-run with weekly filters (Open + Goods + Last 7 days)
+python run.py --dry-run --weekly --limit 5
+
 # Dry-run with visible browser (debug selector issues)
 python run.py --dry-run --visible --limit 1
 
 # Discover CFlow form field names (run before first live submission)
 python run.py --discover-fields
 
-# Full production run
+# Full production run (auto-detects Saturday → weekly filters)
 python run.py
 
 # Run tests (no live portal or CFlow needed)
@@ -34,7 +37,8 @@ After any change, verify in this order:
 1. **Unit tests pass:** `pytest tests/unit/` — should complete in <10 seconds with no failures
 2. **Dry-run returns tenders:** `python run.py --dry-run --limit 3` — should print ≥1 tender with all 11 fields populated; no tracebacks
 3. **CFlow payload is correct:** Check printed JSON — `solicitation_no` looks like `PW-EZZ-*` or `WS-*`; `inquiry_link` is an absolute `https://canadabuys.canada.ca/...` URL
-4. **Deduplication works:** Run dry-run twice — second run should log `Skipped: N` for tenders from first run
+4. **Weekly mode works:** `python run.py --dry-run --weekly --limit 3` — should return more tenders (7-day window, Goods category)
+5. **Deduplication works:** Run dry-run twice — second run should log `Skipped: N` for tenders from first run
 
 For CFlow integration changes specifically: set `CFLOW_SUBMIT_NOW=false`, run `python run.py --limit 2`, verify draft records in CFlow UI, then delete them.
 
@@ -48,6 +52,15 @@ For CFlow integration changes specifically: set `CFLOW_SUBMIT_NOW=false`, run `p
 
 - **Don't** use `requests` or `httpx` to fetch CanadaBuys pages directly.
   **Do** always use Playwright — the portal is JS-rendered and blocks raw HTTP scrapers via robots.txt.
+
+- **Don't** use headless Chromium without a user-agent override — CanadaBuys returns 403 for default Playwright user-agents.
+  **Do** always open pages via `self._context.new_page()` (the browser context has the Chrome user-agent set).
+
+- **Don't** use `page.goto()` for pagination — relative query strings like `?page=1` break with `urljoin`.
+  **Do** use `next_btn.click()` and let the browser resolve the URL natively.
+
+- **Don't** call `_clean()` on the full body text before regex extraction — it collapses newlines, breaking `[^\n]+` patterns.
+  **Do** use `.strip()` on the raw `inner_text()` and let `_capture()` clean individual matches.
 
 - **Don't** add `None` values to the CFlow payload dict.
   **Do** use `tender.get("field", "")` — CFlow rejects null field values with a 422.
@@ -73,7 +86,7 @@ cflow_client.py       # CFlow REST — _build_payload() is the field mapping
 state.py              # JSON deduplication — keyed on solicitation_no
 notifier.py           # Slack + email summaries
 config.py             # Env var loader — fails fast if required vars missing
-run.py                # CLI flags: --dry-run --visible --discover-fields --reset-state
+run.py                # CLI flags: --dry-run --visible --weekly --discover-fields --reset-state
 tests/
   unit/               # Fast, no network, no browser
   integration/        # Mocked CFlow (respx) + mocked portal HTML (Playwright route())

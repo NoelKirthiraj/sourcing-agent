@@ -25,8 +25,8 @@
 ### 1. Clone & Set Up Environment
 
 ```bash
-git clone https://github.com/YOUR_ORG/canadabuys-cflow-agent.git
-cd canadabuys-cflow-agent
+git clone https://github.com/NoelKirthiraj/sourcing-agent.git
+cd sourcing-agent
 
 # Create and activate a virtual environment
 python -m venv .venv
@@ -241,6 +241,7 @@ canadabuys-cflow-agent/
 | `python run.py --dry-run` | Scrape only — no CFlow records created |
 | `python run.py --dry-run --limit 5` | Preview first 5 tenders |
 | `python run.py --dry-run --visible` | Watch browser navigate portal (debug) |
+| `python run.py --dry-run --weekly` | Use weekly filters (Open + Goods + Last 7 days) |
 | `python run.py --discover-fields` | List CFlow form field names |
 | `python run.py --reset-state` | Wipe dedup history and reprocess all tenders |
 | `python run.py --pages 1` | Only scrape first page of results |
@@ -258,7 +259,7 @@ canadabuys-cflow-agent/
 git init                              # if not already a git repo
 git add .
 git commit -m "Initial agent setup"
-git remote add origin https://github.com/YOUR_ORG/canadabuys-cflow-agent.git
+git remote add origin https://github.com/NoelKirthiraj/sourcing-agent.git
 git push -u origin main
 ```
 
@@ -344,7 +345,7 @@ Unit tests run in ~5 seconds. Integration tests with Playwright fixtures run in 
 | Problem | Symptoms | Solution |
 |---------|----------|---------|
 | **`EnvironmentError: Required variable not set`** | Agent fails immediately on startup | Run `cat .env` and confirm all 5 required vars are present and non-empty |
-| **`Found 0 tenders`** | Scraper returns empty list | CanadaBuys HTML may have changed. Run `--dry-run --visible` to watch browser. Update CSS selectors in `scraper.py`. |
+| **`Found 0 tenders`** | Scraper returns empty list | CanadaBuys may be blocking headless requests (403) or HTML changed. Run `--dry-run --visible` to watch browser. Check user-agent is set in browser context. |
 | **`CFlow returned 401`** | Auth failure on every POST | `CFLOW_API_KEY`, `CFLOW_USER_KEY`, or `CFLOW_USERNAME` is wrong. Re-copy from CFlow dashboard. Check for leading/trailing spaces. |
 | **`CFlow returned 422`** | Validation error on POST | Form field names in `_build_payload()` don't match CFlow workflow. Run `--discover-fields` and compare. |
 | **`CFlow returned 404`** | Endpoint not found | `CFLOW_BASE_URL` may be wrong. Check your CFlow login URL — it should be `https://us.cflowapps.com` or `https://ap.cflowapps.com` depending on your region. |
