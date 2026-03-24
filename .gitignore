@@ -1,0 +1,37 @@
+# Environment — NEVER commit credentials
+.env
+
+# Runtime state — contains processed solicitation numbers
+# Exclude from version control; persisted via GitHub Actions cache
+processed_solicitations.json
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Playwright browser binaries
+# (installed fresh in CI via playwright install chromium)
+# Local path varies by OS — uncomment if needed:
+# ~/Library/Caches/ms-playwright/
+# ~/.cache/ms-playwright/
+
+# Logs
+agent.log
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
