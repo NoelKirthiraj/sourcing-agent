@@ -526,6 +526,101 @@ body::after {
   height: 40px;
 }
 
+/* ─── Clickable card ─── */
+.metric-card.clickable { cursor: pointer; }
+.metric-card.clickable:hover {
+  border-color: var(--green);
+  box-shadow: 0 0 16px var(--green-glow);
+}
+
+/* ─── Modal ─── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 8, 22, 0.85);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  width: 90%;
+  max-width: 720px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-header .section-title { margin-bottom: 0; }
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: color 0.2s, background 0.2s;
+}
+.modal-close:hover { color: var(--text-primary); background: var(--bg-elevated); }
+.modal-body {
+  padding: 16px 24px 24px;
+  overflow-y: auto;
+}
+.tender-row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 8px 16px;
+  padding: 14px 16px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--green);
+  margin-bottom: 8px;
+  transition: background 0.2s;
+}
+.tender-row:hover { background: var(--bg-elevated); }
+.tender-sol {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--cyan);
+  white-space: nowrap;
+}
+.tender-title {
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+  grid-column: 1 / -1;
+}
+.tender-meta {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.tender-meta span { white-space: nowrap; }
+.tender-empty {
+  text-align: center;
+  padding: 32px;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+}
+
 /* ═══════════════════════════════════════════════════════════
    RESPONSIVE
    ═══════════════════════════════════════════════════════════ */
@@ -613,10 +708,10 @@ body::after {
 
   <!-- Metrics -->
   <section class="metrics">
-    <div class="metric-card green">
+    <div class="metric-card green clickable" onclick="openTendersModal()">
       <div class="metric-label">Total Processed</div>
       <div class="metric-value" id="metric-processed" data-target="0">0</div>
-      <div class="metric-sub">lifetime tenders</div>
+      <div class="metric-sub">lifetime tenders — click to view</div>
     </div>
     <div class="metric-card yellow">
       <div class="metric-label">Current Streak</div>
@@ -652,6 +747,17 @@ body::after {
       <div class="achievements-grid" id="achievements-grid"></div>
     </div>
   </section>
+</div>
+
+<!-- Tenders Modal -->
+<div class="modal-overlay" id="tenders-modal" onclick="if(event.target===this)closeTendersModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="section-title"><span class="icon">&#x1F4C4;</span> Processed Tenders</div>
+      <button class="modal-close" onclick="closeTendersModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="tenders-list"></div>
+  </div>
 </div>
 
 <script>
@@ -933,6 +1039,51 @@ function animateValue(el, start, end, duration, isPercent) {
     if (progress < 1) requestAnimationFrame(update);
   }
   requestAnimationFrame(update);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TENDERS MODAL
+   ═══════════════════════════════════════════════════════════ */
+function openTendersModal() {
+  const modal = document.getElementById('tenders-modal');
+  const list = document.getElementById('tenders-list');
+
+  // Collect all tenders from run history (newest first)
+  const allTenders = [];
+  runHistory.slice().reverse().forEach(run => {
+    (run.new_tenders || []).forEach(t => {
+      allTenders.push({ ...t, run_at: run.run_at });
+    });
+  });
+
+  if (!allTenders.length) {
+    list.innerHTML = '<div class="tender-empty">No tenders processed yet.</div>';
+  } else {
+    list.innerHTML = allTenders.map(t => `
+      <div class="tender-row">
+        <div class="tender-sol">${escapeHtml(t.solicitation_no || '—')}</div>
+        <div></div>
+        <div class="tender-title">${escapeHtml(t.solicitation_title || 'Untitled')}</div>
+        <div class="tender-meta">
+          <span>${escapeHtml(t.client || '—')}</span>
+          <span>Closes: ${escapeHtml(t.closing_date || '—')}</span>
+          <span>Processed: ${formatTime(t.run_at)}</span>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  modal.classList.add('open');
+  document.addEventListener('keydown', closeOnEsc);
+}
+
+function closeTendersModal() {
+  document.getElementById('tenders-modal').classList.remove('open');
+  document.removeEventListener('keydown', closeOnEsc);
+}
+
+function closeOnEsc(e) {
+  if (e.key === 'Escape') closeTendersModal();
 }
 
 /* ═══════════════════════════════════════════════════════════
