@@ -580,40 +580,91 @@ body::after {
   overflow-y: auto;
 }
 .tender-row {
-  display: grid;
-  grid-template-columns: 120px 1fr;
-  gap: 8px 16px;
   padding: 14px 16px;
   background: var(--bg-surface);
   border-radius: var(--radius-md);
   border-left: 3px solid var(--green);
   margin-bottom: 8px;
+  cursor: pointer;
   transition: background 0.2s;
 }
 .tender-row:hover { background: var(--bg-elevated); }
+.tender-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
 .tender-sol {
   font-family: var(--font-mono);
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--cyan);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 .tender-title {
   font-family: var(--font-body);
   font-size: 0.8125rem;
   color: var(--text-primary);
-  grid-column: 1 / -1;
+  margin-top: 6px;
 }
+.tender-chevron {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  flex-shrink: 0;
+  transition: transform 0.2s;
+}
+.tender-row.expanded .tender-chevron { transform: rotate(90deg); }
 .tender-meta {
   font-family: var(--font-mono);
   font-size: 0.6875rem;
   color: var(--text-secondary);
-  grid-column: 1 / -1;
   display: flex;
   gap: 16px;
   flex-wrap: wrap;
+  margin-top: 6px;
 }
 .tender-meta span { white-space: nowrap; }
+.tender-details {
+  display: none;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.tender-row.expanded .tender-details { display: block; }
+.detail-grid {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 8px 12px;
+}
+.detail-label {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding-top: 2px;
+}
+.detail-value {
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+.detail-value a {
+  color: var(--cyan);
+  text-decoration: none;
+}
+.detail-value a:hover { text-decoration: underline; }
+.detail-value.description {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-height: 120px;
+  overflow-y: auto;
+}
 .tender-empty {
   text-align: center;
   padding: 32px;
@@ -1059,18 +1110,44 @@ function openTendersModal() {
   if (!allTenders.length) {
     list.innerHTML = '<div class="tender-empty">No tenders processed yet.</div>';
   } else {
-    list.innerHTML = allTenders.map(t => `
-      <div class="tender-row">
-        <div class="tender-sol">${escapeHtml(t.solicitation_no || '—')}</div>
-        <div></div>
-        <div class="tender-title">${escapeHtml(t.solicitation_title || 'Untitled')}</div>
-        <div class="tender-meta">
-          <span>${escapeHtml(t.client || '—')}</span>
-          <span>Closes: ${escapeHtml(t.closing_date || '—')}</span>
-          <span>Processed: ${formatTime(t.run_at)}</span>
+    list.innerHTML = allTenders.map(t => {
+      const fields = [
+        ['Sol. Number', t.solicitation_no],
+        ['Title', t.solicitation_title],
+        ['Client', t.client],
+        ['Closing Date', t.closing_date ? `${t.closing_date} ${t.time_and_zone || ''}`.trim() : ''],
+        ['Amendments', t.notifications],
+        ['Contact', t.contact_name],
+        ['Email', t.contact_email, true],
+        ['Phone', t.contact_phone],
+        ['Processed', formatTime(t.run_at)],
+      ];
+      const link = t.inquiry_link ? `<a href="${escapeHtml(t.inquiry_link)}" target="_blank" rel="noopener">${escapeHtml(t.inquiry_link)}</a>` : '—';
+      const desc = t.gsin_description || '';
+      return `
+      <div class="tender-row" onclick="this.classList.toggle('expanded')">
+        <div class="tender-summary">
+          <div>
+            <div class="tender-sol">${escapeHtml(t.solicitation_no || '—')}</div>
+            <div class="tender-title">${escapeHtml(t.solicitation_title || 'Untitled')}</div>
+            <div class="tender-meta">
+              <span>${escapeHtml(t.client || '—')}</span>
+              <span>Closes: ${escapeHtml(t.closing_date || '—')}</span>
+            </div>
+          </div>
+          <span class="tender-chevron">&#x25B6;</span>
         </div>
-      </div>
-    `).join('');
+        <div class="tender-details">
+          <div class="detail-grid">
+            ${fields.filter(f => f[1]).map(f =>
+              `<div class="detail-label">${f[0]}</div><div class="detail-value">${f[2] ? '<a href="mailto:' + escapeHtml(f[1]) + '">' + escapeHtml(f[1]) + '</a>' : escapeHtml(f[1])}</div>`
+            ).join('')}
+            <div class="detail-label">Portal Link</div><div class="detail-value">${link}</div>
+            ${desc ? `<div class="detail-label">Description</div><div class="detail-value description">${escapeHtml(desc)}</div>` : ''}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
   }
 
   modal.classList.add('open');

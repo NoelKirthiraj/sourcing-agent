@@ -207,8 +207,15 @@ def record_run(summary: Any, data_dir: Path) -> None:
             {
                 "solicitation_no": t.get("solicitation_no", ""),
                 "solicitation_title": t.get("solicitation_title", ""),
-                "client": t.get("client", ""),
+                "gsin_description": t.get("gsin_description", ""),
+                "inquiry_link": t.get("inquiry_link", ""),
                 "closing_date": t.get("closing_date", ""),
+                "time_and_zone": t.get("time_and_zone", ""),
+                "notifications": t.get("notifications", ""),
+                "client": t.get("client", ""),
+                "contact_name": t.get("contact_name", ""),
+                "contact_email": t.get("contact_email", ""),
+                "contact_phone": t.get("contact_phone", ""),
             }
             for t in summary.new_tenders[:20]
         ],
