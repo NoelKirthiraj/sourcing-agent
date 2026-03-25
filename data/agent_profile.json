@@ -3,9 +3,9 @@
   "level": 2,
   "level_title": "Rookie",
   "total_processed": 14,
-  "total_runs": 2,
-  "current_streak": 2,
-  "best_streak": 2,
+  "total_runs": 11,
+  "current_streak": 11,
+  "best_streak": 11,
   "achievements": [
     {
       "id": "first_launch",
@@ -16,8 +16,13 @@
       "id": "speed_demon",
       "name": "Speed Demon",
       "earned_at": "2026-03-25T23:07:51.416964+00:00"
+    },
+    {
+      "id": "sharpshooter",
+      "name": "Sharpshooter",
+      "earned_at": "2026-03-25T23:23:52.000888+00:00"
     }
   ],
-  "last_run_at": "2026-03-25T23:20:15.696303+00:00",
+  "last_run_at": "2026-03-25T23:24:23.671854+00:00",
   "last_status": "idle"
 }

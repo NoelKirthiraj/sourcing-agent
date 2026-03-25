@@ -194,14 +194,113 @@
     "mode": "daily"
   },
   {
-    "run_at": "2026-03-25T23:20:15.696303+00:00",
+    "run_at": "2026-03-25T23:10:09.637080+00:00",
     "total_found": 14,
     "new_count": 0,
     "skipped_count": 14,
     "error_count": 0,
     "errors": [],
     "new_tenders": [],
-    "duration_seconds": 7.8,
+    "duration_seconds": 10.6,
+    "mode": "daily"
+  },
+  {
+    "run_at": "2026-03-25T23:11:47.106502+00:00",
+    "total_found": 14,
+    "new_count": 0,
+    "skipped_count": 14,
+    "error_count": 0,
+    "errors": [],
+    "new_tenders": [],
+    "duration_seconds": 6.6,
+    "mode": "daily"
+  },
+  {
+    "run_at": "2026-03-25T23:15:17.808622+00:00",
+    "total_found": 14,
+    "new_count": 0,
+    "skipped_count": 14,
+    "error_count": 0,
+    "errors": [],
+    "new_tenders": [],
+    "duration_seconds": 10.0,
+    "mode": "daily"
+  },
+  {
+    "run_at": "2026-03-25T23:17:10.740154+00:00",
+    "total_found": 14,
+    "new_count": 0,
+    "skipped_count": 14,
+    "error_count": 0,
+    "errors": [],
+    "new_tenders": [],
+    "duration_seconds": 6.7,
+    "mode": "daily"
+  },
+  {
+    "run_at": "2026-03-25T23:20:54.726405+00:00",
+    "total_found": 14,
+    "new_count": 0,
+    "skipped_count": 14,
+    "error_count": 0,
+    "errors": [],
+    "new_tenders": [],
+    "duration_seconds": 6.6,
+    "mode": "daily"
+  },
+  {
+    "run_at": "2026-03-25T23:22:03.952954+00:00",
+    "total_found": 14,
+    "new_count": 0,
+    "skipped_count": 14,
+    "error_count": 0,
+    "errors": [],
+    "new_tenders": [],
+    "duration_seconds": 6.5,
+    "mode": "daily"
+  },
+  {
+    "run_at": "2026-03-25T23:22:45.029061+00:00",
+    "total_found": 14,
+    "new_count": 0,
+    "skipped_count": 14,
+    "error_count": 0,
+    "errors": [],
+    "new_tenders": [],
+    "duration_seconds": 6.5,
+    "mode": "daily"
+  },
+  {
+    "run_at": "2026-03-25T23:23:15.156958+00:00",
+    "total_found": 14,
+    "new_count": 0,
+    "skipped_count": 14,
+    "error_count": 0,
+    "errors": [],
+    "new_tenders": [],
+    "duration_seconds": 6.5,
+    "mode": "daily"
+  },
+  {
+    "run_at": "2026-03-25T23:23:52.000689+00:00",
+    "total_found": 14,
+    "new_count": 0,
+    "skipped_count": 14,
+    "error_count": 0,
+    "errors": [],
+    "new_tenders": [],
+    "duration_seconds": 6.5,
+    "mode": "daily"
+  },
+  {
+    "run_at": "2026-03-25T23:24:23.671854+00:00",
+    "total_found": 14,
+    "new_count": 0,
+    "skipped_count": 14,
+    "error_count": 0,
+    "errors": [],
+    "new_tenders": [],
+    "duration_seconds": 6.4,
     "mode": "daily"
   }
 ]
