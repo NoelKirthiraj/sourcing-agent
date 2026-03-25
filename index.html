@@ -1082,7 +1082,7 @@ function setAvatarState(state) {
   if (!svgEl) return;
   const agent = svgEl.querySelector('.agent-avatar');
   if (!agent) return;
-  agent.className = 'agent-avatar state-' + state;
+  agent.setAttribute('class', 'agent-avatar state-' + state);
 }
 
 function renderHeroInfo() {
