@@ -32,8 +32,8 @@ jobs:
       - name: Seed dashboard data from repo
         run: |
           mkdir -p dashboard-data
-          cp dashboard/data/run_history.json dashboard-data/run_history.json
-          cp dashboard/data/agent_profile.json dashboard-data/agent_profile.json
+          cp data/run_history.json dashboard-data/run_history.json
+          cp data/agent_profile.json dashboard-data/agent_profile.json
 
       - name: Restore state cache
         uses: actions/cache@v4
@@ -69,8 +69,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          cp dashboard-data/run_history.json dashboard/data/run_history.json
-          cp dashboard-data/agent_profile.json dashboard/data/agent_profile.json
-          git add dashboard/data/
+          cp dashboard-data/run_history.json data/run_history.json
+          cp dashboard-data/agent_profile.json data/agent_profile.json
+          git add data/
           git diff --cached --quiet || git commit -m "Update dashboard data [skip ci]"
           git push origin main

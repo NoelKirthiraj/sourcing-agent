@@ -94,7 +94,7 @@ async def run_agent():
 
     summary.duration_seconds = time.monotonic() - start_time
     summary.mode = "weekly" if datetime.now().weekday() == 5 else "daily"
-    dashboard_data.record_run(summary, data_dir=Path("dashboard/data"))
+    dashboard_data.record_run(summary, data_dir=Path("data"))
 
 if __name__ == "__main__":
     asyncio.run(run_agent())
