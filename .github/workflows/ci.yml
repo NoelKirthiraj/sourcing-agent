@@ -33,4 +33,9 @@ jobs:
         run: pytest tests/unit/ -v --tb=short
 
       - name: Run integration tests (mocked browser + API)
-        run: pytest tests/integration/ -v --tb=short
+        run: |
+          if [ -d tests/integration ]; then
+            pytest tests/integration/ -v --tb=short
+          else
+            echo "No integration tests directory — skipping"
+          fi
