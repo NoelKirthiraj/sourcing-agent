@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="refresh" content="300">
-<title>RAD Agent — Mission Control</title>
+<title>RAD Global — Mission Control</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -171,6 +171,8 @@ body::after {
 .status-badge.success .dot { background: var(--green); }
 .status-badge.error { background: var(--red-dim); color: var(--red); }
 .status-badge.error .dot { background: var(--red); }
+.status-badge.idle { background: var(--yellow-dim); color: var(--yellow); }
+.status-badge.idle .dot { background: var(--yellow); }
 
 /* ─── Agent Hero ─── */
 .hero {
@@ -834,7 +836,7 @@ body::after {
   <header class="header">
     <div class="header-left">
       <div>
-        <div class="logo">RAD Agent</div>
+        <div class="logo">RAD Global</div>
         <div class="logo-sub">Mission Control</div>
       </div>
     </div>
@@ -852,7 +854,7 @@ body::after {
       </div>
     </div>
   </header>
-  <div class="trigger-status" id="trigger-status"></div>
+  <div class="trigger-status" id="trigger-status" style="text-align:right"></div>
 
   <!-- Agent Hero -->
   <section class="hero">
@@ -1055,7 +1057,7 @@ function renderStatus() {
   const text = document.getElementById('status-text');
   const status = agentProfile.last_status || 'sleeping';
   badge.className = 'status-badge ' + status;
-  const labels = { sleeping: 'SLEEPING', working: 'ACTIVE', success: 'MISSION COMPLETE', error: 'RED ALERT' };
+  const labels = { sleeping: 'SLEEPING', working: 'ACTIVE', success: 'MISSION COMPLETE', error: 'RED ALERT', idle: 'NO NEW TENDERS' };
   text.textContent = labels[status] || 'SLEEPING';
 }
 
@@ -1070,7 +1072,8 @@ function renderAvatar() {
       const svgEl = wrapper.querySelector('svg');
       if (svgEl) {
         const agent = svgEl.querySelector('.agent-avatar');
-        if (agent) agent.classList.add('state-' + status);
+        const avatarState = status === 'idle' ? 'sleeping' : status;
+        if (agent) agent.classList.add('state-' + avatarState);
       }
     })
     .catch(() => {

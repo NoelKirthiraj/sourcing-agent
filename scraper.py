@@ -63,7 +63,11 @@ class CanadaBuysScraper:
         )
         self._context = await self._browser.new_context(
             user_agent=self._USER_AGENT,
-            extra_http_headers={"Cache-Control": "no-cache", "Pragma": "no-cache"},
+            extra_http_headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
         )
         return self
 
@@ -81,10 +85,15 @@ class CanadaBuysScraper:
         page = await self._context.new_page()
 
         try:
-            # Append cache-buster to defeat CDN caching
-            cache_bust = f"&_cb={int(time.time())}"
+            # First load the base page to establish a session cookie.
+            # Without this, the CDN serves stale cached results.
+            base_url = "https://canadabuys.canada.ca/en/tender-opportunities"
+            await page.goto(base_url, timeout=self.config.timeout_ms, wait_until="domcontentloaded")
+            await page.wait_for_load_state("networkidle", timeout=self.config.timeout_ms)
+
+            # Now load the filtered URL — CDN serves fresh results with the session cookie.
             await page.goto(
-                self.config.search_url + cache_bust,
+                self.config.search_url,
                 timeout=self.config.timeout_ms,
                 wait_until="domcontentloaded",
             )

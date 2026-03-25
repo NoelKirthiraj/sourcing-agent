@@ -157,7 +157,12 @@ def recompute_profile(history: list[dict], existing_profile: dict) -> dict:
     last_run = history[-1] if history else {}
     last_status = "sleeping"
     if last_run:
-        last_status = "error" if last_run.get("error_count", 0) > 0 else "success"
+        if last_run.get("error_count", 0) > 0:
+            last_status = "error"
+        elif last_run.get("new_count", 0) == 0:
+            last_status = "idle"
+        else:
+            last_status = "success"
 
     return {
         "xp": total_processed,

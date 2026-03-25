@@ -17,6 +17,7 @@ def parse_args():
     p.add_argument("--pages", type=int, default=None, help="Max pages to scrape")
     p.add_argument("--no-detail", action="store_true", help="Skip detail pages")
     p.add_argument("--weekly", action="store_true", help="Use weekly filters (Open + Goods + Last 7 days)")
+    p.add_argument("--scrape-only", action="store_true", help="Scrape + record dashboard data, skip CFlow")
     return p.parse_args()
 
 async def main():
@@ -52,6 +53,53 @@ async def main():
             headless=not args.visible,
             search_url=WEEKLY_URL if args.weekly else None,
         )
+        return
+
+    if args.scrape_only:
+        from scraper import CanadaBuysScraper, ScraperConfig, WEEKLY_URL
+        from state import AgentState
+        from notifier import RunSummary
+        import dashboard_data, time
+
+        scraper_config = config.scraper
+        if args.weekly:
+            scraper_config.search_url = WEEKLY_URL
+        mode = "weekly" if args.weekly else "daily"
+        start = time.monotonic()
+        state = AgentState(path=state_path)
+
+        async with CanadaBuysScraper(scraper_config) as scraper:
+            tenders = await scraper.fetch_tender_list()
+            print(f"\nFound {len(tenders)} tender(s) on portal")
+            summary = RunSummary(total_found=len(tenders), mode=mode)
+            for tender in tenders:
+                link = tender.get("inquiry_link", "").strip()
+                if not link:
+                    continue
+                try:
+                    detail = await scraper.fetch_tender_detail(link)
+                    tender.update(detail)
+                except Exception as exc:
+                    summary.error_count += 1
+                    summary.errors.append(f"{link}: {exc}")
+                    continue
+
+                sol_no = tender.get("solicitation_no", "").strip()
+                dedup_key = sol_no or link
+                if state.already_processed(dedup_key):
+                    summary.skipped_count += 1
+                    print(f"  [skip] {sol_no or link[:40]}")
+                    continue
+
+                state.mark_processed(dedup_key, request_id="local", title=tender.get("solicitation_title"))
+                summary.new_count += 1
+                summary.new_tenders.append(tender)
+                print(f"  [new]  [{sol_no}] {tender.get('solicitation_title', '')[:60]}")
+
+        state.save()
+        summary.duration_seconds = time.monotonic() - start
+        dashboard_data.record_run(summary, data_dir=Path("data"))
+        print(f"\nDone. New: {summary.new_count} | Skipped: {summary.skipped_count} | Errors: {summary.error_count}")
         return
 
     import agent

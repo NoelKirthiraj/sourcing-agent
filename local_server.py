@@ -82,7 +82,7 @@ def _run_agent(mode: str):
     _last_result = {"status": "running", "message": f"{mode.title()} run in progress..."}
     log.info("Starting %s agent run...", mode)
 
-    cmd = [sys.executable, "run.py"]
+    cmd = [sys.executable, "run.py", "--scrape-only"]
     if mode == "weekly":
         cmd.append("--weekly")
 
@@ -92,7 +92,7 @@ def _run_agent(mode: str):
             cwd=PROJECT_DIR,
             capture_output=True,
             text=True,
-            timeout=600,
+            timeout=1800,
         )
         if result.returncode == 0:
             _last_result = {"status": "success", "message": f"{mode.title()} run completed"}
@@ -104,7 +104,7 @@ def _run_agent(mode: str):
             }
             log.error("Agent run failed: %s", result.stderr[-200:] if result.stderr else "no output")
     except subprocess.TimeoutExpired:
-        _last_result = {"status": "error", "message": "Run timed out after 10 minutes"}
+        _last_result = {"status": "error", "message": "Run timed out after 30 minutes"}
         log.error("Agent run timed out")
     except Exception as exc:
         _last_result = {"status": "error", "message": str(exc)}

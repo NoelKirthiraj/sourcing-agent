@@ -40,7 +40,6 @@ class Config:
         default_url = (
             "https://canadabuys.canada.ca/en/tender-opportunities"
             "?search_filter=&pub%5B1%5D=1&status%5B87%5D=87"
-            "&category%5B153%5D=153&category%5B154%5D=154&category%5B156%5D=156"
             "&Apply_filters=Apply+filters&record_per_page=50&current_tab=t&words="
         )
         scraper = ScraperConfig(
