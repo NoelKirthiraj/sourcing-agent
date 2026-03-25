@@ -1004,9 +1004,10 @@ let agentProfile = {};
 
 async function loadData() {
   try {
+    const bust = `?_=${Date.now()}`;
     const [histRes, profRes] = await Promise.all([
-      fetch('./data/run_history.json'),
-      fetch('./data/agent_profile.json')
+      fetch('./data/run_history.json' + bust),
+      fetch('./data/agent_profile.json' + bust)
     ]);
     if (histRes.ok) runHistory = await histRes.json();
     if (profRes.ok) agentProfile = await profRes.json();
@@ -1064,21 +1065,24 @@ function renderStatus() {
 function renderAvatar() {
   const wrapper = document.getElementById('avatar-wrapper');
   const status = agentProfile.last_status || 'sleeping';
-  // Load SVG and set state class
   fetch('./agent-avatar.svg')
     .then(r => r.text())
     .then(svg => {
       wrapper.innerHTML = svg;
-      const svgEl = wrapper.querySelector('svg');
-      if (svgEl) {
-        const agent = svgEl.querySelector('.agent-avatar');
-        const avatarState = status === 'idle' ? 'sleeping' : status;
-        if (agent) agent.classList.add('state-' + avatarState);
-      }
+      setAvatarState(status === 'idle' ? 'sleeping' : status);
     })
     .catch(() => {
       wrapper.innerHTML = '<div style="width:220px;height:260px;background:var(--bg-surface);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:4rem;">&#x1F916;</div>';
     });
+}
+
+function setAvatarState(state) {
+  const wrapper = document.getElementById('avatar-wrapper');
+  const svgEl = wrapper.querySelector('svg');
+  if (!svgEl) return;
+  const agent = svgEl.querySelector('.agent-avatar');
+  if (!agent) return;
+  agent.className = 'agent-avatar state-' + state;
 }
 
 function renderHeroInfo() {
@@ -1392,6 +1396,7 @@ async function triggerRun(mode) {
   // Try local server first
   const localOk = await triggerLocal(mode);
   if (localOk) {
+    setAvatarState('working');
     pollLocalStatus(mode);
     setTimeout(() => { btn.disabled = false; }, 5000);
     return;
@@ -1494,11 +1499,12 @@ function pollGitHubActions(mode, token) {
   let dots = 0;
   const startTime = Date.now();
 
-  // Update status badge to working
+  // Update status badge and avatar to working
   const badge = document.getElementById('status-badge');
   const statusText = document.getElementById('status-text');
   badge.className = 'status-badge working';
   statusText.textContent = 'ACTIVE';
+  setAvatarState('working');
 
   const poll = setInterval(async () => {
     dots = (dots + 1) % 4;
@@ -1533,18 +1539,31 @@ function pollGitHubActions(mode, token) {
       } else if (status === 'completed') {
         clearInterval(poll);
         if (conclusion === 'success') {
-          setTriggerStatus(`${label} run completed in ${elapsedStr} — reloading data...`, 'ok');
+          setTriggerStatus(`${label} run completed in ${elapsedStr} — waiting for dashboard to update...`, 'ok');
           badge.className = 'status-badge success';
           statusText.textContent = 'MISSION COMPLETE';
-          // Wait for Vercel to redeploy, then reload data
-          setTimeout(() => { loadData(); }, 10000);
-          setTimeout(() => {
-            setTriggerStatus(`${label} run completed — dashboard updated`, 'ok');
-          }, 12000);
+          setAvatarState('success');
+          // Wait for Vercel to redeploy (~30-45s), then reload data with retries
+          let reloadAttempt = 0;
+          const prevRuns = runHistory.length;
+          const tryReload = async () => {
+            reloadAttempt++;
+            await loadData();
+            if (runHistory.length > prevRuns) {
+              setTriggerStatus(`${label} run completed — dashboard updated`, 'ok');
+            } else if (reloadAttempt < 4) {
+              setTriggerStatus(`Waiting for Vercel to deploy new data... (attempt ${reloadAttempt}/4)`, '');
+              setTimeout(tryReload, 15000);
+            } else {
+              setTriggerStatus(`${label} run completed — refresh the page to see updated data`, 'ok');
+            }
+          };
+          setTimeout(tryReload, 30000);
         } else {
           setTriggerStatus(`${label} run failed: ${conclusion || 'unknown error'}`, 'err');
           badge.className = 'status-badge error';
           statusText.textContent = 'RED ALERT';
+          setAvatarState('error');
         }
         return;
       }
