@@ -5,8 +5,11 @@ import pytest
 from pathlib import Path
 from unittest.mock import AsyncMock
 
-from config import CFlowConfig, ScraperConfig
-from cflow_client import CFlowClient
+import sys
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from cflow_client import CFlowClient, CFlowConfig
+from scraper import ScraperConfig
 from state import AgentState
 
 
