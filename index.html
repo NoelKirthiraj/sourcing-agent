@@ -1398,21 +1398,18 @@ async function triggerRun(mode) {
   statusText.textContent = 'ACTIVE';
   setAvatarState('working');
 
-  // Try local server first
-  const localOk = await triggerLocal(mode);
-  if (localOk) {
-    setAvatarState('working');
-    pollLocalStatus(mode);
-    setTimeout(() => { btn.disabled = false; }, 5000);
-    return;
-  }
-
-  // Fall back to GitHub Actions
+  // Use GitHub Actions if token is set, otherwise try local server
   const token = getToken();
   if (!token) {
+    const localOk = await triggerLocal(mode);
+    if (localOk) {
+      pollLocalStatus(mode);
+      setTimeout(() => { btn.disabled = false; }, 5000);
+      return;
+    }
     btn.disabled = false;
     openSettingsModal();
-    setTriggerStatus('Local server not running. Set GitHub token for remote trigger, or run: python local_server.py', 'err');
+    setTriggerStatus('Set GitHub token to trigger runs, or run: python local_server.py', 'err');
     return;
   }
 
