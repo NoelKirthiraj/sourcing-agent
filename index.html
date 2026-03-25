@@ -1421,7 +1421,8 @@ async function triggerRun(mode) {
     );
 
     if (res.status === 204) {
-      setTriggerStatus(`${mode === 'weekly' ? 'Weekly' : 'Daily'} run triggered via GitHub Actions — results in ~5 min`, 'ok');
+      setTriggerStatus(`${mode === 'weekly' ? 'Weekly' : 'Daily'} run triggered — waiting for agent to start...`, '');
+      pollGitHubActions(mode, token);
     } else if (res.status === 401 || res.status === 403) {
       setTriggerStatus('Token invalid or missing Actions permission', 'err');
     } else {
@@ -1485,6 +1486,76 @@ function setTriggerStatus(msg, type) {
   el.textContent = msg;
   el.className = 'trigger-status' + (type ? ' ' + type : '');
   if (type === 'ok') setTimeout(() => { el.textContent = ''; }, 15000);
+}
+
+function pollGitHubActions(mode, token) {
+  const label = mode.charAt(0).toUpperCase() + mode.slice(1);
+  let phase = 'queued';
+  let dots = 0;
+  const startTime = Date.now();
+
+  // Update status badge to working
+  const badge = document.getElementById('status-badge');
+  const statusText = document.getElementById('status-text');
+  badge.className = 'status-badge working';
+  statusText.textContent = 'ACTIVE';
+
+  const poll = setInterval(async () => {
+    dots = (dots + 1) % 4;
+    const elapsed = Math.round((Date.now() - startTime) / 1000);
+    const elapsedStr = elapsed < 60 ? `${elapsed}s` : `${Math.floor(elapsed/60)}m ${elapsed%60}s`;
+
+    try {
+      const res = await fetch(
+        `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/actions/runs?per_page=1&event=workflow_dispatch`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github+json',
+          },
+          signal: AbortSignal.timeout(5000),
+        }
+      );
+      if (!res.ok) { return; }
+      const data = await res.json();
+      const run = data.workflow_runs?.[0];
+      if (!run) return;
+
+      const status = run.status;
+      const conclusion = run.conclusion;
+
+      if (status === 'queued') {
+        phase = 'queued';
+        setTriggerStatus(`${label} run queued — waiting for runner${'.'.repeat(dots)} (${elapsedStr})`, '');
+      } else if (status === 'in_progress') {
+        phase = 'running';
+        setTriggerStatus(`Agent is working — scraping tenders${'.'.repeat(dots)} (${elapsedStr})`, '');
+      } else if (status === 'completed') {
+        clearInterval(poll);
+        if (conclusion === 'success') {
+          setTriggerStatus(`${label} run completed in ${elapsedStr} — reloading data...`, 'ok');
+          badge.className = 'status-badge success';
+          statusText.textContent = 'MISSION COMPLETE';
+          // Wait for Vercel to redeploy, then reload data
+          setTimeout(() => { loadData(); }, 10000);
+          setTimeout(() => {
+            setTriggerStatus(`${label} run completed — dashboard updated`, 'ok');
+          }, 12000);
+        } else {
+          setTriggerStatus(`${label} run failed: ${conclusion || 'unknown error'}`, 'err');
+          badge.className = 'status-badge error';
+          statusText.textContent = 'RED ALERT';
+        }
+        return;
+      }
+    } catch { /* network error, keep polling */ }
+
+    // Timeout after 10 minutes
+    if (Date.now() - startTime > 600000) {
+      clearInterval(poll);
+      setTriggerStatus(`${label} run is taking too long — check GitHub Actions`, 'err');
+    }
+  }, 5000);
 }
 
 /* ═══════════════════════════════════════════════════════════
