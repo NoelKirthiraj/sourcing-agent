@@ -203,5 +203,30 @@
     "new_tenders": [],
     "duration_seconds": 7.7,
     "mode": "daily"
+  },
+  {
+    "run_at": "2026-03-25T23:54:08.423504+00:00",
+    "total_found": 15,
+    "new_count": 1,
+    "skipped_count": 14,
+    "error_count": 0,
+    "errors": [],
+    "new_tenders": [
+      {
+        "solicitation_no": "RFP-4003-CMHC-SCHL",
+        "solicitation_title": "Ergonomic Assessment Services",
+        "gsin_description": "As a federal employer, Canada Mortgage and Housing Corporation (CMHC) must comply with the requirements and obligations under Part II of the Canada Labour Code (CLC) and applicable regulations. Specifically, Part II of the CLC, section 125 (1)(u) states, \u201cEmployers are required to ensure that the workplace, workspaces and procedures meet prescribed ergonomic standards, and section 125 (1)(t) \u201cEmployers are also required to ensure that machinery, equipment, and tools used by workers in the course of their employment meet prescribed health, safety and ergonomic standards and are safe under all conditions of their intended use.\u201d CMHC\u2019s ergonomic program is an important part of its Hazard Prevention Program to identify and control ergonomic-related hazards in the workplace. It ensures that due diligence is used to reduce risks associated with ergonomic hazards (i.e. repetitive and forceful movements, vibrations, temperature extremes, static and awkward postures) and to protect the health and safety of employees. The ergonomic program covers work activities across our 7 office locations and remote workspaces for remote and hybrid employees (i.e., employees\u2019 primary residence).",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/cb-778-88583519",
+        "closing_date": "2026/04/22",
+        "time_and_zone": "EDT",
+        "notifications": "",
+        "client": "Canada Mortgage and Housing Corporation (CNHC)",
+        "contact_name": "Mike Shellard",
+        "contact_email": "mshellar@cmhc-schl.gc.ca",
+        "contact_phone": ""
+      }
+    ],
+    "duration_seconds": 20.0,
+    "mode": "daily"
   }
 ]
