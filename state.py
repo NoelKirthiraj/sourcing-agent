@@ -14,16 +14,26 @@ class AgentState:
     def __init__(self, path: Path = Path("processed_solicitations.json")):
         self._path = path
         self._data: dict[str, Any] = self._load()
+        self._links_set: set[str] = {
+            v.get("link", "") for v in self._data.values() if v.get("link")
+        }
 
     def already_processed(self, solicitation_no: str) -> bool:
         return solicitation_no in self._data
 
-    def mark_processed(self, solicitation_no: str, *, request_id: str = "", title: str = ""):
+    def already_processed_by_link(self, link: str) -> bool:
+        """Fast check by inquiry_link — used to skip detail page fetch."""
+        return link in self._links_set
+
+    def mark_processed(self, solicitation_no: str, *, request_id: str = "", title: str = "", link: str = ""):
         self._data[solicitation_no] = {
             "cflow_request_id": request_id,
             "title": title,
+            "link": link,
             "processed_at": datetime.now(timezone.utc).isoformat(),
         }
+        if link:
+            self._links_set.add(link)
 
     def save(self):
         self._path.write_text(json.dumps(self._data, indent=2), encoding="utf-8")

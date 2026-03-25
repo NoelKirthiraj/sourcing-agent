@@ -77,7 +77,7 @@ async def run_agent():
             try:
                 request_id = await cflow.create_sourcing_request(tender)
                 log.info("✓ CFlow request created: %s  (%s)", request_id, sol_no)
-                state.mark_processed(dedup_key, request_id=request_id, title=tender.get("solicitation_title"))
+                state.mark_processed(dedup_key, request_id=request_id, title=tender.get("solicitation_title"), link=link)
                 summary.new_count += 1
                 summary.new_tenders.append(tender)
             except Exception as exc:

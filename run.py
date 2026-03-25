@@ -56,6 +56,15 @@ async def main():
                 link = tender.get("inquiry_link", "").strip()
                 if not link:
                     continue
+
+                # Fast dedup: check by link before fetching detail page
+                if state.already_processed_by_link(link):
+                    summary.skipped_count += 1
+                    title = tender.get("solicitation_title", link[:40])
+                    print(f"  [skip] {title[:60]}")
+                    continue
+
+                # New tender — fetch full details
                 try:
                     detail = await scraper.fetch_tender_detail(link)
                     tender.update(detail)
@@ -66,12 +75,14 @@ async def main():
 
                 sol_no = tender.get("solicitation_no", "").strip()
                 dedup_key = sol_no or link
+
+                # Double-check by sol_no (in case link changed but same tender)
                 if state.already_processed(dedup_key):
                     summary.skipped_count += 1
-                    print(f"  [skip] {sol_no or link[:40]}")
+                    print(f"  [skip] {sol_no}")
                     continue
 
-                state.mark_processed(dedup_key, request_id="local", title=tender.get("solicitation_title"))
+                state.mark_processed(dedup_key, request_id="local", title=tender.get("solicitation_title"), link=link)
                 summary.new_count += 1
                 summary.new_tenders.append(tender)
                 print(f"  [new]  [{sol_no}] {tender.get('solicitation_title', '')[:60]}")
