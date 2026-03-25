@@ -104,15 +104,37 @@ This IS the dark mode. If a light mode is ever needed: invert surfaces to white/
 - **Easing:** enter(ease-out) exit(ease-in) move(ease-in-out)
 - **Duration:** micro(50–100ms) short(150–250ms) medium(250–400ms) long(400–700ms)
 - **Key animations:**
-  - Radar sweep — 6s linear infinite rotate on avatar container background
+  - Radar sweep — 6s linear infinite rotate (speeds up to 2s during working state)
   - Scan line — 8s linear infinite translateY across full viewport
   - Pulse — 2s ease-in-out infinite on live status dot
   - XP bar fill — 2s ease-out on load
   - Counter roll-up — 2s cubic-bezier on metric values (triggered by IntersectionObserver)
   - Avatar Zzz — staggered 2s opacity cycle (0.4s offset between each Z)
-  - Working sparks — 0.6–0.8s opacity + translateY cycles
+  - Working sparks — 0.6–0.8s opacity + translateY cycles, 8 particles scattered wide
   - Card hover — 0.2s translateY(-2px) + border-color highlight
   - Metric card top-accent — 2px gradient bar (cyan/green/orange/yellow per card)
+
+### Working State — Enhanced Motion (active during agent runs)
+The working state is the most watched moment. The entire dashboard comes alive:
+
+**Avatar enhancements:**
+- Chest screen shows animated progress bar (fills over estimated 90s)
+- Eyes pulse brightness (opacity 0.7 → 1.0 on 1.5s cycle)
+- 8 spark particles scattered across wider area with varied timing
+- Robot body gently bobs up/down 2px on 3s ease-in-out cycle
+- Typing hands alternate bounce with offset rhythm
+
+**Dashboard-wide effects:**
+- Metric cards show skeleton shimmer animation (diagonal gradient sweep)
+- Radar sweep speeds up from 6s → 2s rotation
+- Status text auto-cycles through stages every ~25s: Launching → Connecting to portal → Scraping tenders → Processing results → Updating dashboard
+- Thin progress bar under header fills over estimated run duration (90s)
+
+**Data transitions (on completion):**
+- Numbers fade out (0.3s) → update → fade in (0.3s) instead of snapping
+- New mission log entry slides in from right with cyan highlight glow (0.5s)
+- Achievement unlock gets 1s golden pulse burst animation
+- Status badge crossfades between states (0.3s)
 
 ## Background Effects
 - **Radial gradient overlays:** Subtle cyan glow at top center, orange glow at bottom-right

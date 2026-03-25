@@ -47,6 +47,21 @@
       .state-working .coffee { display: none; }
       .state-working .hands-typing { display: block; }
       .state-working .hands-raised { display: none; }
+      .state-working .chest-progress { display: block; }
+      .state-working .agent-avatar { animation: robot-bob 3s ease-in-out infinite; }
+      .state-working .eye-working circle:nth-child(odd) { animation: eye-pulse 1.5s ease-in-out infinite; }
+
+      /* Robot bob */
+      @keyframes robot-bob {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-2px); }
+      }
+
+      /* Eye brightness pulse */
+      @keyframes eye-pulse {
+        0%, 100% { opacity: 0.7; }
+        50% { opacity: 1; }
+      }
 
       /* Success state */
       .state-success .antenna-tip { fill: #00FF88; }
@@ -91,11 +106,36 @@
       /* Spark animation */
       @keyframes spark {
         0% { opacity: 1; transform: translateY(0); }
-        100% { opacity: 0; transform: translateY(-15px); }
+        100% { opacity: 0; transform: translateY(-20px); }
+      }
+      @keyframes spark-wide {
+        0% { opacity: 1; transform: translate(0, 0); }
+        100% { opacity: 0; transform: translate(var(--dx, 5px), -18px); }
       }
       .sparks circle { animation: spark 0.7s ease-out infinite; fill: #00D4FF; }
-      .sparks circle:nth-child(2) { animation-delay: 0.2s; animation-duration: 0.6s; }
-      .sparks circle:nth-child(3) { animation-delay: 0.4s; animation-duration: 0.8s; }
+      .sparks circle:nth-child(2) { animation-delay: 0.15s; animation-duration: 0.6s; }
+      .sparks circle:nth-child(3) { animation-delay: 0.3s; animation-duration: 0.8s; }
+      .sparks circle:nth-child(4) { animation-delay: 0.45s; animation-duration: 0.65s; }
+      .sparks circle:nth-child(5) { animation-delay: 0.1s; animation-duration: 0.75s; }
+      .sparks circle:nth-child(6) { animation-delay: 0.5s; animation-duration: 0.55s; }
+      .sparks circle:nth-child(7) { animation-delay: 0.25s; animation-duration: 0.7s; }
+      .sparks circle:nth-child(8) { animation-delay: 0.6s; animation-duration: 0.85s; }
+
+      /* Chest progress bar */
+      @keyframes progress-fill {
+        0% { width: 0; }
+        100% { width: 80; }
+      }
+      .chest-progress { display: none; }
+      .chest-progress rect.progress-track { fill: #0A0E27; }
+      .chest-progress rect.progress-bar {
+        fill: #00D4FF;
+        animation: progress-glow 2s ease-in-out infinite;
+      }
+      @keyframes progress-glow {
+        0%, 100% { opacity: 0.8; }
+        50% { opacity: 1; filter: drop-shadow(0 0 4px #00D4FF); }
+      }
 
       /* Confetti */
       @keyframes confetti-fall {
@@ -115,13 +155,17 @@
       }
       .warning { animation: warning-flash 1s ease-in-out infinite; }
 
-      /* Typing bounce */
-      @keyframes typing {
+      /* Typing bounce — alternating rhythm */
+      @keyframes typing-left {
         0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-3px); }
+        40% { transform: translateY(-4px); }
       }
-      .hands-typing g:nth-child(1) { animation: typing 0.4s ease-in-out infinite; }
-      .hands-typing g:nth-child(2) { animation: typing 0.4s ease-in-out infinite 0.2s; }
+      @keyframes typing-right {
+        0%, 100% { transform: translateY(0); }
+        60% { transform: translateY(-4px); }
+      }
+      .hands-typing g:nth-child(1) { animation: typing-left 0.5s ease-in-out infinite; }
+      .hands-typing g:nth-child(2) { animation: typing-right 0.5s ease-in-out infinite 0.25s; }
 
       /* Default: hide all conditional elements */
       .eye-sleeping, .eye-working, .eye-success, .eye-error,
@@ -216,11 +260,22 @@
       </path>
     </g>
 
-    <!-- Sparks (working) -->
+    <!-- Sparks (working) — 8 particles scattered wide -->
     <g class="sparks">
       <circle cx="100" cy="160" r="3"/>
       <circle cx="175" cy="155" r="2"/>
       <circle cx="140" cy="150" r="2.5"/>
+      <circle cx="65" cy="165" r="2"/>
+      <circle cx="210" cy="158" r="2.5"/>
+      <circle cx="120" cy="145" r="1.5"/>
+      <circle cx="160" cy="148" r="2"/>
+      <circle cx="85" cy="155" r="1.5"/>
+    </g>
+
+    <!-- Chest progress bar (working) -->
+    <g class="chest-progress">
+      <rect class="progress-track" x="100" y="188" width="80" height="6" rx="3"/>
+      <rect class="progress-bar" id="chest-progress-bar" x="100" y="188" width="0" height="6" rx="3"/>
     </g>
 
     <!-- Confetti (success) -->

@@ -674,6 +674,73 @@ body::after {
   font-family: var(--font-body);
 }
 
+/* ─── Working Mode — Dashboard-wide ─── */
+.header-progress {
+  height: 3px;
+  background: var(--bg-surface);
+  border-radius: 2px;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.3s;
+  margin-bottom: -3px;
+}
+.header-progress.active { opacity: 1; }
+.header-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan), var(--green));
+  border-radius: 2px;
+  width: 0%;
+  transition: width 1s linear;
+}
+
+/* Skeleton shimmer for metric cards during working state */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.metric-card.loading .metric-value,
+.metric-card.loading .metric-sub {
+  color: transparent;
+  background: linear-gradient(90deg, var(--bg-surface) 25%, var(--bg-elevated) 50%, var(--bg-surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+/* Radar sweep speed-up during working state */
+.radar-sweep.fast { animation-duration: 2s !important; }
+
+/* Status badge crossfade */
+.status-badge {
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* ─── Data Transitions ─── */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes golden-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 217, 61, 0.6); }
+  50% { box-shadow: 0 0 20px 8px rgba(255, 217, 61, 0.3); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 217, 61, 0); }
+}
+.metric-value.updating {
+  animation: fade-in-up 0.4s ease-out;
+}
+.log-entry.new-entry {
+  animation: slide-in-right 0.5s ease-out;
+  border-left-color: var(--cyan);
+  box-shadow: inset 3px 0 12px -4px var(--cyan-glow);
+}
+.badge-card.just-earned {
+  animation: golden-pulse 1s ease-out;
+}
+
 /* ─── Trigger Buttons ─── */
 .header-actions {
   display: flex;
@@ -855,6 +922,9 @@ body::after {
     </div>
   </header>
   <div class="trigger-status" id="trigger-status" style="text-align:right"></div>
+  <div class="header-progress" id="header-progress">
+    <div class="header-progress-fill" id="header-progress-fill"></div>
+  </div>
 
   <!-- Agent Hero -->
   <section class="hero">
@@ -1397,6 +1467,7 @@ async function triggerRun(mode) {
   badge.className = 'status-badge working';
   statusText.textContent = 'ACTIVE';
   setAvatarState('working');
+  enterWorkingMode();
 
   // Use GitHub Actions if token is set, otherwise try local server
   const token = getToken();
@@ -1532,11 +1603,13 @@ function pollGitHubActions(mode, token) {
         phase = 'queued';
         setTriggerStatus(`${label} run queued — waiting for runner${'.'.repeat(dots)} (${elapsedStr})`, '');
       } else if (status === 'in_progress') {
+        if (phase !== 'running') enterWorkingMode(); // ensure working mode is active
         phase = 'running';
-        setTriggerStatus(`Agent is working — scraping tenders${'.'.repeat(dots)} (${elapsedStr})`, '');
+        // Don't override stage cycling — just update elapsed time in a subtle way
       } else if (status === 'completed') {
         clearInterval(poll);
         if (conclusion === 'success') {
+          exitWorkingMode(true);
           setTriggerStatus(`${label} run completed in ${elapsedStr} — waiting for dashboard to update...`, 'ok');
           badge.className = 'status-badge success';
           statusText.textContent = 'MISSION COMPLETE';
@@ -1546,18 +1619,21 @@ function pollGitHubActions(mode, token) {
           const prevRuns = runHistory.length;
           const tryReload = async () => {
             reloadAttempt++;
-            await loadData();
-            if (runHistory.length > prevRuns) {
-              setTriggerStatus(`${label} run completed — dashboard updated`, 'ok');
-            } else if (reloadAttempt < 4) {
-              setTriggerStatus(`Waiting for Vercel to deploy new data... (attempt ${reloadAttempt}/4)`, '');
-              setTimeout(tryReload, 15000);
-            } else {
-              setTriggerStatus(`${label} run completed — refresh the page to see updated data`, 'ok');
-            }
+            setTriggerStatus(`Updating dashboard... (attempt ${reloadAttempt}/4)`, '');
+            animateDataUpdate(async () => {
+              await loadData();
+              if (runHistory.length > prevRuns) {
+                setTriggerStatus(`${label} run completed — dashboard updated`, 'ok');
+              } else if (reloadAttempt < 4) {
+                setTimeout(tryReload, 12000);
+              } else {
+                setTriggerStatus(`${label} run completed — refresh the page to see updated data`, 'ok');
+              }
+            });
           };
-          setTimeout(tryReload, 30000);
+          setTimeout(tryReload, 25000);
         } else {
+          exitWorkingMode(false);
           setTriggerStatus(`${label} run failed: ${conclusion || 'unknown error'}`, 'err');
           badge.className = 'status-badge error';
           statusText.textContent = 'RED ALERT';
@@ -1596,6 +1672,124 @@ function saveSettings() {
     localStorage.removeItem('gh_pat');
   }
   closeSettingsModal();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   WORKING MODE CONTROLLER
+   ═══════════════════════════════════════════════════════════ */
+const WORK_STAGES = [
+  'Launching agent...',
+  'Connecting to CanadaBuys portal...',
+  'Scraping tender listings...',
+  'Fetching tender details...',
+  'Processing results...',
+  'Updating dashboard...',
+];
+let workingModeActive = false;
+let workStageInterval = null;
+let progressInterval = null;
+
+function enterWorkingMode() {
+  if (workingModeActive) return;
+  workingModeActive = true;
+
+  // Speed up radar sweep
+  const radar = document.querySelector('.radar-sweep');
+  if (radar) radar.classList.add('fast');
+
+  // Show header progress bar
+  const progressBar = document.getElementById('header-progress');
+  const progressFill = document.getElementById('header-progress-fill');
+  progressBar.classList.add('active');
+  progressFill.style.width = '0%';
+  let progressPct = 0;
+  progressInterval = setInterval(() => {
+    progressPct = Math.min(progressPct + 1.1, 95); // never reaches 100 until complete
+    progressFill.style.width = progressPct + '%';
+  }, 1000);
+
+  // Add shimmer to metric cards
+  document.querySelectorAll('.metric-card').forEach(c => c.classList.add('loading'));
+
+  // Cycle status stages
+  let stageIdx = 0;
+  setTriggerStatus(WORK_STAGES[0], '');
+  workStageInterval = setInterval(() => {
+    stageIdx = Math.min(stageIdx + 1, WORK_STAGES.length - 1);
+    setTriggerStatus(WORK_STAGES[stageIdx], '');
+  }, 20000);
+
+  // Animate chest progress bar in SVG
+  updateChestProgress(0);
+  let chestPct = 0;
+  const chestInterval = setInterval(() => {
+    chestPct = Math.min(chestPct + 1.1, 95);
+    updateChestProgress(chestPct);
+    if (!workingModeActive) clearInterval(chestInterval);
+  }, 1000);
+}
+
+function exitWorkingMode(success) {
+  workingModeActive = false;
+
+  // Stop radar speed-up
+  const radar = document.querySelector('.radar-sweep');
+  if (radar) radar.classList.remove('fast');
+
+  // Complete header progress bar
+  const progressBar = document.getElementById('header-progress');
+  const progressFill = document.getElementById('header-progress-fill');
+  progressFill.style.width = '100%';
+  if (progressInterval) clearInterval(progressInterval);
+  setTimeout(() => {
+    progressBar.classList.remove('active');
+    progressFill.style.width = '0%';
+  }, 1000);
+
+  // Remove shimmer
+  document.querySelectorAll('.metric-card').forEach(c => c.classList.remove('loading'));
+
+  // Stop stage cycling
+  if (workStageInterval) clearInterval(workStageInterval);
+
+  // Complete chest progress
+  updateChestProgress(100);
+}
+
+function updateChestProgress(pct) {
+  const bar = document.querySelector('#chest-progress-bar');
+  if (bar) bar.setAttribute('width', (80 * pct / 100).toString());
+}
+
+/* Data transition helpers */
+function animateDataUpdate(callback) {
+  // Fade out metrics
+  const metrics = document.querySelectorAll('.metric-value');
+  metrics.forEach(m => { m.style.opacity = '0'; m.style.transition = 'opacity 0.3s'; });
+
+  setTimeout(() => {
+    callback(); // update data
+    // Fade in with animation class
+    metrics.forEach(m => {
+      m.style.opacity = '1';
+      m.classList.add('updating');
+      setTimeout(() => m.classList.remove('updating'), 500);
+    });
+    // Mark newest log entry
+    const firstLog = document.querySelector('.log-entry');
+    if (firstLog) {
+      firstLog.classList.add('new-entry');
+      setTimeout(() => firstLog.classList.remove('new-entry'), 2000);
+    }
+    // Check for new achievements
+    document.querySelectorAll('.badge-card.earned').forEach(b => {
+      if (!b.dataset.seen) {
+        b.classList.add('just-earned');
+        b.dataset.seen = '1';
+        setTimeout(() => b.classList.remove('just-earned'), 1500);
+      }
+    });
+  }, 350);
 }
 
 /* Boot */
