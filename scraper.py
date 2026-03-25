@@ -7,6 +7,7 @@ key tender listing fields plus selected detail fields.
 
 import logging
 import re
+import time
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urljoin
@@ -60,7 +61,10 @@ class CanadaBuysScraper:
             headless=self.config.headless,
             slow_mo=self.config.slow_mo_ms,
         )
-        self._context = await self._browser.new_context(user_agent=self._USER_AGENT)
+        self._context = await self._browser.new_context(
+            user_agent=self._USER_AGENT,
+            extra_http_headers={"Cache-Control": "no-cache", "Pragma": "no-cache"},
+        )
         return self
 
     async def __aexit__(self, *_):
@@ -77,8 +81,10 @@ class CanadaBuysScraper:
         page = await self._context.new_page()
 
         try:
+            # Append cache-buster to defeat CDN caching
+            cache_bust = f"&_cb={int(time.time())}"
             await page.goto(
-                self.config.search_url,
+                self.config.search_url + cache_bust,
                 timeout=self.config.timeout_ms,
                 wait_until="domcontentloaded",
             )

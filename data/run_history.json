@@ -1,8 +1,8 @@
 [
   {
-    "run_at": "2026-03-25T14:30:15.925569+00:00",
-    "total_found": 2,
-    "new_count": 2,
+    "run_at": "2026-03-25T14:37:54.273975+00:00",
+    "total_found": 3,
+    "new_count": 3,
     "skipped_count": 0,
     "error_count": 0,
     "errors": [],
@@ -10,7 +10,7 @@
       {
         "solicitation_no": "S5842053",
         "solicitation_title": "NPP - S5842053 - THS SA - One (1) 10.1 Communications. Temporary Help",
-        "gsin_description": "Temporary Help Services Requirement. This requirement is for: Department of National Defence (DND). This requirement is open only to those supply arrangement holders under EN578-172870 who qualified under Stream 10 - Communication services categories -10.1 Communications.",
+        "gsin_description": "Temporary Help Services Requirement. Department of National Defence (DND). Stream 10 - Communication services categories - 10.1 Communications.",
         "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/cb-660-62018236",
         "closing_date": "2026/04/10",
         "time_and_zone": "EDT",
@@ -23,7 +23,7 @@
       {
         "solicitation_no": "HRM-2025-0107",
         "solicitation_title": "Alderney Pedway Recapitalization Project - Phase 2 Escalator Replacement",
-        "gsin_description": "ALDERNEY PEDWAY RECAPITALIZATION PROJECT - PHASE 2 ESCALATOR REPLACEMENT 60 ALDERNEY DRIVE, DARTMOUTH NS. For tender documents and up-to-date addenda, refer to the Nova Scotia Procurement Portal.",
+        "gsin_description": "ALDERNEY PEDWAY RECAPITALIZATION PROJECT - PHASE 2 ESCALATOR REPLACEMENT 60 ALDERNEY DRIVE, DARTMOUTH NS.",
         "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/nshrm-2025-0107",
         "closing_date": "2026/04/22",
         "time_and_zone": "EDT",
@@ -32,9 +32,22 @@
         "contact_name": "Jennifer Cox - Portfolio Manager",
         "contact_email": "coxj@halifax.ca",
         "contact_phone": ""
+      },
+      {
+        "solicitation_no": "NHQ-2025-ROOF",
+        "solicitation_title": "NHQ Plaza Roofs Replacement",
+        "gsin_description": "Construction - NHQ Plaza Roofs Replacement.",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/nhq-plaza-roofs",
+        "closing_date": "2026/04/15",
+        "time_and_zone": "EDT",
+        "notifications": "",
+        "client": "Department of Public Works and Government Services",
+        "contact_name": "",
+        "contact_email": "",
+        "contact_phone": ""
       }
     ],
-    "duration_seconds": 11.5,
+    "duration_seconds": 10.2,
     "mode": "daily"
   }
 ]
