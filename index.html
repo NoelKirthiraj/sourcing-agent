@@ -672,6 +672,136 @@ body::after {
   font-family: var(--font-body);
 }
 
+/* ─── Trigger Buttons ─── */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.trigger-btn {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.trigger-btn:hover {
+  background: var(--bg-elevated);
+  border-color: var(--cyan);
+  box-shadow: 0 0 12px var(--cyan-glow);
+}
+.trigger-btn.weekly:hover {
+  border-color: var(--orange);
+  box-shadow: 0 0 12px var(--orange-glow);
+}
+.trigger-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.trigger-btn .btn-icon { margin-right: 4px; }
+.settings-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 1rem;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.settings-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+.trigger-status {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  color: var(--text-muted);
+  padding: 4px 0;
+  min-height: 1.2em;
+}
+.trigger-status.ok { color: var(--green); }
+.trigger-status.err { color: var(--red); }
+
+/* ─── Settings Modal ─── */
+.settings-field {
+  margin-bottom: 16px;
+}
+.settings-field label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.settings-field input {
+  width: 100%;
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.2s;
+}
+.settings-field input:focus { border-color: var(--cyan); }
+.settings-field input::placeholder { color: var(--text-muted); }
+.settings-hint {
+  font-family: var(--font-body);
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+  line-height: 1.4;
+}
+.settings-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+.btn-save {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 8px 20px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--cyan);
+  color: var(--bg-deep);
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn-save:hover { opacity: 0.85; }
+.btn-cancel {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 8px 20px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.btn-cancel:hover { border-color: var(--text-muted); }
+
 /* ═══════════════════════════════════════════════════════════
    RESPONSIVE
    ═══════════════════════════════════════════════════════════ */
@@ -708,11 +838,21 @@ body::after {
         <div class="logo-sub">Mission Control</div>
       </div>
     </div>
-    <div id="status-badge" class="status-badge sleeping">
-      <span class="dot"></span>
-      <span id="status-text">SLEEPING</span>
+    <div class="header-actions">
+      <button class="trigger-btn" onclick="triggerRun('daily')" id="btn-daily">
+        <span class="btn-icon">&#x25B6;</span> Daily Run
+      </button>
+      <button class="trigger-btn weekly" onclick="triggerRun('weekly')" id="btn-weekly">
+        <span class="btn-icon">&#x25B6;</span> Weekly Run
+      </button>
+      <button class="settings-btn" onclick="openSettingsModal()" title="Settings">&#x2699;</button>
+      <div id="status-badge" class="status-badge sleeping">
+        <span class="dot"></span>
+        <span id="status-text">SLEEPING</span>
+      </div>
     </div>
   </header>
+  <div class="trigger-status" id="trigger-status"></div>
 
   <!-- Agent Hero -->
   <section class="hero">
@@ -798,6 +938,31 @@ body::after {
       <div class="achievements-grid" id="achievements-grid"></div>
     </div>
   </section>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settings-modal" onclick="if(event.target===this)closeSettingsModal()">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="section-title"><span class="icon">&#x2699;</span> Settings</div>
+      <button class="modal-close" onclick="closeSettingsModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="settings-field">
+        <label>GitHub Personal Access Token</label>
+        <input type="password" id="gh-token-input" placeholder="ghp_xxxxxxxxxxxx" autocomplete="off">
+        <div class="settings-hint">
+          Required to trigger runs from the dashboard. Create one at
+          GitHub &rarr; Settings &rarr; Developer settings &rarr; Personal access tokens &rarr; Fine-grained tokens.
+          Needs <strong>Actions: Read &amp; Write</strong> permission on this repo. Stored in your browser only.
+        </div>
+      </div>
+      <div class="settings-actions">
+        <button class="btn-cancel" onclick="closeSettingsModal()">Cancel</button>
+        <button class="btn-save" onclick="saveSettings()">Save</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Tenders Modal -->
@@ -1204,6 +1369,86 @@ function escapeHtml(s) {
   const div = document.createElement('div');
   div.textContent = s;
   return div.innerHTML;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TRIGGER RUNS
+   ═══════════════════════════════════════════════════════════ */
+const GH_OWNER = 'NoelKirthiraj';
+const GH_REPO = 'sourcing-agent';
+const GH_WORKFLOW = 'daily_agent.yml';
+
+function getToken() { return localStorage.getItem('gh_pat') || ''; }
+
+async function triggerRun(mode) {
+  const token = getToken();
+  if (!token) {
+    openSettingsModal();
+    setTriggerStatus('Set your GitHub token first', 'err');
+    return;
+  }
+
+  const btn = document.getElementById(mode === 'weekly' ? 'btn-weekly' : 'btn-daily');
+  btn.disabled = true;
+  setTriggerStatus(`Triggering ${mode} run...`, '');
+
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/actions/workflows/${GH_WORKFLOW}/dispatches`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
+        body: JSON.stringify({ ref: 'main', inputs: { mode } }),
+      }
+    );
+
+    if (res.status === 204) {
+      setTriggerStatus(`${mode === 'weekly' ? 'Weekly' : 'Daily'} run triggered — results in ~5 min`, 'ok');
+    } else if (res.status === 401 || res.status === 403) {
+      setTriggerStatus('Token invalid or missing Actions permission', 'err');
+    } else {
+      const body = await res.json().catch(() => ({}));
+      setTriggerStatus(`Failed: ${res.status} ${body.message || ''}`, 'err');
+    }
+  } catch (err) {
+    setTriggerStatus(`Network error: ${err.message}`, 'err');
+  } finally {
+    setTimeout(() => { btn.disabled = false; }, 5000);
+  }
+}
+
+function setTriggerStatus(msg, type) {
+  const el = document.getElementById('trigger-status');
+  el.textContent = msg;
+  el.className = 'trigger-status' + (type ? ' ' + type : '');
+  if (type === 'ok') setTimeout(() => { el.textContent = ''; }, 15000);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SETTINGS MODAL
+   ═══════════════════════════════════════════════════════════ */
+function openSettingsModal() {
+  document.getElementById('gh-token-input').value = getToken();
+  document.getElementById('settings-modal').classList.add('open');
+}
+
+function closeSettingsModal() {
+  document.getElementById('settings-modal').classList.remove('open');
+}
+
+function saveSettings() {
+  const token = document.getElementById('gh-token-input').value.trim();
+  if (token) {
+    localStorage.setItem('gh_pat', token);
+    setTriggerStatus('Token saved', 'ok');
+  } else {
+    localStorage.removeItem('gh_pat');
+  }
+  closeSettingsModal();
 }
 
 /* Boot */

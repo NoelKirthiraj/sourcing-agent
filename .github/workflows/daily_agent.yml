@@ -4,7 +4,16 @@ on:
   schedule:
     # 7 AM ET (12:00 UTC) weekdays
     - cron: '0 12 * * 1-5'
-  workflow_dispatch: # Manual trigger
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Run mode'
+        required: false
+        default: 'daily'
+        type: choice
+        options:
+          - daily
+          - weekly
 
 permissions:
   contents: write
@@ -54,7 +63,13 @@ jobs:
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
-        run: python run.py
+          AGENT_MODE: ${{ github.event.inputs.mode || 'daily' }}
+        run: |
+          if [ "$AGENT_MODE" = "weekly" ]; then
+            python run.py --weekly
+          else
+            python run.py
+          fi
 
       - name: Upload agent log
         if: always()
