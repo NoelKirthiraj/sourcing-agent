@@ -1,1 +1,23 @@
-{}
+{
+  "xp": 0,
+  "level": 1,
+  "level_title": "Rookie",
+  "total_processed": 0,
+  "total_runs": 1,
+  "current_streak": 1,
+  "best_streak": 1,
+  "achievements": [
+    {
+      "id": "first_launch",
+      "name": "First Launch",
+      "earned_at": "2026-03-25T21:51:51.007058+00:00"
+    },
+    {
+      "id": "speed_demon",
+      "name": "Speed Demon",
+      "earned_at": "2026-03-25T21:51:51.007058+00:00"
+    }
+  ],
+  "last_run_at": "2026-03-25T21:51:51.006989+00:00",
+  "last_status": "idle"
+}
