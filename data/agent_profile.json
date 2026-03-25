@@ -3,9 +3,9 @@
   "level": 2,
   "level_title": "Rookie",
   "total_processed": 14,
-  "total_runs": 1,
-  "current_streak": 1,
-  "best_streak": 1,
+  "total_runs": 2,
+  "current_streak": 2,
+  "best_streak": 2,
   "achievements": [
     {
       "id": "first_launch",
@@ -18,6 +18,6 @@
       "earned_at": "2026-03-25T23:07:51.416964+00:00"
     }
   ],
-  "last_run_at": "2026-03-25T23:07:51.416900+00:00",
-  "last_status": "success"
+  "last_run_at": "2026-03-25T23:20:15.696303+00:00",
+  "last_status": "idle"
 }
