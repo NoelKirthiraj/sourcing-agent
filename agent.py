@@ -6,6 +6,7 @@ See agents/orchestrator.md for the state lifecycle invariants.
 import asyncio
 import logging
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -14,6 +15,7 @@ from cflow_client import CFlowClient
 from state import AgentState
 from config import Config
 from notifier import Notifier, RunSummary
+import dashboard_data
 
 logging.basicConfig(
     level=logging.INFO,
@@ -30,6 +32,7 @@ async def run_agent():
     log.info("CanadaBuys → CFlow Agent starting  %s", datetime.now().strftime("%Y-%m-%d %H:%M"))
     log.info("=" * 60)
 
+    start_time = time.monotonic()
     config = Config.load()
 
     # Saturday → weekly filters (Open + Goods + Last 7 days)
@@ -88,6 +91,10 @@ async def run_agent():
              summary.new_count, summary.skipped_count, summary.error_count, summary.total_found)
     log.info("=" * 60)
     await notifier.send(summary)
+
+    summary.duration_seconds = time.monotonic() - start_time
+    summary.mode = "weekly" if datetime.now().weekday() == 5 else "daily"
+    dashboard_data.record_run(summary, data_dir=Path("dashboard/data"))
 
 if __name__ == "__main__":
     asyncio.run(run_agent())

@@ -1,0 +1,76 @@
+name: Daily Sourcing Agent
+
+on:
+  schedule:
+    # 7 AM ET (12:00 UTC) weekdays
+    - cron: '0 12 * * 1-5'
+  workflow_dispatch: # Manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  run-agent:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          playwright install chromium --with-deps
+
+      - name: Seed dashboard data from repo
+        run: |
+          mkdir -p dashboard-data
+          cp dashboard/data/run_history.json dashboard-data/run_history.json
+          cp dashboard/data/agent_profile.json dashboard-data/agent_profile.json
+
+      - name: Restore state cache
+        uses: actions/cache@v4
+        with:
+          path: processed_solicitations.json
+          key: agent-state-${{ github.run_id }}
+          restore-keys: agent-state-
+
+      - name: Run agent
+        env:
+          CFLOW_BASE_URL: ${{ secrets.CFLOW_BASE_URL }}
+          CFLOW_API_KEY: ${{ secrets.CFLOW_API_KEY }}
+          CFLOW_WORKFLOW_NAME: ${{ secrets.CFLOW_WORKFLOW_NAME }}
+          NOTIFY_SLACK_WEBHOOK: ${{ secrets.NOTIFY_SLACK_WEBHOOK }}
+          NOTIFY_EMAIL_TO: ${{ secrets.NOTIFY_EMAIL_TO }}
+          NOTIFY_EMAIL_FROM: ${{ secrets.NOTIFY_EMAIL_FROM }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+        run: python run.py
+
+      - name: Upload agent log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-log-${{ github.run_id }}
+          path: agent.log
+          retention-days: 30
+
+      - name: Push updated dashboard data to main
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          cp dashboard-data/run_history.json dashboard/data/run_history.json
+          cp dashboard-data/agent_profile.json dashboard/data/agent_profile.json
+          git add dashboard/data/
+          git diff --cached --quiet || git commit -m "Update dashboard data [skip ci]"
+          git push origin main

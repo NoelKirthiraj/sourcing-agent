@@ -1,0 +1,242 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 320" width="280" height="320">
+  <defs>
+    <style>
+      /* Antenna */
+      .antenna-base { fill: #4A5280; }
+      .antenna-tip { fill: #00D4FF; }
+      @keyframes antenna-pulse {
+        0%, 100% { opacity: 0.4; r: 6; }
+        50% { opacity: 1; r: 10; }
+      }
+      .antenna-tip { animation: antenna-pulse 2s ease-in-out infinite; }
+
+      /* Body */
+      .body-main { fill: #151B3D; stroke: #4A5280; stroke-width: 2; }
+      .body-screen { fill: #0A0E27; }
+      .body-accent { fill: #1A2248; }
+
+      /* Eyes */
+      .eye { transition: all 0.3s ease; }
+
+      /* Sleeping state */
+      .state-sleeping .antenna-tip { animation: antenna-pulse 4s ease-in-out infinite; opacity: 0.3; }
+      .state-sleeping .body-main { stroke: #4A5280; }
+      .state-sleeping .eye-sleeping { display: block; }
+      .state-sleeping .eye-working,
+      .state-sleeping .eye-success,
+      .state-sleeping .eye-error { display: none; }
+      .state-sleeping .zzz { display: block; }
+      .state-sleeping .sparks { display: none; }
+      .state-sleeping .confetti { display: none; }
+      .state-sleeping .warning { display: none; }
+      .state-sleeping .coffee { display: block; }
+      .state-sleeping .hands-typing { display: none; }
+      .state-sleeping .hands-raised { display: none; }
+
+      /* Working state */
+      .state-working .antenna-tip { animation: antenna-pulse 0.8s ease-in-out infinite; }
+      .state-working .body-main { stroke: #00D4FF; }
+      .state-working .eye-working { display: block; }
+      .state-working .eye-sleeping,
+      .state-working .eye-success,
+      .state-working .eye-error { display: none; }
+      .state-working .zzz { display: none; }
+      .state-working .sparks { display: block; }
+      .state-working .confetti { display: none; }
+      .state-working .warning { display: none; }
+      .state-working .coffee { display: none; }
+      .state-working .hands-typing { display: block; }
+      .state-working .hands-raised { display: none; }
+
+      /* Success state */
+      .state-success .antenna-tip { fill: #00FF88; }
+      .state-success .body-main { stroke: #00FF88; }
+      .state-success .eye-success { display: block; }
+      .state-success .eye-sleeping,
+      .state-success .eye-working,
+      .state-success .eye-error { display: none; }
+      .state-success .zzz { display: none; }
+      .state-success .sparks { display: none; }
+      .state-success .confetti { display: block; }
+      .state-success .warning { display: none; }
+      .state-success .coffee { display: none; }
+      .state-success .hands-typing { display: none; }
+      .state-success .hands-raised { display: block; }
+
+      /* Error state */
+      .state-error .antenna-tip { fill: #FF3B5C; }
+      .state-error .body-main { stroke: #FF3B5C; }
+      .state-error .eye-error { display: block; }
+      .state-error .eye-sleeping,
+      .state-error .eye-working,
+      .state-error .eye-success { display: none; }
+      .state-error .zzz { display: none; }
+      .state-error .sparks { display: none; }
+      .state-error .confetti { display: none; }
+      .state-error .warning { display: block; }
+      .state-error .coffee { display: none; }
+      .state-error .hands-typing { display: none; }
+      .state-error .hands-raised { display: none; }
+
+      /* Zzz animation */
+      @keyframes zzz-float {
+        0% { opacity: 0; transform: translate(0, 0) scale(0.5); }
+        30% { opacity: 1; }
+        100% { opacity: 0; transform: translate(15px, -30px) scale(1.2); }
+      }
+      .zzz text { animation: zzz-float 2s ease-out infinite; fill: #4A5280; font-family: 'Orbitron', sans-serif; font-weight: 700; }
+      .zzz text:nth-child(2) { animation-delay: 0.4s; }
+      .zzz text:nth-child(3) { animation-delay: 0.8s; }
+
+      /* Spark animation */
+      @keyframes spark {
+        0% { opacity: 1; transform: translateY(0); }
+        100% { opacity: 0; transform: translateY(-15px); }
+      }
+      .sparks circle { animation: spark 0.7s ease-out infinite; fill: #00D4FF; }
+      .sparks circle:nth-child(2) { animation-delay: 0.2s; animation-duration: 0.6s; }
+      .sparks circle:nth-child(3) { animation-delay: 0.4s; animation-duration: 0.8s; }
+
+      /* Confetti */
+      @keyframes confetti-fall {
+        0% { opacity: 1; transform: translateY(0) rotate(0deg); }
+        100% { opacity: 0; transform: translateY(30px) rotate(360deg); }
+      }
+      .confetti rect { animation: confetti-fall 1.5s ease-out infinite; }
+      .confetti rect:nth-child(1) { fill: #00FF88; animation-delay: 0s; }
+      .confetti rect:nth-child(2) { fill: #FFD93D; animation-delay: 0.2s; }
+      .confetti rect:nth-child(3) { fill: #00D4FF; animation-delay: 0.4s; }
+      .confetti rect:nth-child(4) { fill: #FF6B35; animation-delay: 0.6s; }
+
+      /* Warning flash */
+      @keyframes warning-flash {
+        0%, 100% { opacity: 0.3; }
+        50% { opacity: 1; }
+      }
+      .warning { animation: warning-flash 1s ease-in-out infinite; }
+
+      /* Typing bounce */
+      @keyframes typing {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-3px); }
+      }
+      .hands-typing g:nth-child(1) { animation: typing 0.4s ease-in-out infinite; }
+      .hands-typing g:nth-child(2) { animation: typing 0.4s ease-in-out infinite 0.2s; }
+
+      /* Default: hide all conditional elements */
+      .eye-sleeping, .eye-working, .eye-success, .eye-error,
+      .zzz, .sparks, .confetti, .warning, .coffee,
+      .hands-typing, .hands-raised { display: none; }
+    </style>
+  </defs>
+
+  <g class="agent-avatar">
+    <!-- Antenna -->
+    <line class="antenna-base" x1="140" y1="60" x2="140" y2="30" stroke="#4A5280" stroke-width="3" stroke-linecap="round"/>
+    <circle class="antenna-tip" cx="140" cy="24" r="6"/>
+
+    <!-- Head -->
+    <rect class="body-main" x="80" y="60" width="120" height="90" rx="16"/>
+    <rect class="body-screen" x="92" y="72" width="96" height="66" rx="8"/>
+
+    <!-- Eyes — Sleeping (—  —) -->
+    <g class="eye-sleeping eye">
+      <line x1="112" y1="105" x2="128" y2="105" stroke="#4A5280" stroke-width="3" stroke-linecap="round"/>
+      <line x1="152" y1="105" x2="168" y2="105" stroke="#4A5280" stroke-width="3" stroke-linecap="round"/>
+    </g>
+
+    <!-- Eyes — Working (glowing circles) -->
+    <g class="eye-working eye">
+      <circle cx="120" cy="105" r="8" fill="#00D4FF" opacity="0.9"/>
+      <circle cx="120" cy="105" r="4" fill="#fff"/>
+      <circle cx="160" cy="105" r="8" fill="#00D4FF" opacity="0.9"/>
+      <circle cx="160" cy="105" r="4" fill="#fff"/>
+    </g>
+
+    <!-- Eyes — Success (^_^) -->
+    <g class="eye-success eye">
+      <path d="M112 108 L120 100 L128 108" fill="none" stroke="#00FF88" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M152 108 L160 100 L168 108" fill="none" stroke="#00FF88" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+
+    <!-- Eyes — Error (O_O) -->
+    <g class="eye-error eye">
+      <circle cx="120" cy="105" r="10" fill="none" stroke="#FF3B5C" stroke-width="2.5"/>
+      <circle cx="120" cy="105" r="4" fill="#FF3B5C"/>
+      <circle cx="160" cy="105" r="10" fill="none" stroke="#FF3B5C" stroke-width="2.5"/>
+      <circle cx="160" cy="105" r="4" fill="#FF3B5C"/>
+    </g>
+
+    <!-- Body -->
+    <rect class="body-main" x="70" y="160" width="140" height="100" rx="12"/>
+    <rect class="body-accent" x="90" y="175" width="100" height="30" rx="6"/>
+    <!-- Chest indicator light -->
+    <circle cx="140" cy="220" r="5" fill="#00D4FF" opacity="0.6"/>
+
+    <!-- Arms — resting (default) -->
+    <rect class="body-accent" x="40" y="170" width="24" height="60" rx="10"/>
+    <rect class="body-accent" x="216" y="170" width="24" height="60" rx="10"/>
+
+    <!-- Hands — Typing -->
+    <g class="hands-typing">
+      <g><rect x="38" y="226" width="28" height="16" rx="8" fill="#1A2248"/></g>
+      <g><rect x="214" y="226" width="28" height="16" rx="8" fill="#1A2248"/></g>
+    </g>
+
+    <!-- Hands — Raised (success) -->
+    <g class="hands-raised">
+      <rect x="36" y="140" width="24" height="60" rx="10" fill="#1A2248" transform="rotate(-20 48 170)"/>
+      <rect x="220" y="140" width="24" height="60" rx="10" fill="#1A2248" transform="rotate(20 232 170)"/>
+    </g>
+
+    <!-- Legs -->
+    <rect class="body-accent" x="95" y="265" width="20" height="35" rx="8"/>
+    <rect class="body-accent" x="165" y="265" width="20" height="35" rx="8"/>
+    <!-- Feet -->
+    <rect class="body-accent" x="85" y="295" width="40" height="12" rx="6"/>
+    <rect class="body-accent" x="155" y="295" width="40" height="12" rx="6"/>
+
+    <!-- Zzz -->
+    <g class="zzz">
+      <text x="200" y="60" font-size="14">Z</text>
+      <text x="215" y="45" font-size="18">Z</text>
+      <text x="225" y="25" font-size="22">Z</text>
+    </g>
+
+    <!-- Coffee (sleeping) -->
+    <g class="coffee">
+      <rect x="218" y="195" width="22" height="26" rx="3" fill="#4A5280"/>
+      <path d="M240 202 Q252 202 252 214 Q252 221 240 221" fill="none" stroke="#4A5280" stroke-width="2"/>
+      <!-- Steam -->
+      <path d="M225 192 Q227 185 225 178" fill="none" stroke="#4A5280" stroke-width="1.5" opacity="0.5">
+        <animate attributeName="opacity" values="0.2;0.6;0.2" dur="2s" repeatCount="indefinite"/>
+      </path>
+      <path d="M233 190 Q235 183 233 176" fill="none" stroke="#4A5280" stroke-width="1.5" opacity="0.5">
+        <animate attributeName="opacity" values="0.2;0.6;0.2" dur="2s" begin="0.3s" repeatCount="indefinite"/>
+      </path>
+    </g>
+
+    <!-- Sparks (working) -->
+    <g class="sparks">
+      <circle cx="100" cy="160" r="3"/>
+      <circle cx="175" cy="155" r="2"/>
+      <circle cx="140" cy="150" r="2.5"/>
+    </g>
+
+    <!-- Confetti (success) -->
+    <g class="confetti">
+      <rect x="90" y="50" width="6" height="6" rx="1"/>
+      <rect x="170" y="45" width="6" height="6" rx="1"/>
+      <rect x="120" y="35" width="6" height="6" rx="1"/>
+      <rect x="155" y="55" width="6" height="6" rx="1"/>
+    </g>
+
+    <!-- Warning triangles (error) -->
+    <g class="warning">
+      <polygon points="70,65 80,50 90,65" fill="#FF3B5C" opacity="0.8"/>
+      <text x="76" y="63" fill="#0A0E27" font-size="10" font-weight="bold">!</text>
+      <polygon points="190,65 200,50 210,65" fill="#FF3B5C" opacity="0.8"/>
+      <text x="196" y="63" fill="#0A0E27" font-size="10" font-weight="bold">!</text>
+    </g>
+  </g>
+</svg>

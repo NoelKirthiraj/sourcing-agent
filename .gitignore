@@ -25,6 +25,9 @@ htmlcov/
 # ~/Library/Caches/ms-playwright/
 # ~/.cache/ms-playwright/
 
+# Dashboard data (local scratch dir used by CI)
+dashboard-data/
+
 # Logs
 agent.log
 *.log

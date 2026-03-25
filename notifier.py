@@ -23,6 +23,8 @@ class RunSummary:
     error_count: int = 0
     new_tenders: list = field(default_factory=list)
     errors: list = field(default_factory=list)
+    duration_seconds: float = 0.0
+    mode: str = "daily"
 
     def __post_init__(self):
         if not self.run_at:
