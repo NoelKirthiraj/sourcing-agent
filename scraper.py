@@ -88,7 +88,9 @@ class CanadaBuysScraper:
             # First load the base page to establish a session cookie.
             # Without this, the CDN serves stale cached results.
             base_url = "https://canadabuys.canada.ca/en/tender-opportunities"
-            await page.goto(base_url, timeout=self.config.timeout_ms, wait_until="domcontentloaded")
+            base_resp = await page.goto(base_url, timeout=self.config.timeout_ms, wait_until="domcontentloaded")
+            if not base_resp or base_resp.status >= 400:
+                log.warning("Base page returned %s — CDN bypass may fail", base_resp.status if base_resp else "no response")
             await page.wait_for_load_state("networkidle", timeout=self.config.timeout_ms)
 
             # Now load the filtered URL — CDN serves fresh results with the session cookie.

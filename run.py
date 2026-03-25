@@ -40,13 +40,18 @@ async def main():
         from notifier import RunSummary
         import dashboard_data, time
 
+        # Separate state file — never poisons the CFlow production dedup state
+        scrape_state_path = Path("processed_dashboard.json")
+        if args.reset_state and scrape_state_path.exists():
+            scrape_state_path.unlink()
+
         scraper_config = ScraperConfig(
             search_url=WEEKLY_URL if args.weekly else ScraperConfig.search_url,
             headless=not args.visible if hasattr(args, 'visible') else True,
         )
         mode = "weekly" if args.weekly else "daily"
         start = time.monotonic()
-        state = AgentState(path=state_path)
+        state = AgentState(path=scrape_state_path)
 
         async with CanadaBuysScraper(scraper_config) as scraper:
             tenders = await scraper.fetch_tender_list()
@@ -73,8 +78,15 @@ async def main():
                     summary.errors.append(f"{link}: {exc}")
                     continue
 
+                # Reject empty detail — detail page failed silently
                 sol_no = tender.get("solicitation_no", "").strip()
-                dedup_key = sol_no or link
+                if not sol_no:
+                    summary.error_count += 1
+                    summary.errors.append(f"{link}: detail extraction returned no solicitation_no")
+                    print(f"  [fail] {link[:60]} — no solicitation_no extracted")
+                    continue
+
+                dedup_key = sol_no
 
                 # Double-check by sol_no (in case link changed but same tender)
                 if state.already_processed(dedup_key):
@@ -82,7 +94,7 @@ async def main():
                     print(f"  [skip] {sol_no}")
                     continue
 
-                state.mark_processed(dedup_key, request_id="local", title=tender.get("solicitation_title"), link=link)
+                state.mark_processed(dedup_key, request_id="dashboard", title=tender.get("solicitation_title"), link=link)
                 summary.new_count += 1
                 summary.new_tenders.append(tender)
                 print(f"  [new]  [{sol_no}] {tender.get('solicitation_title', '')[:60]}")

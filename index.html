@@ -1012,10 +1012,8 @@ async function loadData() {
     if (histRes.ok) runHistory = await histRes.json();
     if (profRes.ok) agentProfile = await profRes.json();
   } catch (e) {
-    console.log('Using sample data — live data not available');
-    useSampleData();
+    console.log('Data fetch failed — using empty state');
   }
-  if (!runHistory.length && !agentProfile.xp) useSampleData();
   render();
 }
 

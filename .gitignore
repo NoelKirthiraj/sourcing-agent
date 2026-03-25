@@ -4,6 +4,7 @@
 # Runtime state — contains processed solicitation numbers
 # Exclude from version control; persisted via GitHub Actions cache
 processed_solicitations.json
+processed_dashboard.json
 
 # Python
 .venv/

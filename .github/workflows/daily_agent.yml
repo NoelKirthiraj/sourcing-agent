@@ -41,9 +41,9 @@ jobs:
       - name: Restore state cache
         uses: actions/cache@v4
         with:
-          path: processed_solicitations.json
-          key: agent-state-v2-${{ github.run_id }}
-          restore-keys: agent-state-v2-
+          path: processed_dashboard.json
+          key: dashboard-state-v1-${{ github.run_id }}
+          restore-keys: dashboard-state-v1-
 
       - name: Run agent
         env:
