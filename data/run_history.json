@@ -1,1 +1,26 @@
-[]
+[
+  {
+    "run_at": "2026-03-25T14:24:06.948149+00:00",
+    "total_found": 2,
+    "new_count": 2,
+    "skipped_count": 0,
+    "error_count": 0,
+    "errors": [],
+    "new_tenders": [
+      {
+        "solicitation_no": "S5842053",
+        "solicitation_title": "NPP - S5842053 - THS SA - Communications Temporary Help",
+        "client": "Department of National Defence (DND)",
+        "closing_date": "2026/04/10"
+      },
+      {
+        "solicitation_no": "HRM-2025-0107",
+        "solicitation_title": "Alderney Pedway Recapitalization - Phase 2 Escalator Replacement",
+        "client": "Halifax Regional Municipality",
+        "closing_date": "2026/04/22"
+      }
+    ],
+    "duration_seconds": 11.5,
+    "mode": "daily"
+  }
+]
