@@ -1393,6 +1393,13 @@ async function triggerRun(mode) {
   btn.disabled = true;
   setTriggerStatus(`Triggering ${mode} run...`, '');
 
+  // Immediately switch avatar and badge to working state
+  const badge = document.getElementById('status-badge');
+  const statusText = document.getElementById('status-text');
+  badge.className = 'status-badge working';
+  statusText.textContent = 'ACTIVE';
+  setAvatarState('working');
+
   // Try local server first
   const localOk = await triggerLocal(mode);
   if (localOk) {
@@ -1499,12 +1506,8 @@ function pollGitHubActions(mode, token) {
   let dots = 0;
   const startTime = Date.now();
 
-  // Update status badge and avatar to working
   const badge = document.getElementById('status-badge');
   const statusText = document.getElementById('status-text');
-  badge.className = 'status-badge working';
-  statusText.textContent = 'ACTIVE';
-  setAvatarState('working');
 
   const poll = setInterval(async () => {
     dots = (dots + 1) % 4;
