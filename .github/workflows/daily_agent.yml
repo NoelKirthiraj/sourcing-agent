@@ -53,22 +53,12 @@ jobs:
 
       - name: Run agent
         env:
-          CFLOW_BASE_URL: ${{ secrets.CFLOW_BASE_URL }}
-          CFLOW_API_KEY: ${{ secrets.CFLOW_API_KEY }}
-          CFLOW_WORKFLOW_NAME: ${{ secrets.CFLOW_WORKFLOW_NAME }}
-          NOTIFY_SLACK_WEBHOOK: ${{ secrets.NOTIFY_SLACK_WEBHOOK }}
-          NOTIFY_EMAIL_TO: ${{ secrets.NOTIFY_EMAIL_TO }}
-          NOTIFY_EMAIL_FROM: ${{ secrets.NOTIFY_EMAIL_FROM }}
-          SMTP_HOST: ${{ secrets.SMTP_HOST }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          SMTP_USER: ${{ secrets.SMTP_USER }}
-          SMTP_PASS: ${{ secrets.SMTP_PASS }}
           AGENT_MODE: ${{ github.event.inputs.mode || 'daily' }}
         run: |
           if [ "$AGENT_MODE" = "weekly" ]; then
-            python run.py --weekly
+            python run.py --scrape-only --weekly
           else
-            python run.py
+            python run.py --scrape-only
           fi
 
       - name: Upload agent log

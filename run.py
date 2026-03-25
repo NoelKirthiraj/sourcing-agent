@@ -23,37 +23,16 @@ def parse_args():
 async def main():
     args = parse_args()
 
+    state_path = Path("processed_solicitations.json")
+
     if args.discover_fields:
         import discover_fields
         await discover_fields.discover_fields()
         return
 
-    from config import Config
-    config = Config.load()
-
-    if args.visible:
-        config.scraper.headless = False
-    if args.weekly:
-        from scraper import WEEKLY_URL
-        config.scraper.search_url = WEEKLY_URL
-    if args.pages:
-        config.scraper.max_pages = args.pages
-
-    state_path = Path("processed_solicitations.json")
     if args.reset_state and state_path.exists():
         state_path.unlink()
         print("State reset — all solicitations will be reprocessed")
-
-    if args.dry_run:
-        import test_run
-        from scraper import WEEKLY_URL
-        await test_run.dry_run(
-            limit=args.limit or 5,
-            fetch_detail=not args.no_detail,
-            headless=not args.visible,
-            search_url=WEEKLY_URL if args.weekly else None,
-        )
-        return
 
     if args.scrape_only:
         from scraper import CanadaBuysScraper, ScraperConfig, WEEKLY_URL
@@ -61,9 +40,10 @@ async def main():
         from notifier import RunSummary
         import dashboard_data, time
 
-        scraper_config = config.scraper
-        if args.weekly:
-            scraper_config.search_url = WEEKLY_URL
+        scraper_config = ScraperConfig(
+            search_url=WEEKLY_URL if args.weekly else ScraperConfig.search_url,
+            headless=not args.visible if hasattr(args, 'visible') else True,
+        )
         mode = "weekly" if args.weekly else "daily"
         start = time.monotonic()
         state = AgentState(path=state_path)
@@ -100,6 +80,28 @@ async def main():
         summary.duration_seconds = time.monotonic() - start
         dashboard_data.record_run(summary, data_dir=Path("data"))
         print(f"\nDone. New: {summary.new_count} | Skipped: {summary.skipped_count} | Errors: {summary.error_count}")
+        return
+
+    from config import Config
+    config = Config.load()
+
+    if args.visible:
+        config.scraper.headless = False
+    if args.weekly:
+        from scraper import WEEKLY_URL
+        config.scraper.search_url = WEEKLY_URL
+    if args.pages:
+        config.scraper.max_pages = args.pages
+
+    if args.dry_run:
+        import test_run
+        from scraper import WEEKLY_URL
+        await test_run.dry_run(
+            limit=args.limit or 5,
+            fetch_detail=not args.no_detail,
+            headless=not args.visible,
+            search_url=WEEKLY_URL if args.weekly else None,
+        )
         return
 
     import agent
