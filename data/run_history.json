@@ -1,6 +1,6 @@
 [
   {
-    "run_at": "2026-03-25T14:37:54.273975+00:00",
+    "run_at": "2026-03-25T14:49:50.864429+00:00",
     "total_found": 3,
     "new_count": 3,
     "skipped_count": 0,
@@ -9,7 +9,7 @@
     "new_tenders": [
       {
         "solicitation_no": "S5842053",
-        "solicitation_title": "NPP - S5842053 - THS SA - One (1) 10.1 Communications. Temporary Help",
+        "solicitation_title": "NPP - S5842053- THS SA - One (1) 10.1 Communications. Temporary Help",
         "gsin_description": "Temporary Help Services Requirement. Department of National Defence (DND). Stream 10 - Communication services categories - 10.1 Communications.",
         "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/cb-660-62018236",
         "closing_date": "2026/04/10",
@@ -34,16 +34,16 @@
         "contact_phone": ""
       },
       {
-        "solicitation_no": "NHQ-2025-ROOF",
+        "solicitation_no": "WS5591661263",
         "solicitation_title": "NHQ Plaza Roofs Replacement",
-        "gsin_description": "Construction - NHQ Plaza Roofs Replacement.",
-        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/nhq-plaza-roofs",
+        "gsin_description": "Public Works and Government Services Canada (PWGSC), commonly known as Public Services and Procurement Canada (PSPC), requires a General Contractor to Provide construction services for the replacement of a roof in Ottawa, Ontario.",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/ws5591661263-doc5614040672",
         "closing_date": "2026/04/15",
         "time_and_zone": "EDT",
         "notifications": "",
-        "client": "Department of Public Works and Government Services",
-        "contact_name": "",
-        "contact_email": "",
+        "client": "Department of Public Works and Government Services (PSPC)",
+        "contact_name": "Larocque, Cody (SPAC/PSPC)",
+        "contact_email": "cody.larocque@tpsgc-pwgsc.gc.ca",
         "contact_phone": ""
       }
     ],

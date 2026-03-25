@@ -10,14 +10,14 @@
     {
       "id": "first_launch",
       "name": "First Launch",
-      "earned_at": "2026-03-25T14:37:54.274165+00:00"
+      "earned_at": "2026-03-25T14:49:50.864661+00:00"
     },
     {
       "id": "speed_demon",
       "name": "Speed Demon",
-      "earned_at": "2026-03-25T14:37:54.274165+00:00"
+      "earned_at": "2026-03-25T14:49:50.864661+00:00"
     }
   ],
-  "last_run_at": "2026-03-25T14:37:54.273975+00:00",
+  "last_run_at": "2026-03-25T14:49:50.864429+00:00",
   "last_status": "success"
 }
