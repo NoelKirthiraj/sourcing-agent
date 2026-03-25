@@ -1377,20 +1377,31 @@ function escapeHtml(s) {
 const GH_OWNER = 'NoelKirthiraj';
 const GH_REPO = 'sourcing-agent';
 const GH_WORKFLOW = 'daily_agent.yml';
+const LOCAL_API = 'http://localhost:8080/api';
 
 function getToken() { return localStorage.getItem('gh_pat') || ''; }
 
 async function triggerRun(mode) {
-  const token = getToken();
-  if (!token) {
-    openSettingsModal();
-    setTriggerStatus('Set your GitHub token first', 'err');
-    return;
-  }
-
   const btn = document.getElementById(mode === 'weekly' ? 'btn-weekly' : 'btn-daily');
   btn.disabled = true;
   setTriggerStatus(`Triggering ${mode} run...`, '');
+
+  // Try local server first
+  const localOk = await triggerLocal(mode);
+  if (localOk) {
+    pollLocalStatus(mode);
+    setTimeout(() => { btn.disabled = false; }, 5000);
+    return;
+  }
+
+  // Fall back to GitHub Actions
+  const token = getToken();
+  if (!token) {
+    btn.disabled = false;
+    openSettingsModal();
+    setTriggerStatus('Local server not running. Set GitHub token for remote trigger, or run: python local_server.py', 'err');
+    return;
+  }
 
   try {
     const res = await fetch(
@@ -1407,7 +1418,7 @@ async function triggerRun(mode) {
     );
 
     if (res.status === 204) {
-      setTriggerStatus(`${mode === 'weekly' ? 'Weekly' : 'Daily'} run triggered — results in ~5 min`, 'ok');
+      setTriggerStatus(`${mode === 'weekly' ? 'Weekly' : 'Daily'} run triggered via GitHub Actions — results in ~5 min`, 'ok');
     } else if (res.status === 401 || res.status === 403) {
       setTriggerStatus('Token invalid or missing Actions permission', 'err');
     } else {
@@ -1419,6 +1430,51 @@ async function triggerRun(mode) {
   } finally {
     setTimeout(() => { btn.disabled = false; }, 5000);
   }
+}
+
+async function triggerLocal(mode) {
+  try {
+    const res = await fetch(`${LOCAL_API}/trigger?mode=${mode}`, { signal: AbortSignal.timeout(2000) });
+    if (res.ok || res.status === 202) {
+      const data = await res.json();
+      setTriggerStatus(data.message || 'Run started locally', 'ok');
+      return true;
+    }
+    if (res.status === 409) {
+      const data = await res.json();
+      setTriggerStatus(data.message || 'Agent already running', 'err');
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+function pollLocalStatus(mode) {
+  let attempts = 0;
+  const maxAttempts = 120; // 10 min max
+  const poll = setInterval(async () => {
+    attempts++;
+    if (attempts > maxAttempts) { clearInterval(poll); return; }
+    try {
+      const res = await fetch(`${LOCAL_API}/status`, { signal: AbortSignal.timeout(2000) });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.status === 'running') {
+        setTriggerStatus(`${mode.charAt(0).toUpperCase() + mode.slice(1)} run in progress...`, '');
+      } else if (data.status === 'success') {
+        setTriggerStatus('Run completed — reloading data...', 'ok');
+        clearInterval(poll);
+        setTimeout(() => { loadData(); }, 2000);
+      } else if (data.status === 'error') {
+        setTriggerStatus(data.message || 'Run failed', 'err');
+        clearInterval(poll);
+      } else {
+        clearInterval(poll);
+      }
+    } catch { /* server went away, stop polling */ clearInterval(poll); }
+  }, 5000);
 }
 
 function setTriggerStatus(msg, type) {
