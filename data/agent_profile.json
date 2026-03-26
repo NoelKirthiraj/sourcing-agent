@@ -1,26 +1,31 @@
 {
-  "xp": 45,
-  "level": 3,
-  "level_title": "Field Agent",
-  "total_processed": 45,
-  "total_runs": 4,
-  "current_streak": 4,
-  "best_streak": 4,
+  "xp": 201,
+  "level": 6,
+  "level_title": "Senior Operative",
+  "total_processed": 201,
+  "total_runs": 5,
+  "current_streak": 5,
+  "best_streak": 5,
   "achievements": [
     {
       "id": "first_launch",
       "name": "First Launch",
-      "earned_at": "2026-03-26T18:22:53.460060+00:00"
+      "earned_at": "2026-03-26T18:30:01.181623+00:00"
+    },
+    {
+      "id": "century",
+      "name": "Century",
+      "earned_at": "2026-03-26T18:30:01.181623+00:00"
     },
     {
       "id": "speed_demon",
       "name": "Speed Demon",
-      "earned_at": "2026-03-26T18:22:53.460060+00:00"
+      "earned_at": "2026-03-26T18:30:01.181623+00:00"
     },
     {
       "id": "night_owl",
       "name": "Night Owl",
-      "earned_at": "2026-03-26T18:22:53.460060+00:00"
+      "earned_at": "2026-03-26T18:30:01.181623+00:00"
     }
   ],
   "last_run_at": "2026-03-26T18:09:02.000000+00:00",

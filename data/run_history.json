@@ -11,6 +11,17 @@
     "mode": "daily"
   },
   {
+    "run_at": "2026-03-26T00:08:42.000000+00:00",
+    "total_found": 170,
+    "new_count": 156,
+    "skipped_count": 14,
+    "error_count": 0,
+    "errors": [],
+    "new_tenders": [],
+    "duration_seconds": 600.0,
+    "mode": "daily"
+  },
+  {
     "run_at": "2026-03-26T01:19:51.000000+00:00",
     "total_found": 192,
     "new_count": 22,
