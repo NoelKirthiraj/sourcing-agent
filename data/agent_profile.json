@@ -1,8 +1,8 @@
 {
-  "xp": 177,
-  "level": 5,
-  "level_title": "Senior Operative",
-  "total_processed": 177,
+  "xp": 45,
+  "level": 3,
+  "level_title": "Field Agent",
+  "total_processed": 45,
   "total_runs": 4,
   "current_streak": 4,
   "best_streak": 4,
@@ -10,29 +10,19 @@
     {
       "id": "first_launch",
       "name": "First Launch",
-      "earned_at": "2026-03-26T18:13:24.651409+00:00"
-    },
-    {
-      "id": "century",
-      "name": "Century",
-      "earned_at": "2026-03-26T18:13:24.651409+00:00"
+      "earned_at": "2026-03-26T18:22:53.460060+00:00"
     },
     {
       "id": "speed_demon",
       "name": "Speed Demon",
-      "earned_at": "2026-03-26T18:13:24.651409+00:00"
-    },
-    {
-      "id": "weekly_warrior",
-      "name": "Weekly Warrior",
-      "earned_at": "2026-03-26T18:13:24.651409+00:00"
+      "earned_at": "2026-03-26T18:22:53.460060+00:00"
     },
     {
       "id": "night_owl",
       "name": "Night Owl",
-      "earned_at": "2026-03-26T18:13:24.651409+00:00"
+      "earned_at": "2026-03-26T18:22:53.460060+00:00"
     }
   ],
-  "last_run_at": "2026-03-26T18:17:58.302070+00:00",
-  "last_status": "idle"
+  "last_run_at": "2026-03-26T18:09:02.000000+00:00",
+  "last_status": "success"
 }
