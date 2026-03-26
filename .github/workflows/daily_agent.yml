@@ -42,8 +42,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: processed_dashboard.json
-          key: dashboard-state-v3-${{ github.run_id }}
-          restore-keys: dashboard-state-v3-
+          key: dashboard-state-v4-${{ github.run_id }}
+          restore-keys: dashboard-state-v4-
 
       - name: Run agent
         env:
