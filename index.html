@@ -2019,6 +2019,7 @@ function pollGitHubActions(mode, token) {
         clearInterval(poll);
         if (conclusion === 'success') {
           exitWorkingMode(true);
+          const totalElapsed = Math.round((Date.now() - startTime) / 1000);
           updateLiveLog('analyzing', `Capture completed in ${elapsedStr} — updating dashboard...`);
           badge.className = 'status-badge success';
           statusText.textContent = 'MISSION COMPLETE';
@@ -2028,11 +2029,20 @@ function pollGitHubActions(mode, token) {
           const prevRuns = runHistory.length;
           const tryReload = async () => {
             reloadAttempt++;
-            updateLiveLog('analyzing', `Loading results... (attempt ${reloadAttempt}/4)`);
+            const totalNow = Math.round((Date.now() - startTime) / 1000);
+            const totalStr = totalNow < 60 ? `${totalNow}s` : `${Math.floor(totalNow/60)}m ${totalNow%60}s`;
+            updateLiveLog('analyzing', `Loading results... (${totalStr})`);
             animateDataUpdate(async () => {
               await loadData();
               if (runHistory.length > prevRuns) {
-                updateLiveLog('success', `${label} run completed — ${runHistory[runHistory.length-1]?.new_count || 0} new tenders captured`);
+                const finalElapsed = Math.round((Date.now() - startTime) / 1000);
+                const finalStr = finalElapsed < 60 ? `${finalElapsed}s` : `${Math.floor(finalElapsed/60)}m ${finalElapsed%60}s`;
+                // Override the backend duration with actual wall-clock time
+                if (runHistory.length > 0) {
+                  runHistory[runHistory.length - 1].duration_seconds = finalElapsed;
+                }
+                updateLiveLog('success', `${label} run completed in ${finalStr} — ${runHistory[runHistory.length-1]?.new_count || 0} new tenders captured`);
+                render(); // re-render with corrected duration
                 setTimeout(() => { removeLiveLogEntry(); }, 3000);
                 celebrate();
               } else if (reloadAttempt < 4) {
