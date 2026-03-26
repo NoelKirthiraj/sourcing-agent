@@ -3,9 +3,9 @@
   "level": 2,
   "level_title": "Rookie",
   "total_processed": 15,
-  "total_runs": 3,
-  "current_streak": 3,
-  "best_streak": 3,
+  "total_runs": 4,
+  "current_streak": 4,
+  "best_streak": 4,
   "achievements": [
     {
       "id": "first_launch",
@@ -16,8 +16,13 @@
       "id": "speed_demon",
       "name": "Speed Demon",
       "earned_at": "2026-03-25T23:35:26.282849+00:00"
+    },
+    {
+      "id": "night_owl",
+      "name": "Night Owl",
+      "earned_at": "2026-03-26T00:08:42.882722+00:00"
     }
   ],
-  "last_run_at": "2026-03-25T23:54:08.423504+00:00",
-  "last_status": "success"
+  "last_run_at": "2026-03-26T00:08:42.882664+00:00",
+  "last_status": "idle"
 }
