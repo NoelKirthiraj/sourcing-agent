@@ -23,14 +23,14 @@ _BASE_SEARCH = "https://canadabuys.canada.ca/en/tender-opportunities?search_filt
 DAILY_URL = (
     _BASE_SEARCH
     + "&pub%5B1%5D=1&status%5B87%5D=87"
-    "&Apply_filters=Apply+filters&record_per_page=50&current_tab=t&words="
+    "&Apply_filters=Apply+filters&record_per_page=200&current_tab=t&words="
 )
 
 # Weekly (Saturdays): Open + Goods + Last 7 days
 WEEKLY_URL = (
     _BASE_SEARCH
     + "&pub%5B2%5D=2&status%5B87%5D=87&category%5B153%5D=153"
-    "&Apply_filters=Apply+filters&record_per_page=50&current_tab=t&words="
+    "&Apply_filters=Apply+filters&record_per_page=200&current_tab=t&words="
 )
 
 
@@ -109,6 +109,7 @@ class CanadaBuysScraper:
             for page_num in range(1, self.config.max_pages + 1):
                 log.info("Scraping page %d...", page_num)
                 tenders = await self._extract_listing(page, seen)
+
                 all_tenders.extend(tenders)
                 log.info(
                     "  Page %d: %d tender(s) — running total: %d",
@@ -125,13 +126,19 @@ class CanadaBuysScraper:
                     log.info("No more pages after page %d.", page_num)
                     break
 
+                # Use click() for pagination — the portal's JS handles page transitions.
+                # goto() with the href URL hits CDN stale pages, but click() works
+                # because it uses the browser's native navigation with session cookies.
                 await next_btn.click()
                 await page.wait_for_load_state("networkidle", timeout=self.config.timeout_ms)
-                await page.wait_for_selector(
-                    "main a[href*='/en/tender-opportunities/tender-notice/'], "
-                    "main a[href*='/en/tender-opportunities/award-notice/']",
-                    timeout=self.config.timeout_ms,
-                )
+                try:
+                    await page.wait_for_selector(
+                        "main a[href*='/en/tender-opportunities/tender-notice/'], "
+                        "main a[href*='/en/tender-opportunities/award-notice/']",
+                        timeout=15000,
+                    )
+                except Exception:
+                    log.warning("  Page %d selector timeout — may be empty or last page", page_num + 1)
         finally:
             await page.close()
 

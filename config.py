@@ -40,7 +40,7 @@ class Config:
         default_url = (
             "https://canadabuys.canada.ca/en/tender-opportunities"
             "?search_filter=&pub%5B1%5D=1&status%5B87%5D=87"
-            "&Apply_filters=Apply+filters&record_per_page=50&current_tab=t&words="
+            "&Apply_filters=Apply+filters&record_per_page=200&current_tab=t&words="
         )
         scraper = ScraperConfig(
             search_url=os.getenv("SCRAPER_URL", default_url),
