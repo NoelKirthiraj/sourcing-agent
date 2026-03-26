@@ -447,6 +447,48 @@ body::after {
   font-size: 0.875rem;
 }
 
+/* Live run entry in mission log */
+.log-entry.live {
+  border-left-color: var(--cyan);
+  background: var(--bg-elevated);
+  position: relative;
+  overflow: hidden;
+}
+.log-entry.live::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--cyan), transparent);
+  animation: live-pulse 2s ease-in-out infinite;
+}
+@keyframes live-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+.log-entry.live.failed {
+  border-left-color: var(--red);
+}
+.log-entry.live.failed::after {
+  background: linear-gradient(90deg, var(--red), transparent);
+  animation: none;
+  opacity: 1;
+}
+.log-status.queued { background: var(--cyan-dim); color: var(--cyan); }
+.log-status.running { background: var(--cyan-dim); color: var(--cyan); }
+.log-status.failed { background: var(--red-dim); color: var(--red); }
+
+.theme-corporate .log-entry.live {
+  background: #F1F5F9;
+  border-left-color: #1E3A5F;
+}
+.theme-corporate .log-entry.live::after {
+  background: linear-gradient(90deg, #1E3A5F, transparent);
+}
+.theme-corporate .log-status.queued { background: rgba(30,58,95,0.1); color: #1E3A5F; }
+.theme-corporate .log-status.running { background: rgba(30,58,95,0.1); color: #1E3A5F; }
+.theme-corporate .log-status.failed { background: rgba(220,38,38,0.1); color: #DC2626; }
+
 /* Achievements */
 .achievements-grid {
   display: grid;
@@ -1803,6 +1845,7 @@ async function triggerRun(mode) {
   badge.className = 'status-badge working';
   statusText.textContent = 'ACTIVE';
   setAvatarState('working');
+  addLiveLogEntry(mode);
   enterWorkingMode();
 
   // Use GitHub Actions if token is set, otherwise try local server
@@ -1949,6 +1992,7 @@ function pollGitHubActions(mode, token) {
           trackedRunId = run.id;
         } else if (phase === 'waiting') {
           setTriggerStatus(`${label} run queued — waiting for GitHub to start${'.'.repeat(dots)} (${elapsedStr})`, '');
+          updateLiveLog('queued', 'Waiting for GitHub to start...');
           return;
         }
       }
@@ -1960,13 +2004,16 @@ function pollGitHubActions(mode, token) {
       if (status === 'queued') {
         phase = 'queued';
         setTriggerStatus(`${label} run queued — waiting for runner${'.'.repeat(dots)} (${elapsedStr})`, '');
+        updateLiveLog('queued', 'Waiting for runner...');
       } else if (status === 'in_progress') {
         if (phase !== 'running') enterWorkingMode();
         phase = 'running';
+        updateLiveLog('running', WORK_STAGES[Math.min(Math.floor(elapsed / 20), WORK_STAGES.length - 1)]);
       } else if (status === 'completed') {
         clearInterval(poll);
         if (conclusion === 'success') {
           exitWorkingMode(true);
+          updateLiveLog('success', `${label} run completed in ${elapsedStr}`);
           setTriggerStatus(`${label} run completed in ${elapsedStr} — waiting for dashboard to update...`, 'ok');
           badge.className = 'status-badge success';
           statusText.textContent = 'MISSION COMPLETE';
@@ -1981,6 +2028,7 @@ function pollGitHubActions(mode, token) {
               await loadData();
               if (runHistory.length > prevRuns) {
                 setTriggerStatus(`${label} run completed — dashboard updated`, 'ok');
+                removeLiveLogEntry();
                 celebrate();
               } else if (reloadAttempt < 4) {
                 setTimeout(tryReload, 12000);
@@ -1993,6 +2041,7 @@ function pollGitHubActions(mode, token) {
         } else {
           exitWorkingMode(false);
           setTriggerStatus(`${label} run failed: ${conclusion || 'unknown error'}`, 'err');
+          updateLiveLog('failed', `Run failed: ${conclusion || 'unknown error'}`);
           badge.className = 'status-badge error';
           statusText.textContent = 'RED ALERT';
           setAvatarState('error');
@@ -2005,6 +2054,7 @@ function pollGitHubActions(mode, token) {
     if (Date.now() - startTime > 600000) {
       clearInterval(poll);
       setTriggerStatus(`${label} run is taking too long — check GitHub Actions`, 'err');
+      updateLiveLog('failed', 'Run timed out — check GitHub Actions');
     }
   }, 5000);
 }
@@ -2046,6 +2096,80 @@ const WORK_STAGES = [
 let workingModeActive = false;
 let workStageInterval = null;
 let progressInterval = null;
+
+let liveLogStartTime = null;
+let liveLogTimerInterval = null;
+
+function addLiveLogEntry(mode) {
+  const container = document.getElementById('mission-log');
+  if (!container) return;
+
+  // Remove empty state message if present
+  const empty = container.querySelector('.log-empty');
+  if (empty) empty.remove();
+
+  // Remove any existing live entry
+  const existing = container.querySelector('.log-entry.live');
+  if (existing) existing.remove();
+
+  liveLogStartTime = Date.now();
+  const now = new Date();
+  const timeStr = now.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }) + ' ' +
+    now.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+  const entry = document.createElement('div');
+  entry.className = 'log-entry live';
+  entry.id = 'live-log-entry';
+  entry.innerHTML = `
+    <div class="log-header">
+      <span class="log-time">${timeStr}</span>
+      <span class="log-status queued" id="live-log-status">QUEUED</span>
+    </div>
+    <div class="log-stats">
+      <span id="live-log-message">Waiting for runner...</span>
+      <span id="live-log-elapsed">0s</span>
+    </div>`;
+
+  container.insertBefore(entry, container.firstChild);
+
+  // Update elapsed timer
+  if (liveLogTimerInterval) clearInterval(liveLogTimerInterval);
+  liveLogTimerInterval = setInterval(() => {
+    const el = document.getElementById('live-log-elapsed');
+    if (!el) { clearInterval(liveLogTimerInterval); return; }
+    const sec = Math.round((Date.now() - liveLogStartTime) / 1000);
+    el.textContent = sec < 60 ? `${sec}s` : `${Math.floor(sec/60)}m ${sec%60}s`;
+  }, 1000);
+}
+
+function updateLiveLog(status, message) {
+  const statusEl = document.getElementById('live-log-status');
+  const msgEl = document.getElementById('live-log-message');
+  const entry = document.getElementById('live-log-entry');
+  if (!statusEl || !msgEl) return;
+
+  if (status === 'running') {
+    statusEl.textContent = 'RUNNING';
+    statusEl.className = 'log-status running';
+  } else if (status === 'success') {
+    statusEl.textContent = 'COMPLETE';
+    statusEl.className = 'log-status success';
+    if (entry) { entry.classList.remove('live'); entry.classList.add('new-entry'); }
+    if (liveLogTimerInterval) clearInterval(liveLogTimerInterval);
+  } else if (status === 'failed') {
+    statusEl.textContent = 'FAILED';
+    statusEl.className = 'log-status failed';
+    if (entry) { entry.classList.add('failed'); }
+    if (liveLogTimerInterval) clearInterval(liveLogTimerInterval);
+  }
+  msgEl.textContent = message;
+}
+
+function removeLiveLogEntry() {
+  const entry = document.getElementById('live-log-entry');
+  if (entry) entry.remove();
+  if (liveLogTimerInterval) clearInterval(liveLogTimerInterval);
+}
 
 function enterWorkingMode() {
   if (workingModeActive) return;
