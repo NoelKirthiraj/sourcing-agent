@@ -1871,5 +1871,43 @@
     ],
     "duration_seconds": 785.6,
     "mode": "weekly"
+  },
+  {
+    "run_at": "2026-03-26T18:09:02.101283+00:00",
+    "total_found": 20,
+    "new_count": 2,
+    "skipped_count": 18,
+    "error_count": 0,
+    "errors": [],
+    "new_tenders": [
+      {
+        "solicitation_no": "WS5545158385",
+        "solicitation_title": "21501-265126 RFSO Kosher meals",
+        "gsin_description": "Public Works and Government Services Canada (PWGSC), on behalf of Correctional Services Canada, has a requirement for a Regional Individual Standing Offers (RISO) for the supply and delivery of Kosher Meals on an as and when requested basis to various geographically zone based locations in Alberta, Saskatchewan and Manitoba. Notice to suppliers: This solicitation of offers is subject to the Policy on Reciprocal Procurement. This means that only Canadian Suppliers, as defined in the Annex Solicitation of Offers Definitions, are eligible for this solicitation of offers. Offers submitted by Suppliers of a Non-Trading Partner will be rejected.",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/ws5545158385-doc5607983606",
+        "closing_date": "2026/04/14",
+        "time_and_zone": "EDT",
+        "notifications": "2026/03/26",
+        "client": "Department of Public Works and Government Services (PSPC)",
+        "contact_name": "Van Hereweghe, Amy (SPAC/PSPC) (elle-la / she-her)",
+        "contact_email": "amy.vanhereweghe@tpsgc-pwgsc.gc.ca",
+        "contact_phone": ""
+      },
+      {
+        "solicitation_no": "WS5603832559",
+        "solicitation_title": "W0113-26CS14 Vehicle Maintenance and Repairs \u2013 MSVS MILCOTS",
+        "gsin_description": "AMENDMENT TO CLOSING TIME: Please disregard the Ariba Discovery posting response deadline closing time and CanadaBuys posting closing time. All required supporting documentation and bid submission must be submitted by 2026-04-21 at 14:00 EDT. All bids submitted after 14:00 EDT will result in the bid being declared non-responsive. Canada is seeking offers from Offerors to provide maintenance and repairs of Medium Support Vehicle System (MSVS) Militarized Commercial off the Shelf (MILCOTs). The requirement is \u201cas and when required\u201d for the provision of all labour, parts, and equipment necessary for the diagnostic, repair, and refurbishment services of the MSVS MILCOT \u2013 Navistar Internationals 7400 (SFA 6x6) and/or International WorkStar from 2009 to Department of National Defence (DND), Canadian Forces Base (CFB) Borden, Technical Services. The requirement includes two (2) streams (Stream 1 All Suppliers and Stream 2 Procurement Strategy for Indigenous Business). Streams will be evaluated separately, with the lowest priced offer for each stream issued a Standing Offer.",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/ws5603832559-doc5618335578",
+        "closing_date": "2026/04/21",
+        "time_and_zone": "EDT",
+        "notifications": "",
+        "client": "Department of Public Works and Government Services (PSPC)",
+        "contact_name": "Scott, Jason (SPAC/PSPC)",
+        "contact_email": "jason.scott@tpsgc-pwgsc.gc.ca",
+        "contact_phone": ""
+      }
+    ],
+    "duration_seconds": 19.3,
+    "mode": "daily"
   }
 ]
