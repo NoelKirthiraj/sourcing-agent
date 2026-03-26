@@ -1298,7 +1298,7 @@ body.theme-corporate {
       </div>
     </div>
   </header>
-  <div class="trigger-status" id="trigger-status" style="text-align:right"></div>
+  <div class="trigger-status" id="trigger-status" style="text-align:right;display:none"></div>
   <div class="header-progress" id="header-progress">
     <div class="header-progress-fill" id="header-progress-fill"></div>
   </div>
@@ -2156,11 +2156,15 @@ function updateLiveLog(status, message) {
     statusEl.className = 'log-status success';
     if (entry) { entry.classList.remove('live'); entry.classList.add('new-entry'); }
     if (liveLogTimerInterval) clearInterval(liveLogTimerInterval);
+    const elapsedEl = document.getElementById('live-log-elapsed');
+    if (elapsedEl) elapsedEl.remove();
   } else if (status === 'failed') {
     statusEl.textContent = 'FAILED';
     statusEl.className = 'log-status failed';
     if (entry) { entry.classList.add('failed'); }
     if (liveLogTimerInterval) clearInterval(liveLogTimerInterval);
+    const elapsedEl = document.getElementById('live-log-elapsed');
+    if (elapsedEl) elapsedEl.remove();
   }
   msgEl.textContent = message;
 }
