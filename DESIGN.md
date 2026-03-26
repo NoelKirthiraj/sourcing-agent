@@ -141,6 +141,40 @@ The working state is the most watched moment. The entire dashboard comes alive:
 - **Grid overlay:** 60px × 60px lines at 2% cyan opacity — mission control aesthetic
 - **Scan line:** Full-width 4px horizontal bar, 8% cyan opacity, sweeps vertically
 
+## Corporate Theme (alternate skin)
+Toggle: 🎮 Fun | 🏢 Corporate — stored in localStorage, adds `.theme-corporate` to `<body>`
+
+### Corporate Color
+| Token | Hex | Usage |
+|-------|-----|-------|
+| `--bg-deep` | `#FFFFFF` | Page background |
+| `--bg-base` | `#FFFFFF` | Primary background |
+| `--bg-surface` | `#F8F9FA` | Table rows, subtle sections |
+| `--bg-card` | `#FFFFFF` | Cards with 1px `#E2E8F0` border |
+| `--bg-elevated` | `#F1F5F9` | Hover states |
+| `--cyan` | `#1E3A5F` | Primary accent (navy) |
+| `--green` | `#16A34A` | Success |
+| `--orange` | `#D97706` | Warning |
+| `--red` | `#DC2626` | Error |
+| `--yellow` | `#D97706` | Same as warning in corporate |
+| `--text-primary` | `#1A202C` | Main text |
+| `--text-secondary` | `#64748B` | Secondary text |
+| `--text-muted` | `#94A3B8` | Tertiary text |
+| `--border` | `#E2E8F0` | All borders, solid |
+
+### Corporate Typography
+- **Headers:** Source Sans 3 (600-700) — no uppercase, no letter-spacing
+- **Body:** Source Sans 3 (400)
+- **Data:** IBM Plex Mono — tabular numbers
+
+### Corporate Layout Changes
+- Avatar, XP bar, achievements: hidden (`display: none`)
+- Compact status bar replaces avatar hero section
+- Mission log rendered as data table with columns
+- No background effects (radar, scan line, grid overlay)
+- No confetti, no victory bounce, no working animations
+- Status updates as plain text
+
 ## Decisions Log
 | Date | Decision | Rationale |
 |------|----------|-----------|
