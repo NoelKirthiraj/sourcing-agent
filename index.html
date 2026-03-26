@@ -476,7 +476,12 @@ body::after {
 }
 .log-status.queued { background: var(--cyan-dim); color: var(--cyan); }
 .log-status.running { background: var(--cyan-dim); color: var(--cyan); }
+.log-status.analyzing { background: var(--yellow-dim); color: var(--yellow); }
 .log-status.failed { background: var(--red-dim); color: var(--red); }
+
+.log-entry.live.analyzing::after {
+  background: linear-gradient(90deg, var(--yellow), transparent);
+}
 
 .theme-corporate .log-entry.live {
   background: #F1F5F9;
@@ -487,6 +492,7 @@ body::after {
 }
 .theme-corporate .log-status.queued { background: rgba(30,58,95,0.1); color: #1E3A5F; }
 .theme-corporate .log-status.running { background: rgba(30,58,95,0.1); color: #1E3A5F; }
+.theme-corporate .log-status.analyzing { background: rgba(217,119,6,0.1); color: #D97706; }
 .theme-corporate .log-status.failed { background: rgba(220,38,38,0.1); color: #DC2626; }
 
 /* Achievements */
@@ -2013,8 +2019,7 @@ function pollGitHubActions(mode, token) {
         clearInterval(poll);
         if (conclusion === 'success') {
           exitWorkingMode(true);
-          updateLiveLog('success', `${label} run completed in ${elapsedStr}`);
-          setTriggerStatus(`${label} run completed in ${elapsedStr} — waiting for dashboard to update...`, 'ok');
+          updateLiveLog('analyzing', `Capture completed in ${elapsedStr} — updating dashboard...`);
           badge.className = 'status-badge success';
           statusText.textContent = 'MISSION COMPLETE';
           setAvatarState('success');
@@ -2023,17 +2028,17 @@ function pollGitHubActions(mode, token) {
           const prevRuns = runHistory.length;
           const tryReload = async () => {
             reloadAttempt++;
-            setTriggerStatus(`Updating dashboard... (attempt ${reloadAttempt}/4)`, '');
+            updateLiveLog('analyzing', `Loading results... (attempt ${reloadAttempt}/4)`);
             animateDataUpdate(async () => {
               await loadData();
               if (runHistory.length > prevRuns) {
-                setTriggerStatus(`${label} run completed — dashboard updated`, 'ok');
-                removeLiveLogEntry();
+                updateLiveLog('success', `${label} run completed — ${runHistory[runHistory.length-1]?.new_count || 0} new tenders captured`);
+                setTimeout(() => { removeLiveLogEntry(); }, 3000);
                 celebrate();
               } else if (reloadAttempt < 4) {
                 setTimeout(tryReload, 12000);
               } else {
-                setTriggerStatus(`${label} run completed — refresh the page to see updated data`, 'ok');
+                updateLiveLog('success', `${label} run completed — refresh to see data`);
               }
             });
           };
@@ -2151,10 +2156,17 @@ function updateLiveLog(status, message) {
   if (status === 'running') {
     statusEl.textContent = 'RUNNING';
     statusEl.className = 'log-status running';
+  } else if (status === 'analyzing') {
+    statusEl.textContent = 'ANALYZING';
+    statusEl.className = 'log-status analyzing';
+    if (entry) { entry.classList.add('analyzing'); }
+    if (liveLogTimerInterval) clearInterval(liveLogTimerInterval);
+    const elapsedEl = document.getElementById('live-log-elapsed');
+    if (elapsedEl) elapsedEl.remove();
   } else if (status === 'success') {
     statusEl.textContent = 'COMPLETE';
     statusEl.className = 'log-status success';
-    if (entry) { entry.classList.remove('live'); entry.classList.add('new-entry'); }
+    if (entry) { entry.classList.remove('live', 'analyzing'); entry.classList.add('new-entry'); }
     if (liveLogTimerInterval) clearInterval(liveLogTimerInterval);
     const elapsedEl = document.getElementById('live-log-elapsed');
     if (elapsedEl) elapsedEl.remove();
