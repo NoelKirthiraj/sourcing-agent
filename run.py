@@ -38,7 +38,7 @@ async def main():
         from scraper import CanadaBuysScraper, ScraperConfig, WEEKLY_URL
         from state import AgentState
         from notifier import RunSummary
-        import dashboard_data, time
+        import dashboard_data, time, os
 
         # Separate state file — never poisons the CFlow production dedup state
         scrape_state_path = Path("processed_dashboard.json")
@@ -100,7 +100,12 @@ async def main():
                 print(f"  [new]  [{sol_no}] {tender.get('solicitation_title', '')[:60]}")
 
         state.save()
-        summary.duration_seconds = time.monotonic() - start
+        # Use workflow start time if available (includes setup overhead), else scrape-only time
+        workflow_start = os.environ.get("WORKFLOW_START")
+        if workflow_start:
+            summary.duration_seconds = time.time() - float(workflow_start)
+        else:
+            summary.duration_seconds = time.monotonic() - start
         dashboard_data.record_run(summary, data_dir=Path("data"))
         print(f"\nDone. New: {summary.new_count} | Skipped: {summary.skipped_count} | Errors: {summary.error_count}")
         return
