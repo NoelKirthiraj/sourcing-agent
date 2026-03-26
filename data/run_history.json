@@ -502,5 +502,16 @@
     ],
     "duration_seconds": 19.3,
     "mode": "daily"
+  },
+  {
+    "run_at": "2026-03-26T18:17:58.302070+00:00",
+    "total_found": 20,
+    "new_count": 0,
+    "skipped_count": 20,
+    "error_count": 0,
+    "errors": [],
+    "new_tenders": [],
+    "duration_seconds": 12.5,
+    "mode": "daily"
   }
 ]
