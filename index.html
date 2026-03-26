@@ -715,6 +715,80 @@ body::after {
   transition: background 0.3s ease, color 0.3s ease;
 }
 
+/* ─── Celebration ─── */
+.confetti-container {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  overflow: hidden;
+}
+@keyframes confetti-drop {
+  0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+}
+.confetti-piece {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  animation: confetti-drop linear forwards;
+}
+@keyframes victory-bounce {
+  0%, 100% { transform: translateY(0); }
+  25% { transform: translateY(-12px) rotate(-3deg); }
+  50% { transform: translateY(-6px); }
+  75% { transform: translateY(-12px) rotate(3deg); }
+}
+.avatar-container.celebrating {
+  animation: victory-bounce 0.6s ease-in-out 3;
+}
+@keyframes stamp-in {
+  0% { transform: scale(3) rotate(-10deg); opacity: 0; }
+  60% { transform: scale(0.9) rotate(2deg); opacity: 1; }
+  80% { transform: scale(1.05) rotate(-1deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+.mission-stamp {
+  display: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--green);
+  border: 3px solid var(--green);
+  padding: 6px 16px;
+  border-radius: var(--radius-sm);
+  background: rgba(0, 255, 136, 0.1);
+  box-shadow: 0 0 20px var(--green-glow);
+  z-index: 5;
+  white-space: nowrap;
+}
+.mission-stamp.show {
+  display: block;
+  animation: stamp-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@keyframes metric-wave {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.metric-card.wave { animation: metric-wave 0.4s ease-in-out; }
+
+/* ─── Sleep Transition ─── */
+.sleep-message {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  text-align: right;
+  min-height: 1.2em;
+  transition: opacity 0.5s;
+}
+
 /* ─── Data Transitions ─── */
 @keyframes fade-in-up {
   from { opacity: 0; transform: translateY(8px); }
@@ -932,6 +1006,7 @@ body::after {
       <div class="avatar-container">
         <div class="radar-sweep"></div>
         <div id="avatar-wrapper"></div>
+        <div class="mission-stamp" id="mission-stamp">Mission Complete</div>
       </div>
     </div>
     <div class="hero-info">
@@ -1546,9 +1621,15 @@ function pollLocalStatus(mode) {
       if (data.status === 'running') {
         setTriggerStatus(`${mode.charAt(0).toUpperCase() + mode.slice(1)} run in progress...`, '');
       } else if (data.status === 'success') {
+        exitWorkingMode(true);
         setTriggerStatus('Run completed — reloading data...', 'ok');
         clearInterval(poll);
-        setTimeout(() => { loadData(); }, 2000);
+        setTimeout(() => {
+          animateDataUpdate(async () => {
+            await loadData();
+            celebrate();
+          });
+        }, 2000);
       } else if (data.status === 'error') {
         setTriggerStatus(data.message || 'Run failed', 'err');
         clearInterval(poll);
@@ -1624,6 +1705,7 @@ function pollGitHubActions(mode, token) {
               await loadData();
               if (runHistory.length > prevRuns) {
                 setTriggerStatus(`${label} run completed — dashboard updated`, 'ok');
+                celebrate();
               } else if (reloadAttempt < 4) {
                 setTimeout(tryReload, 12000);
               } else {
@@ -1790,6 +1872,83 @@ function animateDataUpdate(callback) {
       }
     });
   }, 350);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CELEBRATION + SLEEP TRANSITION
+   ═══════════════════════════════════════════════════════════ */
+const SLEEP_QUIPS = [
+  "Agent signing off... time for a coffee break.",
+  "Mission logged. Entering standby mode.",
+  "All tenders accounted for. Nap time.",
+  "Powering down... wake me when there's tenders.",
+  "Good work, agent. Rest mode activated.",
+  "Filing mission report... zzz...",
+  "Radar sweep complete. Going dark.",
+  "Agent clocking out. Don't forget to tip your scraper.",
+];
+
+function celebrate() {
+  // Confetti explosion
+  const container = document.createElement('div');
+  container.className = 'confetti-container';
+  document.body.appendChild(container);
+  const colors = ['#00FF88', '#FFD93D', '#00D4FF', '#FF6B35', '#FF3B5C'];
+  for (let i = 0; i < 40; i++) {
+    const piece = document.createElement('div');
+    piece.className = 'confetti-piece';
+    piece.style.left = (Math.random() * 100) + '%';
+    piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+    piece.style.animationDuration = (1.5 + Math.random() * 2) + 's';
+    piece.style.animationDelay = (Math.random() * 0.5) + 's';
+    piece.style.width = (6 + Math.random() * 6) + 'px';
+    piece.style.height = (6 + Math.random() * 6) + 'px';
+    container.appendChild(piece);
+  }
+  setTimeout(() => container.remove(), 4000);
+
+  // Victory bounce on avatar
+  const avatarContainer = document.querySelector('.avatar-container');
+  if (avatarContainer) {
+    avatarContainer.classList.add('celebrating');
+    setTimeout(() => avatarContainer.classList.remove('celebrating'), 2000);
+  }
+
+  // Mission Complete stamp
+  const stamp = document.getElementById('mission-stamp');
+  if (stamp) {
+    stamp.classList.add('show');
+    setTimeout(() => stamp.classList.remove('show'), 4000);
+  }
+
+  // Metric cards wave
+  const cards = document.querySelectorAll('.metric-card');
+  cards.forEach((card, i) => {
+    setTimeout(() => {
+      card.classList.add('wave');
+      setTimeout(() => card.classList.remove('wave'), 500);
+    }, i * 150);
+  });
+
+  // Schedule sleep transition
+  setTimeout(transitionToSleep, 10000);
+}
+
+function transitionToSleep() {
+  const quip = SLEEP_QUIPS[Math.floor(Math.random() * SLEEP_QUIPS.length)];
+  setTriggerStatus(quip, '');
+
+  // Transition avatar to sleeping with a delay
+  setTimeout(() => {
+    setAvatarState('sleeping');
+    const badge = document.getElementById('status-badge');
+    const statusText = document.getElementById('status-text');
+    badge.className = 'status-badge sleeping';
+    statusText.textContent = 'SLEEPING';
+  }, 3000);
+
+  // Clear the quip after a while
+  setTimeout(() => setTriggerStatus('', ''), 8000);
 }
 
 /* Boot */
