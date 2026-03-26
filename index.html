@@ -1047,7 +1047,7 @@ body::after {
   <!-- Metrics -->
   <section class="metrics">
     <div class="metric-card green clickable" onclick="openTendersModal()">
-      <div class="metric-label">Total Processed</div>
+      <div class="metric-label">Total Captured</div>
       <div class="metric-value" id="metric-processed" data-target="0">0</div>
       <div class="metric-sub">lifetime tenders — click to view</div>
     </div>
@@ -1059,7 +1059,7 @@ body::after {
     <div class="metric-card cyan">
       <div class="metric-label">Last Run New</div>
       <div class="metric-value" id="metric-new" data-target="0">0</div>
-      <div class="metric-sub">tenders submitted</div>
+      <div class="metric-sub">new tenders captured</div>
     </div>
     <div class="metric-card orange">
       <div class="metric-label">Error Rate</div>
@@ -1116,7 +1116,7 @@ body::after {
 <div class="modal-overlay" id="tenders-modal" onclick="if(event.target===this)closeTendersModal()">
   <div class="modal">
     <div class="modal-header">
-      <div class="section-title"><span class="icon">&#x1F4C4;</span> Processed Tenders</div>
+      <div class="section-title"><span class="icon">&#x1F4C4;</span> Captured Tenders</div>
       <button class="modal-close" onclick="closeTendersModal()">&times;</button>
     </div>
     <div class="modal-body" id="tenders-list"></div>
@@ -1129,11 +1129,11 @@ body::after {
    ═══════════════════════════════════════════════════════════ */
 const ACHIEVEMENT_META = {
   first_launch:   { icon: '\u{1F680}', name: 'First Launch', desc: 'First production run' },
-  century:        { icon: '\u{1F4AF}', name: 'Century', desc: '100 tenders processed' },
+  century:        { icon: '\u{1F4AF}', name: 'Century', desc: '100 tenders captured' },
   sharpshooter:   { icon: '\u{1F3AF}', name: 'Sharpshooter', desc: '10 consecutive zero-error runs' },
   speed_demon:    { icon: '\u{26A1}',  name: 'Speed Demon', desc: 'Run completed under 3 minutes' },
   weekly_warrior: { icon: '\u{2694}\u{FE0F}',  name: 'Weekly Warrior', desc: '30+ tenders in a weekly scan' },
-  thousand:       { icon: '\u{1F451}', name: 'Thousand', desc: '1,000 tenders processed' },
+  thousand:       { icon: '\u{1F451}', name: 'Thousand', desc: '1,000 tenders captured' },
   iron_streak:    { icon: '\u{1F6E1}\u{FE0F}',  name: 'Iron Streak', desc: '30 consecutive error-free runs' },
   night_owl:      { icon: '\u{1F989}', name: 'Night Owl', desc: 'Manual run after midnight' },
 };
@@ -1423,7 +1423,7 @@ function openTendersModal() {
   });
 
   if (!allTenders.length) {
-    list.innerHTML = '<div class="tender-empty">No tenders processed yet.</div>';
+    list.innerHTML = '<div class="tender-empty">No tenders captured yet.</div>';
   } else {
     list.innerHTML = allTenders.map(t => {
       const fields = [
