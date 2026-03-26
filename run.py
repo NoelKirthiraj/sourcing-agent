@@ -30,7 +30,7 @@ async def main():
         await discover_fields.discover_fields()
         return
 
-    if args.reset_state and state_path.exists():
+    if args.reset_state and not args.scrape_only and state_path.exists():
         state_path.unlink()
         print("State reset — all solicitations will be reprocessed")
 
