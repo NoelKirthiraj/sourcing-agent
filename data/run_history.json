@@ -270,5 +270,16 @@
     ],
     "duration_seconds": 141.3,
     "mode": "daily"
+  },
+  {
+    "run_at": "2026-03-26T22:15:01.018228+00:00",
+    "total_found": 28,
+    "new_count": 0,
+    "skipped_count": 28,
+    "error_count": 0,
+    "errors": [],
+    "new_tenders": [],
+    "duration_seconds": 11.8,
+    "mode": "daily"
   }
 ]
