@@ -2165,10 +2165,18 @@ const SLEEP_QUIPS = [
 ];
 
 function celebrate() {
-  // Skip celebration in corporate mode
+  // Skip celebration in corporate mode — just reset to idle
   if (document.body.classList.contains('theme-corporate')) {
     setTriggerStatus('Run completed — data updated.', 'ok');
-    setTimeout(() => setTriggerStatus('', ''), 5000);
+    setTimeout(() => {
+      setTriggerStatus('', '');
+      const badge = document.getElementById('status-badge');
+      const statusText = document.getElementById('status-text');
+      const lastStatus = agentProfile.last_status || 'sleeping';
+      const labels = { sleeping: 'Standby', idle: 'Standby', success: 'Complete', error: 'Error' };
+      badge.className = 'status-badge ' + (lastStatus === 'idle' ? 'sleeping' : lastStatus);
+      statusText.textContent = labels[lastStatus] || 'Standby';
+    }, 5000);
     return;
   }
   // Confetti explosion

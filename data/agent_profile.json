@@ -1,41 +1,36 @@
 {
-  "xp": 691,
-  "level": 8,
-  "level_title": "Commander",
-  "total_processed": 691,
-  "total_runs": 11,
-  "current_streak": 11,
-  "best_streak": 11,
+  "xp": 177,
+  "level": 5,
+  "level_title": "Senior Operative",
+  "total_processed": 177,
+  "total_runs": 3,
+  "current_streak": 3,
+  "best_streak": 3,
   "achievements": [
     {
       "id": "first_launch",
       "name": "First Launch",
-      "earned_at": "2026-03-25T23:35:26.282849+00:00"
-    },
-    {
-      "id": "speed_demon",
-      "name": "Speed Demon",
-      "earned_at": "2026-03-25T23:35:26.282849+00:00"
-    },
-    {
-      "id": "night_owl",
-      "name": "Night Owl",
-      "earned_at": "2026-03-26T00:08:42.882722+00:00"
+      "earned_at": "2026-03-26T18:13:24.651409+00:00"
     },
     {
       "id": "century",
       "name": "Century",
-      "earned_at": "2026-03-26T00:23:13.708608+00:00"
+      "earned_at": "2026-03-26T18:13:24.651409+00:00"
+    },
+    {
+      "id": "speed_demon",
+      "name": "Speed Demon",
+      "earned_at": "2026-03-26T18:13:24.651409+00:00"
     },
     {
       "id": "weekly_warrior",
       "name": "Weekly Warrior",
-      "earned_at": "2026-03-26T00:23:13.708608+00:00"
+      "earned_at": "2026-03-26T18:13:24.651409+00:00"
     },
     {
-      "id": "sharpshooter",
-      "name": "Sharpshooter",
-      "earned_at": "2026-03-26T01:08:08.415142+00:00"
+      "id": "night_owl",
+      "name": "Night Owl",
+      "earned_at": "2026-03-26T18:13:24.651409+00:00"
     }
   ],
   "last_run_at": "2026-03-26T18:09:02.101283+00:00",
