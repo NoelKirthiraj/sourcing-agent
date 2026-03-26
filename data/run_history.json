@@ -794,5 +794,108 @@
     "new_tenders": [],
     "duration_seconds": 10.5,
     "mode": "daily"
+  },
+  {
+    "run_at": "2026-03-26T12:44:35.875725+00:00",
+    "total_found": 7,
+    "new_count": 7,
+    "skipped_count": 0,
+    "error_count": 0,
+    "errors": [],
+    "new_tenders": [
+      {
+        "solicitation_no": "W8486-250077",
+        "solicitation_title": "Calibration of Radiation Measuring Equipment",
+        "gsin_description": "Calibration of Radiation Measuring Equipment The Department of National Defence has a requirement for the Calibration (Alpha, Beta, Gamma and Neutron) of Radiation Measuring Equipment to support the Directorate of Combat Support Equipment Management 5 (DCSEM 5). The work will involve receiving, calibrating, certifying to the appropriate standards and returning calibrated systems; as well as working collaboratively with OEM and other contractors. This procurement is subject to the Controlled Goods Program. The Defence production Act defines Canadian Controlled Goods as certain goods listed in Canada\u2019s Export Control List, a regulation made pursuant to the Export and Import Permits Act (EIPA). The Crown retains the rights to negotiate with suppliers on any procurement. Documents may be submitted in either official language of Canada.",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/cb-730-93660472",
+        "closing_date": "2026/04/17",
+        "time_and_zone": "EDT",
+        "notifications": "",
+        "client": "Department of National Defence (DND)",
+        "contact_name": "Pamela Horner",
+        "contact_email": "Pamela.Horner@forces.gc.ca",
+        "contact_phone": "(343) 572-8721"
+      },
+      {
+        "solicitation_no": "NSPW2026-050",
+        "solicitation_title": "2026-050, TWO PROJECTS IN ANTIGONISH COUNTY, ASPHALT REPAVING",
+        "gsin_description": "Project 1: Williams Point Road, from South River Road to end of listing, approximately 3.48 kilometres Project 2: Beaver Meadow Road, from Old Beaver Road to St. Josephs Road, approximately 2.1 kilometres TOTAL APPROXIMATELY \u2026..5.58 kilometres Cost of acquiring documents: Not Applicable Terms of payment for acquiring documents: Not Applicable Tender notices on CanadaBuys published for Nova Scotia Public Sector Entities may not reflect amendments. For tender documents and up-to-date addenda, refer to the Nova Scotia Procurement Portal: https://procurement-portal.novascotia.ca/tenders/NSPW2026-050 For additional detail on contract duration, refer to the tender documents. Note that in some cases, third-party hosting platform registration and/or fees may be required to review related documents, or to submit tender responses.",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/nsnspw2026-050",
+        "closing_date": "2026/04/10",
+        "time_and_zone": "EDT",
+        "notifications": "",
+        "client": "Province of Nova Scotia",
+        "contact_name": "Sarah Lively",
+        "contact_email": "sarah.lively@novascotia.ca",
+        "contact_phone": "902-424-3333"
+      },
+      {
+        "solicitation_no": "NSPW2026-044",
+        "solicitation_title": "2026-044, ONE PROJECT IN YARMOUTH COUNTY, ASPHALT REPAVING",
+        "gsin_description": "Project 1: Route 308, from Trunk 3 southerly 2.0 km, approximately 2 kilometres TOTAL APPROXIMATELY \u2026.2.0 kilometres Cost of acquiring documents: Not Applicable Terms of payment for acquiring documents: Not Applicable Tender notices on CanadaBuys published for Nova Scotia Public Sector Entities may not reflect amendments. For tender documents and up-to-date addenda, refer to the Nova Scotia Procurement Portal: https://procurement-portal.novascotia.ca/tenders/NSPW2026-044 For additional detail on contract duration, refer to the tender documents. Note that in some cases, third-party hosting platform registration and/or fees may be required to review related documents, or to submit tender responses.",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/nsnspw2026-044",
+        "closing_date": "2026/04/10",
+        "time_and_zone": "EDT",
+        "notifications": "",
+        "client": "Province of Nova Scotia",
+        "contact_name": "Sarah Lively",
+        "contact_email": "sarah.lively@novascotia.ca",
+        "contact_phone": "902-424-3333"
+      },
+      {
+        "solicitation_no": "HRM-2026-1027",
+        "solicitation_title": "Street Recapitalization and Infrastructure Renewal- Swanton Drive",
+        "gsin_description": "This Tender from the HRM is for Street Recapitalization & Infrastructure Renewal - Swanton Dr (i/c Integrated Traffic Calming) (Garnett St to Bel Ayr Ave) Cost of acquiring documents: Not Applicable Terms of payment for acquiring documents: Not Applicable Tender notices on CanadaBuys published for Nova Scotia Public Sector Entities may not reflect amendments. For tender documents and up-to-date addenda, refer to the Nova Scotia Procurement Portal: https://procurement-portal.novascotia.ca/tenders/HRM-2026-1027 For additional detail on contract duration, refer to the tender documents. Note that in some cases, third-party hosting platform registration and/or fees may be required to review related documents, or to submit tender responses.",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/nshrm-2026-1027",
+        "closing_date": "2026/04/14",
+        "time_and_zone": "EDT",
+        "notifications": "",
+        "client": "Halifax Regional Municipality",
+        "contact_name": "Ify Ofunne",
+        "contact_email": "ifeanyichukwu.ofunne@halifax.ca",
+        "contact_phone": ""
+      },
+      {
+        "solicitation_no": "HRM-2026-1033",
+        "solicitation_title": "ASPHALT OVERLAYS PHASE 2 VARIOUS LOCATIONS",
+        "gsin_description": "ASPHALT OVERLAYS PHASE 2 VARIOUS LOCATIONS Cost of acquiring documents: Not Applicable Terms of payment for acquiring documents: Not Applicable Tender notices on CanadaBuys published for Nova Scotia Public Sector Entities may not reflect amendments. For tender documents and up-to-date addenda, refer to the Nova Scotia Procurement Portal: https://procurement-portal.novascotia.ca/tenders/HRM-2026-1033 For additional detail on contract duration, refer to the tender documents. Note that in some cases, third-party hosting platform registration and/or fees may be required to review related documents, or to submit tender responses.",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/nshrm-2026-1033",
+        "closing_date": "2026/04/10",
+        "time_and_zone": "EDT",
+        "notifications": "",
+        "client": "Halifax Regional Municipality",
+        "contact_name": "Ify Ofunne - Procurement Officer",
+        "contact_email": "ifeanyichukwu.ofunne@halifax.ca",
+        "contact_phone": ""
+      },
+      {
+        "solicitation_no": "W3010-26EL01/A",
+        "solicitation_title": "Rental of temporary sanitation facilities",
+        "gsin_description": "Canada is seeking offers from Offerors to provide temporary sanitation facilities to support personnel logging in temporary shelters. The Canadian Forces School of Leadership and Recruits requires sixteen (16) portable toilets, two (2) ten (10) unit sanitation trailers, and eight (8) portable handwashing stations to Department of National Defence.",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/cb-134-52798819",
+        "closing_date": "2026/04/09",
+        "time_and_zone": "EDT",
+        "notifications": "",
+        "client": "Department of National Defence (DND)",
+        "contact_name": "Martin Morin",
+        "contact_email": "Martin.Morin3@forces.gc.ca",
+        "contact_phone": "(343) 550-9017"
+      },
+      {
+        "solicitation_no": "01B68-25-0734",
+        "solicitation_title": "NPP -Financial Management and Accounting Services in Support of\u2026",
+        "gsin_description": "NOTICE OF PROPOSED PROCUREMENT (NPP) -PROFESSIONAL AUDIT SUPPORT SERVICES (PASS) SUPPLY ARRANGEMENT - STREAM 6 This requirement is open only to those Supply Arrangement Holders under Professional Audit Support Services (PASS) Supply Arrangement E60ZQ-180001 who qualified under Stream 6: Financial and Accounting Services in the National Capital Region. The following SA Holders have been invited to submit a proposal: A Hundred Answers Inc. ABFK Chartered professional Accountants PC Altis Recruitment & Technology Inc. Aniko Consultants Inc., Samson & Associ\u00e9s-CPA Consultation Inc.-Samson & Associates CPA-Consulting Inc., in Joint Venture ANTARES PROFESSIONAL CORPORATION BDO Canada LLP Cofomo Inc. Collins Barrow Ottawa LLP Deloitte LLP Ernst & Young LLP KPMG LLP Lekadir LLP MNP LLP Niewe Technology and Consulting Ltd. Orbis Risk Consulting Inc. OXARO INC. Pricewaterhouse Coopers LLP QMR Staffing Solutions Incorporated QMR Staffing Solutions Incorporated, Windreach Consulting Services Incorporated, In Joint Venture Samson & Associ\u00e9s CPA/Consultation Inc THE RIGHT DOOR CONSULTING & SOLUTIONS INCORPORATED, Baker Tilly Ottawa Management Consultants Inc. , IN JOINT VENTURE Treewalk Consulting Inc. Welch LLP DESCRIPTION OF REQUIREMENT/ DURATION Canada is seeking to establish a contract for Financial and Accounting Services; as defined in Annex \"A\", Statement of Work, and to be provided under the Contract, on an \u201cas and when requested\u201d basis only, for one year and three additional one year option periods (if applicable) for Agriculture and Agri-Food Canada. NOTE: If you wish to find out how you can be a \u201cQualified SA Holder\u201d, please contact tpsgc.paspsvaaauthorite-appasssaauthority.pwgsc@tpsgc-pwgsc.gc.ca",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/cb-913-1908792",
+        "closing_date": "2026/04/20",
+        "time_and_zone": "EDT",
+        "notifications": "",
+        "client": "Department of Agriculture and Agri-Food (AAFC)",
+        "contact_name": "Kyle Harrington",
+        "contact_email": "kyle.harrington@agr.gc.ca",
+        "contact_phone": ""
+      }
+    ],
+    "duration_seconds": 40.9,
+    "mode": "daily"
   }
 ]
