@@ -1,11 +1,11 @@
 {
-  "xp": 28,
-  "level": 2,
-  "level_title": "Rookie",
-  "total_processed": 28,
-  "total_runs": 5,
-  "current_streak": 5,
-  "best_streak": 5,
+  "xp": 232,
+  "level": 6,
+  "level_title": "Senior Operative",
+  "total_processed": 232,
+  "total_runs": 6,
+  "current_streak": 6,
+  "best_streak": 6,
   "achievements": [
     {
       "id": "first_launch",
@@ -16,8 +16,18 @@
       "id": "speed_demon",
       "name": "Speed Demon",
       "earned_at": "2026-03-26T22:07:54.312223+00:00"
+    },
+    {
+      "id": "century",
+      "name": "Century",
+      "earned_at": "2026-03-26T22:52:37.649041+00:00"
+    },
+    {
+      "id": "weekly_warrior",
+      "name": "Weekly Warrior",
+      "earned_at": "2026-03-26T22:52:37.649041+00:00"
     }
   ],
-  "last_run_at": "2026-03-26T22:36:31.022073+00:00",
-  "last_status": "idle"
+  "last_run_at": "2026-03-26T22:52:37.648955+00:00",
+  "last_status": "success"
 }
