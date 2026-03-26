@@ -303,5 +303,16 @@
     "new_tenders": [],
     "duration_seconds": 43.2,
     "mode": "daily"
+  },
+  {
+    "run_at": "2026-03-26T22:36:31.022073+00:00",
+    "total_found": 28,
+    "new_count": 0,
+    "skipped_count": 28,
+    "error_count": 0,
+    "errors": [],
+    "new_tenders": [],
+    "duration_seconds": 44.0,
+    "mode": "daily"
   }
 ]
