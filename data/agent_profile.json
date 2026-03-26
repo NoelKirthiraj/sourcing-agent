@@ -1,11 +1,11 @@
 {
-  "xp": 216,
-  "level": 6,
-  "level_title": "Senior Operative",
-  "total_processed": 216,
-  "total_runs": 9,
-  "current_streak": 9,
-  "best_streak": 9,
+  "xp": 689,
+  "level": 8,
+  "level_title": "Commander",
+  "total_processed": 689,
+  "total_runs": 10,
+  "current_streak": 10,
+  "best_streak": 10,
   "achievements": [
     {
       "id": "first_launch",
@@ -31,8 +31,13 @@
       "id": "weekly_warrior",
       "name": "Weekly Warrior",
       "earned_at": "2026-03-26T00:23:13.708608+00:00"
+    },
+    {
+      "id": "sharpshooter",
+      "name": "Sharpshooter",
+      "earned_at": "2026-03-26T01:08:08.415142+00:00"
     }
   ],
-  "last_run_at": "2026-03-26T17:26:30.594688+00:00",
+  "last_run_at": "2026-03-26T01:08:08.414959+00:00",
   "last_status": "success"
 }
