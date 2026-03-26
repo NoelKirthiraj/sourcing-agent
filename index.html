@@ -1649,9 +1649,11 @@ function setTriggerStatus(msg, type) {
 
 function pollGitHubActions(mode, token) {
   const label = mode.charAt(0).toUpperCase() + mode.slice(1);
-  let phase = 'queued';
+  let phase = 'waiting'; // wait for NEW run to appear
   let dots = 0;
+  const triggerTime = new Date().toISOString();
   const startTime = Date.now();
+  let trackedRunId = null;
 
   const badge = document.getElementById('status-badge');
   const statusText = document.getElementById('status-text');
@@ -1663,7 +1665,7 @@ function pollGitHubActions(mode, token) {
 
     try {
       const res = await fetch(
-        `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/actions/runs?per_page=1&event=workflow_dispatch`,
+        `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/actions/runs?per_page=3&event=workflow_dispatch`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -1674,7 +1676,21 @@ function pollGitHubActions(mode, token) {
       );
       if (!res.ok) { return; }
       const data = await res.json();
-      const run = data.workflow_runs?.[0];
+      const runs = data.workflow_runs || [];
+
+      // Find the run created AFTER our trigger (not a stale previous run)
+      let run = null;
+      if (trackedRunId) {
+        run = runs.find(r => r.id === trackedRunId);
+      } else {
+        run = runs.find(r => r.created_at >= triggerTime);
+        if (run) {
+          trackedRunId = run.id;
+        } else if (phase === 'waiting') {
+          setTriggerStatus(`${label} run queued — waiting for GitHub to start${'.'.repeat(dots)} (${elapsedStr})`, '');
+          return;
+        }
+      }
       if (!run) return;
 
       const status = run.status;
@@ -1684,9 +1700,8 @@ function pollGitHubActions(mode, token) {
         phase = 'queued';
         setTriggerStatus(`${label} run queued — waiting for runner${'.'.repeat(dots)} (${elapsedStr})`, '');
       } else if (status === 'in_progress') {
-        if (phase !== 'running') enterWorkingMode(); // ensure working mode is active
+        if (phase !== 'running') enterWorkingMode();
         phase = 'running';
-        // Don't override stage cycling — just update elapsed time in a subtle way
       } else if (status === 'completed') {
         clearInterval(poll);
         if (conclusion === 'success') {
