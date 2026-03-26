@@ -38,7 +38,7 @@ async def main():
         from scraper import CanadaBuysScraper, ScraperConfig, WEEKLY_URL
         from state import AgentState
         from notifier import RunSummary
-        import dashboard_data, time, os
+        import dashboard_data, time, os, signal
 
         # Separate state file — never poisons the CFlow production dedup state
         scrape_state_path = Path("processed_dashboard.json")
@@ -52,62 +52,86 @@ async def main():
         mode = "weekly" if args.weekly else "daily"
         start = time.monotonic()
         state = AgentState(path=scrape_state_path)
+        summary = RunSummary(mode=mode)
+        interrupted = False
 
-        async with CanadaBuysScraper(scraper_config) as scraper:
-            tenders = await scraper.fetch_tender_list()
-            print(f"\nFound {len(tenders)} tender(s) on portal")
-            summary = RunSummary(total_found=len(tenders), mode=mode)
-            for tender in tenders:
-                link = tender.get("inquiry_link", "").strip()
-                if not link:
-                    continue
+        def handle_signal(signum, frame):
+            nonlocal interrupted
+            interrupted = True
+            print(f"\nSignal {signum} received — saving partial results...")
 
-                # Fast dedup: check by link before fetching detail page
-                if state.already_processed_by_link(link):
-                    summary.skipped_count += 1
-                    title = tender.get("solicitation_title", link[:40])
-                    print(f"  [skip] {title[:60]}")
-                    continue
+        signal.signal(signal.SIGTERM, handle_signal)
+        signal.signal(signal.SIGINT, handle_signal)
 
-                # New tender — fetch full details
-                try:
-                    detail = await scraper.fetch_tender_detail(link)
-                    tender.update(detail)
-                except Exception as exc:
-                    summary.error_count += 1
-                    summary.errors.append(f"{link}: {exc}")
-                    continue
+        try:
+            async with CanadaBuysScraper(scraper_config) as scraper:
+                tenders = await scraper.fetch_tender_list()
+                print(f"\nFound {len(tenders)} tender(s) on portal")
+                summary.total_found = len(tenders)
+                for tender in tenders:
+                    if interrupted:
+                        print("\nInterrupted — saving partial results...")
+                        break
 
-                # Reject empty detail — detail page failed silently
-                sol_no = tender.get("solicitation_no", "").strip()
-                if not sol_no:
-                    summary.error_count += 1
-                    summary.errors.append(f"{link}: detail extraction returned no solicitation_no")
-                    print(f"  [fail] {link[:60]} — no solicitation_no extracted")
-                    continue
+                    link = tender.get("inquiry_link", "").strip()
+                    if not link:
+                        continue
 
-                dedup_key = sol_no
+                    # Fast dedup: check by link before fetching detail page
+                    if state.already_processed_by_link(link):
+                        summary.skipped_count += 1
+                        title = tender.get("solicitation_title", link[:40])
+                        print(f"  [skip] {title[:60]}")
+                        continue
 
-                # Double-check by sol_no (in case link changed but same tender)
-                if state.already_processed(dedup_key):
-                    summary.skipped_count += 1
-                    print(f"  [skip] {sol_no}")
-                    continue
+                    # New tender — fetch full details
+                    try:
+                        detail = await scraper.fetch_tender_detail(link)
+                        tender.update(detail)
+                    except Exception as exc:
+                        summary.error_count += 1
+                        summary.errors.append(f"{link}: {exc}")
+                        continue
 
-                state.mark_processed(dedup_key, request_id="dashboard", title=tender.get("solicitation_title"), link=link)
-                summary.new_count += 1
-                summary.new_tenders.append(tender)
-                print(f"  [new]  [{sol_no}] {tender.get('solicitation_title', '')[:60]}")
+                    # Reject empty detail — detail page failed silently
+                    sol_no = tender.get("solicitation_no", "").strip()
+                    if not sol_no:
+                        summary.error_count += 1
+                        summary.errors.append(f"{link}: detail extraction returned no solicitation_no")
+                        print(f"  [fail] {link[:60]} — no solicitation_no extracted")
+                        continue
 
-        state.save()
-        # Use workflow start time if available (includes setup overhead), else scrape-only time
-        workflow_start = os.environ.get("WORKFLOW_START")
-        if workflow_start:
-            summary.duration_seconds = time.time() - float(workflow_start)
-        else:
-            summary.duration_seconds = time.monotonic() - start
-        dashboard_data.record_run(summary, data_dir=Path("data"))
-        print(f"\nDone. New: {summary.new_count} | Skipped: {summary.skipped_count} | Errors: {summary.error_count}")
+                    dedup_key = sol_no
+
+                    # Double-check by sol_no (in case link changed but same tender)
+                    if state.already_processed(dedup_key):
+                        summary.skipped_count += 1
+                        print(f"  [skip] {sol_no}")
+                        continue
+
+                    state.mark_processed(dedup_key, request_id="dashboard", title=tender.get("solicitation_title"), link=link)
+                    summary.new_count += 1
+                    summary.new_tenders.append(tender)
+                    print(f"  [new]  [{sol_no}] {tender.get('solicitation_title', '')[:60]}")
+
+                    # Save state every 5 new tenders — partial progress survives timeouts
+                    if summary.new_count % 5 == 0:
+                        state.save()
+        except Exception as exc:
+            print(f"\nRun error: {exc}")
+            summary.error_count += 1
+            summary.errors.append(str(exc))
+        finally:
+            # Always save state and record the run — even on timeout/interrupt
+            state.save()
+            workflow_start = os.environ.get("WORKFLOW_START")
+            if workflow_start:
+                summary.duration_seconds = time.time() - float(workflow_start)
+            else:
+                summary.duration_seconds = time.monotonic() - start
+            dashboard_data.record_run(summary, data_dir=Path("data"))
+            status = "interrupted" if interrupted else "complete"
+            print(f"\n{status.title()}. New: {summary.new_count} | Skipped: {summary.skipped_count} | Errors: {summary.error_count}")
         return
 
     from config import Config
