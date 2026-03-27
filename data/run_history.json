@@ -689,5 +689,69 @@
     ],
     "duration_seconds": 76.4,
     "mode": "daily"
+  },
+  {
+    "run_at": "2026-03-27T17:17:52.603678+00:00",
+    "total_found": 11,
+    "new_count": 4,
+    "skipped_count": 7,
+    "error_count": 0,
+    "errors": [],
+    "new_tenders": [
+      {
+        "solicitation_no": "WS5196750828",
+        "solicitation_title": "EJ196-260003_B - Generator Maintenance - Uplands Base, NCR",
+        "gsin_description": "AMENDMENT TO CLOSING TIME: Please disregard the Ariba Discovery posting response deadline closing time and CanadaBuys posting closing time. All required supporting documentation and bid submission must be submitted by May 7, 2026 at 14:00. All bids submitted after 14:00 will result in the bid being declared non-responsive. To provide the maintenance services on the Emergency Electrical Power Supply System to ensure the integrity and uninterrupted performance of the systems located at CFSU Uplands Base in Ottawa. A mandatory site visit will be held on April 14, 2026 at 11:00AM. Offerors must communicate with the Contracting Authority no later than April 9, 2026 at 1:00PM to confirm attendance and provide the name(s) and date of birth(s) of the person(s) who will attend. Representatives must wear work boots, hard hats, and safety glasses. Offerors who do not comply will not be permitted to attend the mandatory site visit.",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/ws5196750828-doc5577485705",
+        "closing_date": "2026/05/07",
+        "time_and_zone": "EDT",
+        "notifications": "",
+        "client": "Department of Public Works and Government Services (PSPC)",
+        "contact_name": "Quinn, Carine Thibodeau (SPAC/PSPC) (elle-la / she-her)",
+        "contact_email": "carinethibodeau.quinn@tpsgc-pwgsc.gc.ca",
+        "contact_phone": ""
+      },
+      {
+        "solicitation_no": "WS5474335666",
+        "solicitation_title": "EF926-261314-2 - Purchase under the Furniture SA for categories 2,3,5,6\u2026",
+        "gsin_description": "Reissue of Solicitation of Offers. This solicitation of offers cancels and supersedes previous solicitation of offers number EF926-261314 dated January 6, 2026 with a closing of February 17, 2026 at 14h00. A debriefing or feedback session will be provided upon request to Offeror's who offered on the previous solicitation of offers.PWGSC, on behalf of the New Montreal Justice Complex (NMJC), is issuing this request for proposal (RFP) for the purchase, delivery and installation of office furniture under the supply arrangement E60PQ-140003/D at Montreal, Quebec, Canada, as detailed in the bid solicitation.",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/ws5474335666-doc5618335613",
+        "closing_date": "2026/04/09",
+        "time_and_zone": "EDT",
+        "notifications": "2026/03/27",
+        "client": "Department of Public Works and Government Services (PSPC)",
+        "contact_name": "Lavoie, Corine (SPAC/PSPC) (elle-la / she-her)",
+        "contact_email": "corine.lavoie@tpsgc-pwgsc.gc.ca",
+        "contact_phone": ""
+      },
+      {
+        "solicitation_no": "R0000202465-A",
+        "solicitation_title": "TSPS-2.1 Business Analysts for Advisory Services (Tier 2)",
+        "gsin_description": "Shared Services Canada TSPS Tier 2 , 2.1 Business Analyst-Senior, Intermediate and Junior for Advisory Services for Shared Services Canada (SSC) Description of the requirement: Shared Services Canada (SSC) requires the services of the following categories of personnel: 2.1 Business Analyst \u2013 Senior, Intermediate, Junior Language Requirement: English Security Level: Reliability and Secret The Contractor will provide the services on an \"as and when requested\" basis in accordance with the Contract. It is intended to result in the award of up to 3 contract(s), each for 2 years Proposed period of contract: The resulting Contract will begin on contract award and end 2 years later. This requirement is open only to those Task and Solutions Professional Services (TSPS) Supply Arrangement under Tier 1 Stream Holders who qualified under the Task and Solutions Professional Services. The RFP is issued against the (TSPS) Supply Arrangements (SA) PWGSC file number E60ZT-18TSPS. All terms and conditions of the SA apply and must be incorporated into any resulting contract. All SA Holders have been invited to submit a proposal File Number: R000202465 Contracting Authority: Julie Dessureault Phone Number: 613-608-3114 E-Mail: Julie.Dessureault@ssc-spc.gc.ca SOLICITATION CLOSES At 2:00 PM on April 20, 2026 Time Zone: EST NOTE TO BIDDER: 1. Task and Solutions Professional Services (TSPS) Method of Supply is refreshed on an annual basis. If you wish to find out how you can be a \"Qualified SA Holder\", please contact RCNMDAI.-NCRIMOS@pwgsc.gc.ca. 2. The Crown retains the right to negotiate with suppliers on any procurement. 3. Documents may be submitted in either official language of Canada.",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/cb-59-31008842",
+        "closing_date": "2026/04/20",
+        "time_and_zone": "EDT",
+        "notifications": "",
+        "client": "Shared Services Canada (SSC)",
+        "contact_name": "Julie Dessureault",
+        "contact_email": "julie.Dessureault@ssc-spc.gc.ca",
+        "contact_phone": "(613) 608-3114"
+      },
+      {
+        "solicitation_no": "W8485-TSPS2026-06",
+        "solicitation_title": "One (1) Engineering Graduate \u2013 Junior",
+        "gsin_description": "NOTICE OF PROPOSED PROCUREMENT This requirement is only open to the below list of pre-qualified suppliers under the Task and Solutions Professional Services (TSPS). TASK BASED E60ZT-18TSPS/ PROFESSIONAL SERVICES REQUIREMENT FILE NUMBER: W8485-TSPS2026-06 TIER 1 (< $3.75 M) This requirement is for the Department of National Defence (DND). This requirement is for the: - Stream 5: Technical, engineering and maintenance services stream - Category 5.3: Engineering Graduate For the services of: - One (1) Engineering Graduate \u2013 Junior UNSPSC 81100000: Professional engineering services 81000000: Engineering and Research and Technology Based Services Number of Contracts: This bid solicitation is intended to result in the award of one (1) contract for three (3) years. Request for Proposal (RFP) documents will be e-mailed directly from the DND Point of Contact (DND POC) to the Qualified Supply Arrangement Holders who are being invited to bid on this requirement. BIDDERS ARE ADVISED THAT RFP DOCUMENTS ARE NOT AVAILABLE ON THE GOVERNMENT ELECTRONIC TENDERING SYSTEM (https://canadabuys.canada.ca/en). Location of Work to be Performed: Region(s): National Capital Region (NCR) Specific Locations: 455 Boulevard de la Carri\u00e8re, Gatineau, QC Security Requirement: Security Requirements Check List: SRCL Supplier Security Clearance required: FSC - Secret Security Level required (Document Safeguarding): None Estimated Level of Effort: The estimated level of effort of the contract will be for 240 days per year. Estimated timeframe of contract: 01 May 2026 to 30 April 2029. Enquiries: Enquiries regarding this RFP requirement must be submitted to the DND POC listed below. File Number: W8485-TSPS2026-06 DND POC: Bing Han E-Mail: DapServicesBidReceiving-DoaServicesReceptionDesSoumissions@forces.gc.ca Description of the Requirement: This bid solicitation is being issued to satisfy the requirement of the Department of National Defence for the provision of Task and Solutions Professional Services. The Department of National Defence (DND) requires the services of one (1) Engineering Graduate - Junior to support the Director Aerospace Equipment Program Management (DAEPM) Tactical Aviation & Simulation (TA&S). Documents may be submitted in either official language of Canada. The TSPS Method of Supply is a result of a formal competitive process which was established as a result of extensive consultations with industry. The Method of Supply provides suppliers with an on-going opportunity to become prequalified for participation in future bidding opportunities. To obtain more information about how to become a pre-qualified supplier for TSPS, please contact Public Works and Government Services Canada (PWGSC) at: spts.tsps@tpsgc-pwgsc.gc.ca. For general information on the various PWGSC Methods of Supply, or to obtain specific information on a PWGSC professional service method of supply, please visit PWGSC's Buy and Sell website at: https://buyandsell.gc.ca/for-businesses/selling-to-the-government-of-ca\u2026. List of Pre-Qualified Suppliers This requirement is open only to those Supply Arrangement Holders under E60ZT-18TSPS who qualified under Tier 1 for the following category: \u2022 5.3 Engineering Graduate - Junior The following SA Holders have been invited to submit a proposal. List of Suppliers: 1. 9421-5340 Qu\u00e9bec / 9193456 Canada (JV) 2. 9468269 Canada 3. 9487-4724 Qu\u00e9bec / Kernick Aerospace (JV) 4. Access Corporate Technologies 5. ACF Associates 6. ADGA Group Consultants 7. Adirondack Information Management / AIM Group (JV) 8. AECOM Canada 9. Akkodis Canada 10. Allswater Marine Consultants 11. Altis Recruitment & Technology 12. Amyantek 13. Arup Canada 14. Blue Water Sourcing 15. BMT Canada 16. C4i Training & Technology 17. Calian 18. CHANT 19. Dare Human Resources 20. Deloitte 21. Dunn Engineering 22. Factr / Altis Recruitment & Technology (JV) 23. Fleetway 24. GasTOPS 25. HumanSystems 26. IPSS 27. Lengkeek Vessel Engineering 28. Louis Tanguay Informatique 29. MACP 30. Martec 31. Maverin Business Services 32. MaxSys Staffing & Consulting 33. Michael Wager Consulting 34. Nuclear Promise X 35. Numerica Technologies 36. OLAV Consulting / Moshwa Aboriginal IT (JV) 37. Orbis Risk Consulting 38. Oxaro 39. Pennant Canada 40. Posterity Group Consulting 41. Primex Project Management 42. Procom Consultants Group 43. Prologic Systems 44. Promaxis Systems 45. Reticle Ventures Canada 46. Salasan Consulting 47. Sapper Labs 48. Serco Canada Marine 49. TES Contract Services 50. TI7 / Source Staffing Solutions (JV) 51. Technomics 52. AIM Group 53. Attain Group / Groupe Atteindre 54. Thomas & Schmidt 55. Tiree Facility Solutions 56. V42 Management Consulting 57. Valcom Consulting Group 58. WSP Canada",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/cb-929-77538286",
+        "closing_date": "2026/04/10",
+        "time_and_zone": "EDT",
+        "notifications": "",
+        "client": "Department of National Defence (DND)",
+        "contact_name": "Bing Han",
+        "contact_email": "DapServicesBidReceiving-DoaServicesReceptionDesSoumissions@forces.gc.ca",
+        "contact_phone": "(819) 939-3666"
+      }
+    ],
+    "duration_seconds": 68.6,
+    "mode": "daily"
   }
 ]
