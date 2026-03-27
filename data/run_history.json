@@ -586,5 +586,108 @@
     ],
     "duration_seconds": 906.6,
     "mode": "weekly"
+  },
+  {
+    "run_at": "2026-03-27T12:35:33.353182+00:00",
+    "total_found": 7,
+    "new_count": 7,
+    "skipped_count": 0,
+    "error_count": 0,
+    "errors": [],
+    "new_tenders": [
+      {
+        "solicitation_no": "HRM-2026-0185",
+        "solicitation_title": "Supply and Deliver AED's and Accessories",
+        "gsin_description": "Standing Offer to Supply and Deliver AED's and Accessories Cost of acquiring documents: Not Applicable Terms of payment for acquiring documents: Not Applicable Tender notices on CanadaBuys published for Nova Scotia Public Sector Entities may not reflect amendments. For tender documents and up-to-date addenda, refer to the Nova Scotia Procurement Portal: https://procurement-portal.novascotia.ca/tenders/HRM-2026-0185 For additional detail on contract duration, refer to the tender documents. Note that in some cases, third-party hosting platform registration and/or fees may be required to review related documents, or to submit tender responses.",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/nshrm-2026-0185",
+        "closing_date": "2026/04/13",
+        "time_and_zone": "EDT",
+        "notifications": "",
+        "client": "Halifax Regional Municipality",
+        "contact_name": "Sue Sheppard",
+        "contact_email": "sheppas@halifax.ca",
+        "contact_phone": ""
+      },
+      {
+        "solicitation_no": "HRM-2026-1014",
+        "solicitation_title": "Street Recapitalization- Buckingham Dr & Cambridge Ct",
+        "gsin_description": "This requirement is for street recapitalization on Buckingham Dr & Cambridge Court. Cost of acquiring documents: Not Applicable Terms of payment for acquiring documents: Not Applicable Tender notices on CanadaBuys published for Nova Scotia Public Sector Entities may not reflect amendments. For tender documents and up-to-date addenda, refer to the Nova Scotia Procurement Portal: https://procurement-portal.novascotia.ca/tenders/HRM-2026-1014 For additional detail on contract duration, refer to the tender documents. Note that in some cases, third-party hosting platform registration and/or fees may be required to review related documents, or to submit tender responses.",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/nshrm-2026-1014",
+        "closing_date": "2026/04/20",
+        "time_and_zone": "EDT",
+        "notifications": "",
+        "client": "Halifax Regional Municipality",
+        "contact_name": "Shaun Noel",
+        "contact_email": "shaun.noel@halifax.ca",
+        "contact_phone": ""
+      },
+      {
+        "solicitation_no": "RFP50872",
+        "solicitation_title": "Mount Uniacke Water and Wastewater Feasibility Study",
+        "gsin_description": "The Municipality of East Hants (East Hants) requires the services of a qualified firm to fully investigate potential servicing options and develop water and wastewater serving solutions to meet both short-term and long-term growth requirements in the Mount Uniacke Secondary Planning Strategy (SPS) area. To this end, East Hants is seeking competitive Proposals from the marketplace to identify a Consultant to possibly provide these Services. Cost of acquiring documents: Not Applicable Terms of payment for acquiring documents: Not Applicable Tender notices on CanadaBuys published for Nova Scotia Public Sector Entities may not reflect amendments. For tender documents and up-to-date addenda, refer to the Nova Scotia Procurement Portal: https://procurement-portal.novascotia.ca/tenders/RFP50872 For additional detail on contract duration, refer to the tender documents. Note that in some cases, third-party hosting platform registration and/or fees may be required to review related documents, or to submit tender responses.",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/nsrfp50872",
+        "closing_date": "2026/04/17",
+        "time_and_zone": "EDT",
+        "notifications": "",
+        "client": "Municipality of the District of East Hants",
+        "contact_name": "Mike Hatfield",
+        "contact_email": "procurement@easthants.ca",
+        "contact_phone": ""
+      },
+      {
+        "solicitation_no": "HealthPRODec2026RFP05829",
+        "solicitation_title": "HealthPRO Canada RFP 05289 Floor Mat Exchange",
+        "gsin_description": "HealthPRO Procurement Services Inc. has posted RFP for the following contract: 05289 Floor Mat Exchange The Notice of Request for Supplier Proposal (RFP) can be downloaded from Biddingo.com, Bid # HealthPRO RFP 05289 - December 01, 2026. Please note that any future addendums and/or amendments to this RFP package will only be posted on Biddingo.com. HealthPRO Procurement Services Inc. (HealthPRO) is a member owned, national healthcare procurement services organization. Through the establishment of a long term contract with HealthPRO, NSHA/IWK has access to contracts negotiated by HealthPRO for commonly purchased hospital related products. The posting of HealthPRO competitive RFx documents including but not limited to Request for Supplier Qualification, Request for Proposal or Advanced Contract Award Notification documents on the Nova Scotia Tenders page does not signify that NSHA/IWK has or will commit to participate in the posted opportunity. Should NSHA/IWK choose to participate in the posted opportunity such participation will be subject to existing contracts in place at the time. Cost of acquiring documents: Not Applicable Terms of payment for acquiring documents: Not Applicable Tender notices on CanadaBuys published for Nova Scotia Public Sector Entities may not reflect amendments. For tender documents and up-to-date addenda, refer to the Nova Scotia Procurement Portal: https://procurement-portal.novascotia.ca/tenders/HealthPRODec2026RFP05829 For additional detail on contract duration, refer to the tender documents. Note that in some cases, third-party hosting platform registration and/or fees may be required to review related documents, or to submit tender responses.",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/nshealthprodec2026rfp05829",
+        "closing_date": "2026/05/06",
+        "time_and_zone": "EDT",
+        "notifications": "",
+        "client": "HealthPro Procurement Services Inc.",
+        "contact_name": "Candice Mendiola",
+        "contact_email": "RFPInquiriesSS@healthprocanada.com",
+        "contact_phone": ""
+      },
+      {
+        "solicitation_no": "BCPS20261665-ENG-RFEOI",
+        "solicitation_title": "PS20261665-ENG-RFEOI Prequalification of Contractors for the Cambie\u2026",
+        "gsin_description": "Under this RFEOI, City of Vancouver (the \u201cCity\u201d) requests for expression of interest (the \u201cRFEOI\u201d) for the Cambie Shoreline Rehabilitation (CSR) Project located along the southern shoreline of False Creek, immediately west of the Cambie Street Bridge, where the deteriorated steel sheet\u2011pile wall and CSO outfall are situated, in Vancouver, BC. The City is seeking responses from qualified contractors with demonstrated experience in shoreline stabilization, marine and intertidal construction, and structural rehabilitation of deteriorated sheet\u2011pile wall systems, in accordance with the requirements set out in the Buyer Attachment titled \u2018PS20261665\u2011ENG\u2011RFEOI \u2013 Prequalification of Contractors for the Cambie Shoreline Rehabilitation (CSR) Project.\u2019 Respondents are required to submit their expression of interest/responses in accordance with all instructions contained in this RFEOI. Term of the contract & options The RFEOI will be administered through the website (JAGGAER) that is the City\u2019s electronic procurement portal (the \u201cSupplier Portal\u201d). Bids may only be submitted via the Supplier Portal in the format requested by the City. Each Proponent is solely responsible for reviewing and complying with any Supplier Portal terms and conditions which apply to and govern the use of the Supplier Portal. Further information on this procurement opportunity is available at this link All responses to this procurement opportunity must be submitted through the City of Vancouver Supplier Portal.",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/bcps20261665-eng-rfeoi",
+        "closing_date": "2026/04/24",
+        "time_and_zone": "EDT",
+        "notifications": "",
+        "client": "City of Vancouver",
+        "contact_name": "Amjid Qazi",
+        "contact_email": "amjid.qazi@vancouver.ca",
+        "contact_phone": ""
+      },
+      {
+        "solicitation_no": "BC26353MJ0001",
+        "solicitation_title": "Highway 97 / Olson Road Intersection Improvements",
+        "gsin_description": "The project includes the design and construction of a northbound left-turn lane at the Highway 97/Olson Road intersection, widening to support the southbound right-turn movement, culvert replacement 700 metres west of the Highway 97 / Olson Road intersection and resurfacing of 7.8 km of Olson Road. Utilities, private property access, and culverts that are impacted will be relocated or adjusted as required. Brushing of Olson Road will be completed separately. Project Contact Name: Tom Kearns Email Address: tom.kearns@stantec.com",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/bc26353mj0001",
+        "closing_date": "2026/04/30",
+        "time_and_zone": "EDT",
+        "notifications": "",
+        "client": "Southern Interior Regional Office",
+        "contact_name": "",
+        "contact_email": "ProvincialContracts@gov.bc.ca",
+        "contact_phone": ""
+      },
+      {
+        "solicitation_no": "BC26769MJ0000",
+        "solicitation_title": "Asphalt Surfacing Hwy 97 Lac La Hache Area and Cariboo Side Roads (104.\u2026",
+        "gsin_description": "Full width milling and conventional paving (28000t) of Hwy 97 from Lovett Rd to Doyle Rd through Lac La Hache and overlay paving (44000t) along side roads in the Lac La Hache, 150 Mile House, Big Lake and Likely Area. Please direct all project specific enquiries related to this RFx by email to the Project Contact identified below and on the \u201cOpportunity Details\u201d tab under Additional Information SCT3. Project Contact Name: Dustin Walsh Email Address: Dustin@MckenzieAssociates.ca",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/bc26769mj0000",
+        "closing_date": "2026/04/15",
+        "time_and_zone": "EDT",
+        "notifications": "",
+        "client": "Southern Interior Regional Office",
+        "contact_name": "",
+        "contact_email": "Provincialcontracts@gov.bc.ca",
+        "contact_phone": ""
+      }
+    ],
+    "duration_seconds": 76.4,
+    "mode": "daily"
   }
 ]
