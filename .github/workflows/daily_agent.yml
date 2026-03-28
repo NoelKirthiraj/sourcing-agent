@@ -2,8 +2,10 @@ name: Daily Sourcing Agent
 
 on:
   schedule:
-    # 7 AM ET (12:00 UTC) weekdays
-    - cron: '0 12 * * 1-5'
+    # 5 PM ET (22:00 UTC) weekdays — daily mode
+    - cron: '0 22 * * 1-5'
+    # 5 PM ET (22:00 UTC) Saturday — weekly mode
+    - cron: '0 22 * * 6'
   workflow_dispatch:
     inputs:
       mode:
@@ -50,10 +52,18 @@ jobs:
 
       - name: Run agent
         env:
-          AGENT_MODE: ${{ github.event.inputs.mode || 'daily' }}
           WORKFLOW_START: ${{ env.WORKFLOW_START }}
         run: |
-          if [ "$AGENT_MODE" = "weekly" ]; then
+          # Determine mode: manual input > Saturday auto-detect > daily default
+          if [ -n "${{ github.event.inputs.mode }}" ]; then
+            MODE="${{ github.event.inputs.mode }}"
+          elif [ "$(date -u +%u)" = "6" ]; then
+            MODE="weekly"
+          else
+            MODE="daily"
+          fi
+          echo "Running in $MODE mode"
+          if [ "$MODE" = "weekly" ]; then
             python run.py --scrape-only --weekly
           else
             python run.py --scrape-only
