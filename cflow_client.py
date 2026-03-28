@@ -99,14 +99,20 @@ class CFlowClient:
         """Convert portal date formats to CFlow's MM/DD/YYYY."""
         if not raw:
             return ""
-        # Portal returns e.g. "2026/04/14" or "2026-04-14" or "April 14, 2026"
-        for fmt in ("%Y/%m/%d", "%Y-%m-%d", "%B %d, %Y"):
+        cleaned = raw.strip()
+        # Portal returns e.g. "2026/04/14 14:00 EDT" — take date portion only for single-token formats.
+        date_token = cleaned.split()[0]
+        for fmt, value in [
+            ("%Y/%m/%d", date_token),
+            ("%Y-%m-%d", date_token),
+            ("%B %d, %Y", cleaned),      # "April 14, 2026" — needs full string
+        ]:
             try:
-                return datetime.strptime(raw.strip().split()[0], fmt).strftime("%m/%d/%Y")
+                return datetime.strptime(value, fmt).strftime("%m/%d/%Y")
             except (ValueError, IndexError):
                 continue
         # Already in MM/DD/YYYY or unrecognized — pass through
-        return raw.strip()
+        return cleaned
 
     @staticmethod
     def _notification_url(inquiry_link: str) -> str:

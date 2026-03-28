@@ -242,6 +242,12 @@ class CanadaBuysScraper:
             "notifications": _capture(text, r"Last amendment date\s+([^\n]+)"),
         }
 
+        # Detect bid platform from description text BEFORE clicking Contact tab,
+        # which overwrites `text` and may lose the SAP wording.
+        detail["bid_platform"] = "SAP" if re.search(
+            r"SAP\s+(?:Ariba|Business\s+Network)", text, re.IGNORECASE
+        ) else "CanadaBuys"
+
         # Click the Contact information tab to reveal contact fields.
         contact_tab = page.locator("text=Contact information").first
         if await contact_tab.count() > 0:
@@ -256,11 +262,6 @@ class CanadaBuysScraper:
         detail["contact_name"] = _capture(text, r"Contracting authority\s+([^\n]+)")
         detail["contact_email"] = _capture(text, r"Email\s+([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})", flags=re.IGNORECASE)
         detail["contact_phone"] = _capture(text, r"Phone\s+([^\n]+)") or ""
-
-        # Detect bid platform (CanadaBuys direct vs SAP Ariba).
-        detail["bid_platform"] = "SAP" if re.search(
-            r"SAP\s+(?:Ariba|Business\s+Network)", text, re.IGNORECASE
-        ) else "CanadaBuys"
 
         return detail
 
