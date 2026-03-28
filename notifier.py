@@ -25,6 +25,9 @@ class RunSummary:
     errors: list = field(default_factory=list)
     duration_seconds: float = 0.0
     mode: str = "daily"
+    files_downloaded: int = 0
+    files_uploaded: int = 0
+    sap_flagged: int = 0
 
     def __post_init__(self):
         if not self.run_at:

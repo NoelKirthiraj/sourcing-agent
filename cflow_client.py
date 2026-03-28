@@ -90,6 +90,7 @@ class CFlowClient:
                 "Contact Phone":           tender.get("contact_phone", ""),
                 "GSN":                     tender.get("gsin_description", ""),
                 "Number of Amendment(s)":  tender.get("notifications", ""),
+                "Inquiry (CONTRACT or SAP)": tender.get("bid_platform", ""),
             },
         }
 
@@ -118,6 +119,29 @@ class CFlowClient:
             tender_id = m.group(1)
             return f"https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/{tender_id}/notifications"
         return ""
+
+    async def attach_solicitation(self, record_id: str, file_path: str) -> bool:
+        """Upload a solicitation file to the 'UpLoad Solicitation' field on a record."""
+        if not self.config.stage_name:
+            await self._discover_stage()
+        filename = file_path.rsplit("/", 1)[-1]
+        with open(file_path, "rb") as f:
+            response = await self._http.post(
+                "/api/Public/filefield/attachfile",
+                data={
+                    "workflowName": self.config.workflow_name,
+                    "stageName": self.config.stage_name,
+                    "recordId": record_id,
+                    "fieldName": "UpLoad Solicitation",
+                },
+                files={"file": (filename, f)},
+                headers={"Content-Type": None},  # let httpx set multipart boundary
+            )
+        if response.status_code not in (200, 201):
+            log.error("File upload failed for record %s: %s %s", record_id, response.status_code, response.text)
+            return False
+        log.info("  Uploaded %s to record %s", filename, record_id)
+        return True
 
     async def aclose(self):
         await self._http.aclose()
