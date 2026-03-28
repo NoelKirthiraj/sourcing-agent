@@ -35,6 +35,7 @@ class Config:
             user_key=_require("CFLOW_USER_KEY"),
             username=_require("CFLOW_USERNAME"),
             workflow_name=_require("CFLOW_WORKFLOW_NAME"),
+            stage_name=os.getenv("CFLOW_STAGE_NAME", "").strip(),
             submit_immediately=_bool_env("CFLOW_SUBMIT_NOW", default=True),
         )
         default_url = (

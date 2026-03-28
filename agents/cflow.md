@@ -44,10 +44,10 @@ After changing `_build_payload()` or any CFlow-related code:
 
 ## Patterns
 
-### Correct — use `.get()` with empty string default in payload
+### Correct — use `.get()` with empty string default in values
 
 ```python
-"form_fields": {
+"values": {
     "Solicitation Title": tender.get("solicitation_title", ""),
     "Contact Email":      tender.get("contact_email", ""),
 }
@@ -56,7 +56,7 @@ After changing `_build_payload()` or any CFlow-related code:
 ### Wrong — direct dict access risks KeyError; None values cause 422
 
 ```python
-"form_fields": {
+"values": {
     "Solicitation Title": tender["solicitation_title"],   # KeyError if missing
     "Contact Email":      tender.get("contact_email"),    # None → 422 from CFlow
 }
@@ -69,15 +69,10 @@ if response.status_code not in (200, 201):
     raise RuntimeError(f"CFlow API returned {response.status_code}: {response.text}")
 ```
 
-### Correct — extract request_id with fallbacks (CFlow API version differences)
+### Correct — extract recordId from response
 
 ```python
-request_id = (
-    data.get("request_id")
-    or data.get("id")
-    or data.get("record_id")
-    or str(data)
-)
+record_id = str(data.get("recordId") or data.get("record_id") or data.get("id") or data)
 ```
 
 ## Common Mistakes
@@ -100,21 +95,44 @@ request_id = (
 ## CFlow API Reference
 
 ```
-Base URL:         https://us.cflowapps.com  (or ap / eu depending on region)
-Submit endpoint:  POST /api/v1/requests
-Draft endpoint:   POST /api/v1/requests/draft
-Workflows list:   GET  /api/v1/workflows
-Fields for WF:    GET  /api/v1/workflows/{id}/fields
+Regional base URLs:
+  US:  https://pubapi-us.cflowapps.com/cflowpublicapi
+  AP:  https://pubapi-ap.cflowapps.com/cflowpublicapi
+  EU:  https://pubapi-eu.cflowapps.com/cflowpublicapi
+  ME:  https://pubapi-me.cflowapps.com/cflowpublicapi
+
+Submit endpoint:   POST /api/Public/submit          (isDraft: true/false)
+Workflows list:    GET  /api/Public/workflows
+Stages for WF:     GET  /api/Public/workflow/stages/{workflowName}
+Fields for WF:     POST /api/Public/fields           (body: workflowName + stageName)
+Record details:    POST /api/Public/recorddetails
+Search records:    POST /api/Public/searchrecord
 
 Auth headers (all required on every request):
-  api-key:   [from Admin → Security Settings → API Settings]
-  user-key:  [from Profile → API Key]
-  username:  [CFlow login email]
+  X-API-Key:   [from Admin → Security Settings → API Settings]
+  X-User-Key:  [from Profile → API Key]
+
+Optional headers:
+  X-Impersonate-User:  [username to act on behalf of]
 
 Success responses:  200 or 201
 Field error:        422  (check field names with discover_fields.py)
 Auth error:         401  (rotate keys)
+Forbidden:          403  (insufficient permissions)
 Not found:          404  (wrong base_url or workflow_name)
+
+Submit payload structure:
+  {
+    "workflowName": "...",
+    "stageName": "...",
+    "isDraft": true/false,
+    "isWorkflow": true,
+    "values": { "FieldName": "value", ... },
+    "tableValues": [{ "TableName": "...", "Values": [...] }]
+  }
+
+Submit response:
+  { "recordId": 123, "status": "..." }
 ```
 
 ## Field Mapping Table (Update After Running discover_fields.py)

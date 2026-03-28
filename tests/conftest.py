@@ -22,11 +22,12 @@ def tmp_state(tmp_path):
 @pytest.fixture
 def cflow_config():
     return CFlowConfig(
-        base_url="https://us.cflowapps.com",
+        base_url="https://pubapi-us.cflowapps.com/cflowpublicapi",
         api_key="test-api-key",
         user_key="test-user-key",
         username="test@example.com",
         workflow_name="Sourcing Workflow",
+        stage_name="Stage 1",
     )
 
 
