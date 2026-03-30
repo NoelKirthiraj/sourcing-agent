@@ -29,7 +29,6 @@ class CFlowClient:
         self._http = httpx.AsyncClient(
             base_url=config.base_url,
             headers={
-                "Content-Type": "application/json",
                 "Accept": "application/json",
                 "X-API-Key": config.api_key,
                 "X-User-Key": config.user_key,
@@ -141,7 +140,6 @@ class CFlowClient:
                     "fieldName": "UpLoad Solicitation",
                 },
                 files={"file": (filename, f)},
-                headers={"Content-Type": None},  # let httpx set multipart boundary
             )
         if response.status_code not in (200, 201):
             log.error("File upload failed for record %s: %s %s", record_id, response.status_code, response.text)
