@@ -3,8 +3,8 @@
   "level": 7,
   "level_title": "Commander",
   "total_processed": 429,
-  "total_runs": 13,
-  "current_streak": 13,
+  "total_runs": 14,
+  "current_streak": 0,
   "best_streak": 13,
   "achievements": [
     {
@@ -33,6 +33,6 @@
       "earned_at": "2026-03-30T22:35:50.815634+00:00"
     }
   ],
-  "last_run_at": "2026-04-02T22:32:23.348541+00:00",
-  "last_status": "success"
+  "last_run_at": "2026-04-03T22:32:53.339550+00:00",
+  "last_status": "error"
 }

@@ -2022,5 +2022,18 @@
     ],
     "duration_seconds": 129.3,
     "mode": "daily"
+  },
+  {
+    "run_at": "2026-04-03T22:32:53.339550+00:00",
+    "total_found": 0,
+    "new_count": 0,
+    "skipped_count": 0,
+    "error_count": 1,
+    "errors": [
+      "Page.wait_for_selector: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"main a[href*='/en/tender-opportunities/tender-notice/'], main a[href*='/en/tender-opportunities/award-notice/']\") to be visible\n"
+    ],
+    "new_tenders": [],
+    "duration_seconds": 73.3,
+    "mode": "daily"
   }
 ]
