@@ -2,9 +2,13 @@
 CanadaBuys → CFlow Sourcing Intake Agent
 Main orchestrator — see CLAUDE.md for commands and verification steps.
 See agents/orchestrator.md for the state lifecycle invariants.
+
+Phase 2: If DATABASE_URL is set, tenders are staged to PostgreSQL for
+dashboard review. Otherwise, falls back to direct CFlow submission (legacy).
 """
 import asyncio
 import logging
+import os
 import shutil
 import sys
 import tempfile
@@ -29,27 +33,53 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
+
+def _use_db() -> bool:
+    """Check if Phase 2 PostgreSQL mode is enabled."""
+    return bool(os.environ.get("DATABASE_URL", ""))
+
+
 async def run_agent():
     log.info("=" * 60)
     log.info("CanadaBuys → CFlow Agent starting  %s", datetime.now().strftime("%Y-%m-%d %H:%M"))
     log.info("=" * 60)
 
     start_time = time.monotonic()
-    config = Config.load()
+    use_db = _use_db()
+
+    if use_db:
+        import db
+        # Phase 2: only need scraper config, not CFlow config
+        from dotenv import load_dotenv
+        load_dotenv()
+        from scraper import ScraperConfig
+        scraper_config = ScraperConfig(
+            headless=os.environ.get("SCRAPER_HEADLESS", "true").strip().lower() in ("1", "true", "yes"),
+        )
+        await db.init_schema()
+        log.info("Phase 2 mode: staging tenders to PostgreSQL for dashboard review")
+    else:
+        log.info("Legacy mode: direct CFlow submission")
+
+    config = Config.load() if not use_db else None
 
     # Saturday → weekly filters (Open + Goods + Last 7 days)
     if datetime.now().weekday() == 5:  # 5 = Saturday
         log.info("Saturday detected — using weekly filters (Goods, Last 7 days)")
-        config.scraper.search_url = WEEKLY_URL
+        if use_db:
+            scraper_config.search_url = WEEKLY_URL
+        else:
+            config.scraper.search_url = WEEKLY_URL
 
     state = AgentState(path=Path("processed_solicitations.json"))
-    cflow = CFlowClient(config.cflow)
+    cflow = CFlowClient(config.cflow) if config else None
     notifier = Notifier()
     summary = RunSummary()
+    effective_scraper_config = scraper_config if use_db else config.scraper
 
     download_dir = tempfile.mkdtemp(prefix="sourcing_agent_")
     try:
-      async with CanadaBuysScraper(config.scraper) as scraper:
+      async with CanadaBuysScraper(effective_scraper_config) as scraper:
         log.info("Fetching tender listings from CanadaBuys...")
         tenders = await scraper.fetch_tender_list()
         log.info("Found %d tender(s) total", len(tenders))
@@ -72,10 +102,23 @@ async def run_agent():
 
             sol_no = tender.get("solicitation_no", "").strip()
             dedup_key = sol_no or link
-            if state.already_processed(dedup_key):
-                summary.skipped_count += 1
-                log.debug("Already processed: %s — skipping", dedup_key)
-                continue
+
+            # Dedup: check DB if Phase 2, otherwise JSON state
+            if use_db:
+                import db as _db
+                if sol_no and await _db.tender_exists(sol_no):
+                    summary.skipped_count += 1
+                    log.debug("Already in DB: %s — skipping", sol_no)
+                    continue
+                if await _db.tender_exists_by_link(link):
+                    summary.skipped_count += 1
+                    log.debug("Already in DB (by link): %s — skipping", link)
+                    continue
+            else:
+                if state.already_processed(dedup_key):
+                    summary.skipped_count += 1
+                    log.debug("Already processed: %s — skipping", dedup_key)
+                    continue
 
             bid_platform = tender.get("bid_platform", "CanadaBuys")
             log.info("New tender: [%s] %s (platform: %s)", sol_no, tender.get("solicitation_title", ""), bid_platform)
@@ -94,30 +137,58 @@ async def run_agent():
                 summary.sap_flagged += 1
                 log.info("  SAP tender — flagged for manual solicitation download")
 
-            try:
-                request_id = await cflow.create_sourcing_request(tender)
-                log.info("✓ CFlow request created: %s  (%s)", request_id, sol_no)
+            if use_db:
+                # Phase 2: stage to PostgreSQL for dashboard review
+                if not sol_no:
+                    log.warning("  Empty solicitation_no — skipping DB staging for %s", link)
+                    summary.error_count += 1
+                    summary.errors.append(f"Empty sol_no: {link}")
+                    continue
+                try:
+                    import db as _db
+                    tender_id = await _db.stage_tender(tender)
+                    if tender_id:
+                        log.info("✓ Staged to DB: id=%d  (%s)", tender_id, sol_no)
+                        # Store solicitation path if downloaded
+                        if downloaded_files:
+                            await _db.update_tender_extraction(
+                                tender_id, solicitation_path=downloaded_files[0]
+                            )
+                        summary.new_count += 1
+                        summary.new_tenders.append(tender)
+                    else:
+                        summary.skipped_count += 1
+                except Exception as exc:
+                    log.error("✗ Failed to stage %s: %s", sol_no, exc)
+                    summary.error_count += 1
+                    summary.errors.append(f"{sol_no}: {exc}")
+            else:
+                # Legacy: direct CFlow submission
+                try:
+                    request_id = await cflow.create_sourcing_request(tender)
+                    log.info("✓ CFlow request created: %s  (%s)", request_id, sol_no)
 
-                # Upload downloaded solicitation files to the CFlow record.
-                for fpath in downloaded_files:
-                    try:
-                        uploaded = await cflow.attach_solicitation(request_id, fpath)
-                        if uploaded:
-                            summary.files_uploaded += 1
-                    except Exception as exc:
-                        log.warning("  File upload failed for %s: %s", fpath, exc)
+                    for fpath in downloaded_files:
+                        try:
+                            uploaded = await cflow.attach_solicitation(request_id, fpath)
+                            if uploaded:
+                                summary.files_uploaded += 1
+                        except Exception as exc:
+                            log.warning("  File upload failed for %s: %s", fpath, exc)
 
-                state.mark_processed(dedup_key, request_id=request_id, title=tender.get("solicitation_title"), link=link)
-                summary.new_count += 1
-                summary.new_tenders.append(tender)
-            except Exception as exc:
-                log.error("✗ Failed %s: %s", sol_no, exc)
-                summary.error_count += 1
-                summary.errors.append(f"{sol_no}: {exc}")
+                    state.mark_processed(dedup_key, request_id=request_id, title=tender.get("solicitation_title"), link=link)
+                    summary.new_count += 1
+                    summary.new_tenders.append(tender)
+                except Exception as exc:
+                    log.error("✗ Failed %s: %s", sol_no, exc)
+                    summary.error_count += 1
+                    summary.errors.append(f"{sol_no}: {exc}")
     finally:
         shutil.rmtree(download_dir, ignore_errors=True)
 
-    state.save()
+    if not use_db:
+        state.save()
+
     log.info("─" * 60)
     log.info("Done. New: %d | Skipped: %d | Errors: %d | Total: %d | Files: %d↓ %d↑ | SAP: %d",
              summary.new_count, summary.skipped_count, summary.error_count, summary.total_found,
@@ -128,6 +199,10 @@ async def run_agent():
     summary.duration_seconds = time.monotonic() - start_time
     summary.mode = "weekly" if datetime.now().weekday() == 5 else "daily"
     dashboard_data.record_run(summary, data_dir=Path("data"))
+
+    if use_db:
+        import db
+        await db.close_pool()
 
 if __name__ == "__main__":
     asyncio.run(run_agent())
