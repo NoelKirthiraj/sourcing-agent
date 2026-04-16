@@ -2789,6 +2789,13 @@ function renderReviewTender(t) {
         ${t.status === 'accepted' ? `
         <div class="tender-actions">
           <button class="review-btn" style="background:var(--cyan-dim);color:var(--cyan)" onclick="event.stopPropagation();submitReviewTender(${t.id},this)">Submit to CFlow</button>
+          <button class="review-btn reject" onclick="event.stopPropagation();rejectReviewTender(${t.id},this)">Reject</button>
+          <button class="review-btn" style="background:var(--bg-surface);color:var(--text-secondary)" onclick="event.stopPropagation();revertToPending(${t.id},this)">Back to Pending</button>
+        </div>` : ''}
+        ${t.status === 'rejected' ? `
+        <div class="tender-actions">
+          <button class="review-btn accept" onclick="event.stopPropagation();acceptReviewTender(${t.id},this)">Accept</button>
+          <button class="review-btn" style="background:var(--bg-surface);color:var(--text-secondary)" onclick="event.stopPropagation();revertToPending(${t.id},this)">Back to Pending</button>
         </div>` : ''}
       </div>
       <span class="tender-chevron">&#x25B6;</span>
@@ -2830,6 +2837,14 @@ async function bulkAcceptSelected() {
     method: 'POST',
     body: JSON.stringify({ ids })
   });
+  loadReviewTenders();
+  refreshAssociateDropdown();
+}
+
+async function revertToPending(id, btn) {
+  btn.disabled = true;
+  btn.textContent = '...';
+  await reviewApi(`/api/tenders/${id}/pending`, { method: 'POST' });
   loadReviewTenders();
   refreshAssociateDropdown();
 }

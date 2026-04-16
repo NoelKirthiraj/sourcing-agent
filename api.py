@@ -79,6 +79,9 @@ class APIHandler(BaseHTTPRequestHandler):
                 tender_id = int(path.split("/")[3])
                 reason = body.get("reason", "")
                 self._handle_reject(tender_id, reason)
+            elif path.startswith("/api/tenders/") and path.endswith("/pending"):
+                tender_id = int(path.split("/")[3])
+                self._handle_revert_pending(tender_id)
             elif path.startswith("/api/tenders/") and path.endswith("/submit"):
                 tender_id = int(path.split("/")[3])
                 self._handle_submit(tender_id)
@@ -159,6 +162,13 @@ class APIHandler(BaseHTTPRequestHandler):
             self._json_response({"status": "rejected", "id": tender_id})
         else:
             self._json_response({"error": "not found or not pending"}, 400)
+
+    def _handle_revert_pending(self, tender_id):
+        result = _run_async(db.revert_to_pending(tender_id))
+        if result:
+            self._json_response({"status": "pending_review", "id": tender_id})
+        else:
+            self._json_response({"error": "not found or cannot revert (submitted tenders are final)"}, 400)
 
     def _handle_bulk_accept(self, ids):
         accepted = 0

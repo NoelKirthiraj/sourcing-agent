@@ -175,7 +175,7 @@ async def update_tender_extraction(
 
 async def accept_tender(tender_id: int) -> Optional[dict]:
     """Mark a tender as accepted and assign an associate via round-robin.
-    Returns the tender record."""
+    Allows transition from pending_review or rejected. Returns the tender record."""
     pool = await get_pool()
     async with pool.acquire() as conn:
         # Round-robin: pick the associate with the fewest active (accepted) tenders
@@ -191,7 +191,7 @@ async def accept_tender(tender_id: int) -> Optional[dict]:
 
         row = await conn.fetchrow("""
             UPDATE tenders SET status = 'accepted', reviewed_at = NOW(), assigned_associate = $2
-            WHERE id = $1 AND status = 'pending_review'
+            WHERE id = $1 AND status IN ('pending_review', 'rejected')
             RETURNING *
         """, tender_id, assigned)
 
@@ -205,12 +205,25 @@ async def accept_tender(tender_id: int) -> Optional[dict]:
 
 
 async def reject_tender(tender_id: int, reason: str = "") -> bool:
-    """Mark a tender as rejected."""
+    """Mark a tender as rejected and unassign associate.
+    Allows transition from pending_review or accepted."""
     pool = await get_pool()
     async with pool.acquire() as conn:
         result = await conn.execute("""
-            UPDATE tenders SET status = 'rejected', reviewed_at = NOW()
-            WHERE id = $1 AND status = 'pending_review'
+            UPDATE tenders SET status = 'rejected', reviewed_at = NOW(), assigned_associate = ''
+            WHERE id = $1 AND status IN ('pending_review', 'accepted')
+        """, tender_id)
+        return result == "UPDATE 1"
+
+
+async def revert_to_pending(tender_id: int) -> bool:
+    """Move a tender back to pending_review and unassign associate.
+    Allows transition from accepted or rejected."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute("""
+            UPDATE tenders SET status = 'pending_review', reviewed_at = NULL, assigned_associate = ''
+            WHERE id = $1 AND status IN ('accepted', 'rejected')
         """, tender_id)
         return result == "UPDATE 1"
 
