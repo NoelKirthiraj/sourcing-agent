@@ -146,14 +146,40 @@ async def run_agent():
                     continue
                 try:
                     import db as _db
-                    tender_id = await _db.stage_tender(tender)
+                    import associates
+
+                    # Round-robin associate assignment
+                    assigned = await associates.assign_next()
+
+                    tender_id = await _db.stage_tender(tender, assigned_associate=assigned or "")
                     if tender_id:
-                        log.info("✓ Staged to DB: id=%d  (%s)", tender_id, sol_no)
-                        # Store solicitation path if downloaded
+                        log.info("✓ Staged to DB: id=%d  (%s) → %s", tender_id, sol_no, assigned or "unassigned")
+
+                        # LLM extraction if solicitation was downloaded
                         if downloaded_files:
                             await _db.update_tender_extraction(
                                 tender_id, solicitation_path=downloaded_files[0]
                             )
+                            try:
+                                from extractor import extract_from_pdf
+                                from classifier import classify_and_save_csv
+                                extraction = await extract_from_pdf(downloaded_files[0])
+                                if extraction:
+                                    classified = classify_and_save_csv(
+                                        extraction, download_dir, sol_no=sol_no
+                                    )
+                                    await _db.update_tender_extraction(
+                                        tender_id,
+                                        summary=extraction.get("summary_of_contract", ""),
+                                        requirements=classified.get("requirements_text", "") or str(extraction.get("requirements", "")),
+                                        mandatory_criteria=extraction.get("mandatory_criteria", ""),
+                                        submission_method=extraction.get("submission_method", ""),
+                                        file_type=classified.get("file_type", ""),
+                                        requirements_csv_path=classified.get("csv_path", ""),
+                                    )
+                                    log.info("  LLM extraction complete: file_type=%s", classified.get("file_type", ""))
+                            except Exception as exc:
+                                log.warning("  LLM extraction failed for %s: %s", sol_no, exc)
                         summary.new_count += 1
                         summary.new_tenders.append(tender)
                     else:

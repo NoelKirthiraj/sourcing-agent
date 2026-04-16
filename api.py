@@ -184,7 +184,7 @@ async def _init():
 
 
 def main():
-    port = int(os.environ.get("API_PORT", "8000"))
+    port = int(os.environ.get("PORT", os.environ.get("API_PORT", "8000")))
     _run_async(_init())
     server = HTTPServer(("0.0.0.0", port), APIHandler)
     log.info("Dashboard API running on http://0.0.0.0:%d", port)
