@@ -2936,7 +2936,7 @@ async function loadReviewAssociates() {
   const associates = await reviewApi('/api/associates');
   if (!associates) return;
   const select = document.getElementById('review-filter-associate');
-  associates.forEach(a => {
+  associates.filter(a => a.active).forEach(a => {
     const opt = document.createElement('option');
     opt.value = a.name;
     opt.textContent = `${a.name} (${a.active_tenders} active)`;
@@ -2973,9 +2973,10 @@ async function loadAssociatesTab() {
     return;
   }
 
-  const allNames = associates.map(a => a.name);
+  const activeAssociates = associates.filter(a => a.active);
+  const allNames = activeAssociates.map(a => a.name);
   const cards = [];
-  for (const a of associates) {
+  for (const a of activeAssociates) {
     let tenders = [];
     try {
       tenders = await reviewApi(`/api/associates/${encodeURIComponent(a.name)}/tenders`) || [];
@@ -2988,11 +2989,7 @@ async function loadAssociatesTab() {
         <span class="assoc-card-name">${escapeHtml(a.name)}</span>
         <span class="assoc-card-total">${a.active_tenders}</span>
       </div>
-      <div class="assoc-stats">
-        <div class="assoc-stat">
-          <span class="assoc-stat-val pending">${a.pending_count}</span>
-          <span class="assoc-stat-lbl">Pending</span>
-        </div>
+      <div class="assoc-stats" style="grid-template-columns:repeat(2,1fr)">
         <div class="assoc-stat">
           <span class="assoc-stat-val accepted">${a.accepted_count}</span>
           <span class="assoc-stat-lbl">Accepted</span>
