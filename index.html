@@ -1632,7 +1632,7 @@ body.theme-corporate {
             <option value="rejected">Rejected</option>
             <option value="submitted">Submitted</option>
           </select>
-          <select id="review-filter-associate" onchange="loadReviewTenders()">
+          <select id="review-filter-associate" onchange="onAssociateFilterChange()">
             <option value="">All Associates</option>
           </select>
           <button class="review-btn bulk" onclick="bulkAcceptSelected()">Accept Selected</button>
@@ -2695,6 +2695,15 @@ async function reviewApi(path, opts = {}) {
   }
 }
 
+function onAssociateFilterChange() {
+  // When selecting an associate, reset status to "All" to show their full workload
+  const associate = document.getElementById('review-filter-associate').value;
+  if (associate) {
+    document.getElementById('review-filter-status').value = '';
+  }
+  loadReviewTenders();
+}
+
 async function loadReviewTenders() {
   const status = document.getElementById('review-filter-status').value;
   const associate = document.getElementById('review-filter-associate').value;
@@ -2857,16 +2866,26 @@ async function loadAssociatesTab() {
   const grid = document.getElementById('associates-grid');
   grid.innerHTML = '<div class="log-empty">Loading...</div>';
 
-  const associates = await reviewApi('/api/associates');
-  if (!associates || !associates.length) {
+  let associates;
+  try {
+    associates = await reviewApi('/api/associates');
+  } catch(e) {
+    grid.innerHTML = '<div class="log-empty">Failed to load associates. Check API connection.</div>';
+    console.error('Associates load error:', e);
+    return;
+  }
+  if (!associates || !Array.isArray(associates) || !associates.length) {
     grid.innerHTML = '<div class="log-empty">No associates found.</div>';
     return;
   }
 
   const cards = [];
   for (const a of associates) {
-    const tenders = await reviewApi(`/api/associates/${encodeURIComponent(a.name)}/tenders`);
-    const active = (tenders || []).filter(t => t.status !== 'rejected');
+    let tenders = [];
+    try {
+      tenders = await reviewApi(`/api/associates/${encodeURIComponent(a.name)}/tenders`) || [];
+    } catch(e) { console.error('Tenders load error for', a.name, e); }
+    const active = tenders.filter(t => t.status !== 'rejected');
 
     cards.push(`
     <div class="assoc-card">
