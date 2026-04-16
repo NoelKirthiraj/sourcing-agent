@@ -838,6 +838,12 @@ body::after {
 }
 .review-stats .count { font-weight: 600; color: var(--text-primary); }
 
+#tab-review .tender-row {
+  border-radius: 2px;
+  border-left-width: 3px;
+  border-left-style: solid;
+}
+
 /* ─── Working Mode — Dashboard-wide ─── */
 .header-progress {
   height: 3px;
@@ -2647,7 +2653,7 @@ function renderReviewTender(t) {
 
   const borderColor = isPending ? 'var(--yellow)' : t.status === 'accepted' ? 'var(--green)' : t.status === 'rejected' ? 'var(--red)' : 'var(--cyan)';
   return `
-  <div class="tender-row" style="border-left-color:${borderColor};border-radius:8px">
+  <div class="tender-row" style="border-left-color:${borderColor}">
     <div class="tender-summary" onclick="this.parentElement.classList.toggle('expanded')">
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
