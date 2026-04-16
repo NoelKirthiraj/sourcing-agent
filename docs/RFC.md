@@ -310,12 +310,157 @@ sequenceDiagram
 
 ---
 
+## Phase 2: Intelligent Intake Pipeline (April 2026)
+
+### Overview
+
+Phase 2 evolves the agent from a fully automated batch pipeline into a **human-in-the-loop intelligent intake system** with LLM-powered document extraction, SAP integration, associate workload management, and a review dashboard.
+
+### New Pipeline Architecture
+
+```
+Phase 1 (Automated — GitHub Actions cron):
+  CanadaBuys scrape → detail extraction → SAP/direct detection
+    → solicitation download (CanadaBuys direct OR SAP auto-login)
+    → LLM extraction (summary, requirements, criteria, submission method)
+    → multi-inquiry detection (Regular vs Multiple + CSV export)
+    → associate round-robin assignment
+    → stage to PostgreSQL (status: pending_review)
+
+Phase 2 (Manual — Dashboard):
+  User reviews staged tenders on Vercel dashboard
+    → Accept → CFlow submit + file upload
+    → Reject → mark rejected, never reprocessed
+```
+
+### Technology Additions
+
+| Component | Technology | Rationale |
+|-----------|-----------|-----------|
+| **Database** | PostgreSQL on Railway | Replaces JSON state file; supports structured queries, associate tracking, tender status workflow |
+| **Dashboard** | Next.js on Vercel (free tier) | Accept/reject gate, associate workload view, tender detail display |
+| **LLM extraction** | Claude API (Anthropic) | Extract summary, requirements, mandatory criteria, submission method from solicitation PDFs |
+| **SAP automation** | Playwright (same browser context) | Auto-login to SAP Business Network for solicitation download |
+
+### Data Model (PostgreSQL)
+
+```sql
+-- Tenders table (replaces processed_solicitations.json)
+CREATE TABLE tenders (
+    id              SERIAL PRIMARY KEY,
+    solicitation_no VARCHAR(100) UNIQUE,
+    solicitation_title TEXT,
+    inquiry_link    TEXT,
+    closing_date    VARCHAR(20),
+    time_and_zone   VARCHAR(50),
+    client          TEXT,
+    contact_name    TEXT,
+    contact_email   TEXT,
+    contact_phone   TEXT,
+    gsin            TEXT,
+    bid_platform    VARCHAR(20),       -- 'CanadaBuys' or 'SAP'
+    file_type       VARCHAR(20),       -- 'Regular' or 'Multiple'
+    submission_method VARCHAR(50),     -- 'E-post' / 'FAX' / 'E-mail' / 'SAP'
+    summary_of_contract TEXT,
+    requirements    TEXT,
+    mandatory_criteria TEXT,
+    solicitation_path TEXT,            -- local file path (temp) or S3 URL
+    requirements_csv_path TEXT,        -- CSV for multi-inquiry tenders
+    assigned_associate VARCHAR(50),
+    status          VARCHAR(20) DEFAULT 'pending_review',
+                                       -- pending_review → accepted → submitted / rejected
+    cflow_record_id VARCHAR(50),
+    scraped_at      TIMESTAMP DEFAULT NOW(),
+    reviewed_at     TIMESTAMP,
+    submitted_at    TIMESTAMP,
+    created_at      TIMESTAMP DEFAULT NOW()
+);
+
+-- Associates table
+CREATE TABLE associates (
+    id              SERIAL PRIMARY KEY,
+    name            VARCHAR(50) UNIQUE NOT NULL,
+    active          BOOLEAN DEFAULT TRUE,
+    last_assigned_at TIMESTAMP
+);
+
+-- Seed data
+INSERT INTO associates (name) VALUES
+    ('Edward'), ('Richard'), ('Jack'), ('John'), ('James');
+```
+
+### SAP Auto-Login Flow
+
+```
+1. Tender detail page contains "SAP Business Network" text
+2. Agent follows the SAP link from the tender page
+3. Playwright logs in using SAP_USERNAME + SAP_PASSWORD from .env
+4. Navigates to the solicitation document section
+5. Downloads solicitation PDF(s)
+6. Falls back to flagging if login fails (MFA, CAPTCHA, session expired)
+```
+
+### LLM Document Extraction
+
+After downloading a solicitation PDF, the agent sends it to Claude API:
+
+```python
+prompt = """Extract these fields from this solicitation document:
+1. Summary of Contract — 2-3 sentence overview
+2. Requirements — if single item, describe it; if table of items, return as structured JSON
+3. Mandatory Criteria — list all mandatory criteria
+4. Submission Method — one of: E-post, FAX, E-mail, SAP
+
+If requirements are a multi-item table, also return the table data as JSON
+with columns: Item, GSIN, NSN, Description, Part No, NCAGE, Quantity,
+Unit of Issue, Destination, Packaging.
+"""
+```
+
+**Multi-inquiry detection:** If the LLM returns a requirements table with >1 row, the tender is classified as "Multiple" and a CSV is generated. Otherwise it's "Regular".
+
+### Associate Round-Robin
+
+```python
+# Get next associate (round-robin by last_assigned_at)
+SELECT name FROM associates
+WHERE active = TRUE
+ORDER BY last_assigned_at ASC NULLS FIRST
+LIMIT 1;
+
+# After assignment
+UPDATE associates SET last_assigned_at = NOW() WHERE name = ?;
+```
+
+### Dashboard API (Next.js API routes on Vercel)
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/tenders` | GET | List tenders with filters (status, associate, date range) |
+| `/api/tenders/[id]/accept` | POST | Accept tender → triggers CFlow submission |
+| `/api/tenders/[id]/reject` | POST | Reject tender → marks as rejected |
+| `/api/associates` | GET | List associates with workload counts |
+| `/api/associates/[name]/tenders` | GET | Tenders assigned to specific associate |
+
+### Risks (Phase 2 Additions)
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|-----------|--------|------------|
+| SAP MFA blocks automated login | Medium | Medium — SAP tenders flagged manually | Cookie import fallback; periodic manual re-auth |
+| LLM extraction returns incorrect data | Medium | Low — human reviews on dashboard before CFlow | Dashboard accept/reject gate is the safety net |
+| Railway PostgreSQL downtime | Low | High — scraping and review blocked | Railway has 99.9% uptime; agent can buffer to local JSON as fallback |
+| Multi-inquiry table extraction misses rows | Medium | Medium — incomplete CSV | LLM prompt includes sample table format; human can edit CSV before accept |
+| Dashboard adds operational complexity | Low | Low — team already reviews tenders | Dashboard replaces manual review, doesn't add a step |
+
+---
+
 ## References
 
 - `PRD.md` — Product Requirements Document
 - `COMPETITIVE_ANALYSIS.md` — Market landscape
 - `USER_FLOWS.md` — System and operator flow diagrams
-- [CFlow REST API docs](https://help.cflowapps.com/knowledgebase/making-rest-api-calls-from-your-form/)
-- [CFlow Zapier integration](https://help.cflowapps.com/knowledgebase/trigger-from-third-party-applications-to-cflow/)
+- [CFlow Public API docs](https://apidocs.cflowapps.com/cflowpublicapi/)
 - [Playwright async API docs](https://playwright.dev/python/docs/api/class-page)
 - [CanadaBuys portal](https://canadabuys.canada.ca/en/tender-opportunities)
+- [Railway PostgreSQL](https://railway.app)
+- [Anthropic Claude API](https://docs.anthropic.com/en/docs/)

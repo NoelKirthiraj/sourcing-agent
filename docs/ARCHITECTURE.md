@@ -397,7 +397,108 @@ graph TB
 |---------|-----------|
 | Adding MERX / provincial portals | Extract `CanadaBuysScraper` behind a `BaseScraper` interface; add `MERXScraper`, `OntarioTendersScraper` as implementations; orchestrator iterates scraper registry |
 | Amendment detection | Add `amendment_no` field to state file; if scraper detects changed amendment count for known solicitation, issue a PATCH to CFlow instead of POST |
-| Dashboard / reporting | Promote state JSON to SQLite; add a lightweight FastAPI read endpoint; deploy to Railway or Fly.io alongside the scheduler |
 | Multi-client deployment | Parameterise config by tenant; GitHub Actions matrix strategy runs one job per client with isolated secrets |
-| AI-assisted field extraction | If CanadaBuys HTML structure becomes too unstable for CSS selectors, replace `_extract_listing` / `_extract_detail` with a vision-capable LLM call (Anthropic Claude) on a Playwright screenshot — self-healing extraction |
 | Self-healing selectors | On `total_found=0`, agent auto-captures a screenshot, sends it to Claude API with the field list, receives updated selectors, patches `scraper.py`, and creates a GitHub PR for human review before merge |
+
+---
+
+## Phase 2 Architecture: Intelligent Intake Pipeline
+
+Phase 2 evolves the system from a batch pipeline into a human-in-the-loop intake system with persistent storage, LLM extraction, and a review dashboard.
+
+### System Architecture (Phase 2)
+
+```mermaid
+graph TB
+    subgraph "Scheduler (GitHub Actions)"
+        CRON[Weekday 7AM ET Cron]
+    end
+
+    subgraph "Agent Process (Phase 1 — Automated)"
+        SCRAPER[CanadaBuys Scraper<br/>Playwright]
+        SAP[SAP Auto-Login<br/>Playwright]
+        DOWNLOAD[Solicitation Download]
+        LLM[Claude API<br/>Document Extraction]
+        CLASSIFY[Multi/Regular<br/>Classification]
+        ASSIGN[Associate<br/>Round-Robin]
+    end
+
+    subgraph "Storage (Railway)"
+        PG[(PostgreSQL)]
+    end
+
+    subgraph "Dashboard (Vercel)"
+        UI[Next.js Dashboard]
+        API[API Routes]
+    end
+
+    subgraph "External Services"
+        CB[CanadaBuys Portal]
+        SAPBN[SAP Business Network]
+        CFLOW[CFlow REST API]
+        CLAUDE[Claude API]
+    end
+
+    CRON --> SCRAPER
+    SCRAPER --> CB
+    SCRAPER -->|SAP tender| SAP --> SAPBN
+    SCRAPER -->|direct tender| DOWNLOAD --> CB
+    SAP --> DOWNLOAD
+    DOWNLOAD --> LLM --> CLAUDE
+    LLM --> CLASSIFY --> ASSIGN --> PG
+
+    UI --> API --> PG
+    API -->|on accept| CFLOW
+```
+
+### New Subsystems
+
+| Subsystem | File(s) | Responsibility |
+|-----------|---------|---------------|
+| **Database** | `db.py` | PostgreSQL connection, tender CRUD, associate queries |
+| **SAP Downloader** | `sap_client.py` | Playwright login to SAP Business Network, solicitation download |
+| **LLM Extractor** | `extractor.py` | Send PDF to Claude API, parse structured extraction response |
+| **Classifier** | `classifier.py` | Determine Regular vs Multiple inquiry, generate CSV for multi-item |
+| **Associate Manager** | `associates.py` | Round-robin assignment, workload tracking |
+| **Dashboard API** | `dashboard/` | Next.js app on Vercel with API routes for tender review |
+
+### Data Flow (Phase 2)
+
+```
+CanadaBuys HTML
+  → Playwright extraction (scraper.py)
+  → SAP login + download OR direct download (sap_client.py / scraper.py)
+  → PDF → Claude API extraction (extractor.py)
+  → Multi/Regular classification (classifier.py)
+  → Associate assignment (associates.py)
+  → INSERT into PostgreSQL with status='pending_review' (db.py)
+  → [Dashboard: user reviews]
+  → Accept → CFlow POST + file upload (cflow_client.py)
+  → Reject → UPDATE status='rejected' (db.py)
+```
+
+### Technology Stack (Phase 2 Additions)
+
+| Component | Technology | Rationale |
+|-----------|-----------|-----------|
+| Database | PostgreSQL 16 on Railway | Structured queries, status workflow, associate tracking; Railway free tier sufficient |
+| Dashboard | Next.js 14 on Vercel | React SSR, API routes, free tier; team already uses Vercel |
+| LLM | Claude API (Anthropic) | PDF understanding, structured extraction; same vendor as development tools |
+| File storage | Railway volume or S3 | Solicitation PDFs and requirement CSVs need persistent storage beyond temp dirs |
+
+### Environment Variables (Phase 2 Additions)
+
+```bash
+# PostgreSQL (Railway)
+DATABASE_URL=postgresql://user:pass@host:port/dbname
+
+# SAP Business Network (optional — falls back to manual flag)
+SAP_USERNAME=your_sap_user
+SAP_PASSWORD=your_sap_password
+
+# Claude API (for document extraction)
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Dashboard
+NEXT_PUBLIC_API_URL=https://your-dashboard.vercel.app/api
+```

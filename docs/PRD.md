@@ -76,11 +76,19 @@ A sourcing team that monitors Canadian federal IT tender opportunities must manu
 - [ ] As a **sourcing team member**, I want the agent to automatically download solicitation documents from the CanadaBuys "Bidding Details" tab and upload them to the CFlow record so that I don't have to manually fetch and attach files
 - [ ] As a **sourcing team member**, I want SAP-only tenders flagged in CFlow (via the "Inquiry (CONTRACT or SAP)" field) so that I know which records need manual solicitation download from SAP Ariba
 
+### Phase 2 — Intelligent Intake Pipeline (P0)
+
+- [ ] As a **sourcing team member**, I want tenders staged for my review on a dashboard before CFlow submission so that I can accept or reject them, preventing irrelevant tenders from creating workflow records
+- [ ] As a **sourcing team member**, I want the agent to automatically download solicitation documents from SAP Business Network when they aren't available on CanadaBuys directly so that I don't have to manually log in and download
+- [ ] As a **sourcing team member**, I want the agent to extract Summary of Contract, Requirements, Mandatory Criteria, and Submission Method from downloaded solicitation PDFs using AI so that these fields are pre-populated in CFlow
+- [ ] As a **sourcing team member**, I want multi-item requirement tables detected automatically (File Type = Multiple) and exported as CSV so that I don't have to manually extract tabular data
+- [ ] As a **sourcing manager**, I want tenders automatically assigned to associates (Edward, Richard, Jack, John, James) in round-robin fashion so that workload is distributed evenly
+- [ ] As a **sourcing manager**, I want to see each associate's current tender assignments on the dashboard so that I can monitor workload and reassign if needed
+
 ### Nice to Have (P2 — Post-MVP)
 
 - As a **sourcing team member**, I want the agent to also monitor MERX and provincial portals (Ontario Tenders Portal, BC Bid) so that no relevant federal or provincial IT opportunities are missed
 - As a **sourcing team member**, I want tenders automatically tagged by estimated contract value or ministry so that I can filter and prioritise in CFlow
-- As a **sourcing team manager**, I want a simple web dashboard showing historical intake volume, scrape success rate, and CFlow submission history so that I can report on pipeline activity
 - As a **sourcing team member**, I want the agent to detect amendments to previously submitted tenders and update the corresponding CFlow record so that I'm working from current information
 - As a **developer / admin**, I want the scraper's CSS selectors to self-heal using an LLM when CanadaBuys changes its HTML so that the agent doesn't require manual maintenance after portal updates
 
@@ -112,12 +120,13 @@ A sourcing team that monitors Canadian federal IT tender opportunities must manu
 
 ### Constraints
 
-- **Technical:** Python 3.12+, Playwright (Chromium), HTTPX, GitHub Actions. No database dependency — state managed via JSON file.
+- **Technical:** Python 3.12+, Playwright (Chromium), HTTPX, GitHub Actions. Phase 2 adds PostgreSQL (Railway), Next.js dashboard (Vercel), Claude API (Anthropic).
 - **Scraping:** CanadaBuys blocks raw HTTP scrapers via `robots.txt`; Playwright headless browser is mandatory
-- **CFlow field mapping:** Exact CFlow form field API names must be manually verified against the live workflow using the `discover_fields.py` tool before go-live
+- **CFlow field mapping:** Exact CFlow form field API names verified against V4 workflow using `discover_fields.py`; currently targeting `V4 - Sourcing WorkFlow Phase 1`
 - **Scheduling:** GitHub Actions cron has ±10 minute variance on scheduled runs; this is acceptable for a daily cadence
-- **Cost:** Infrastructure budget is $0 — GitHub Actions free tier (2,000 minutes/month) is more than sufficient for a ~5 minute daily run
+- **Cost:** GitHub Actions free tier + Railway free tier (PostgreSQL) + Vercel free tier (dashboard) + Claude API usage (~$5-10/month for PDF extraction)
 - **Maintenance:** If CanadaBuys restructures its HTML, CSS selectors in `scraper.py` will need updating. Estimated: 1–2 hours of developer time per incident.
+- **SAP dependency:** SAP auto-login may be blocked by MFA/CAPTCHA; fallback is manual flag for team to download
 
 ---
 
