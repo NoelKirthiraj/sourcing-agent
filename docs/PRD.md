@@ -71,6 +71,11 @@ A sourcing team that monitors Canadian federal IT tender opportunities must manu
 - As a **developer / admin**, I want to run a dry-run command that shows exactly what would be sent to CFlow without creating any records so that I can validate the scraper before going live
 - As a **developer / admin**, I want a field discovery tool that queries CFlow and outputs the exact form field names so that the mapping can be verified without trial and error
 
+### Should Have (P1)
+
+- [ ] As a **sourcing team member**, I want the agent to automatically download solicitation documents from the CanadaBuys "Bidding Details" tab and upload them to the CFlow record so that I don't have to manually fetch and attach files
+- [ ] As a **sourcing team member**, I want SAP-only tenders flagged in CFlow (via the "Inquiry (CONTRACT or SAP)" field) so that I know which records need manual solicitation download from SAP Ariba
+
 ### Nice to Have (P2 — Post-MVP)
 
 - As a **sourcing team member**, I want the agent to also monitor MERX and provincial portals (Ontario Tenders Portal, BC Bid) so that no relevant federal or provincial IT opportunities are missed

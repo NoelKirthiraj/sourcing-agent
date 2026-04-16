@@ -6,9 +6,12 @@ key tender listing fields plus selected detail fields.
 """
 
 import logging
+import os
 import re
+import tempfile
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin
 
@@ -239,6 +242,12 @@ class CanadaBuysScraper:
             "notifications": _capture(text, r"Last amendment date\s+([^\n]+)"),
         }
 
+        # Detect bid platform from description text BEFORE clicking Contact tab,
+        # which overwrites `text` and may lose the SAP wording.
+        detail["bid_platform"] = "SAP" if re.search(
+            r"SAP\s+(?:Ariba|Business\s+Network)", text, re.IGNORECASE
+        ) else "CanadaBuys"
+
         # Click the Contact information tab to reveal contact fields.
         contact_tab = page.locator("text=Contact information").first
         if await contact_tab.count() > 0:
@@ -253,7 +262,63 @@ class CanadaBuysScraper:
         detail["contact_name"] = _capture(text, r"Contracting authority\s+([^\n]+)")
         detail["contact_email"] = _capture(text, r"Email\s+([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})", flags=re.IGNORECASE)
         detail["contact_phone"] = _capture(text, r"Phone\s+([^\n]+)") or ""
+
         return detail
+
+    async def download_solicitation(self, url: str, download_dir: str) -> list[str]:
+        """Navigate to the tender detail page, click 'Bidding details' tab,
+        and download any solicitation documents found.
+
+        Returns a list of local file paths for successfully downloaded files.
+        """
+        page = await self._context.new_page()
+        downloaded: list[str] = []
+        try:
+            await page.goto(url, timeout=self.config.timeout_ms, wait_until="domcontentloaded")
+            await page.wait_for_load_state("networkidle", timeout=self.config.timeout_ms)
+
+            # Click the "Bidding details" tab to reveal documents.
+            bidding_tab = page.locator("text=Bidding details").first
+            if await bidding_tab.count() == 0:
+                log.debug("No 'Bidding details' tab found on %s", url)
+                return []
+
+            await bidding_tab.click()
+            await page.wait_for_load_state("networkidle", timeout=self.config.timeout_ms)
+            await page.wait_for_timeout(2000)
+
+            # Find download links — typically PDF/DOC files in the bidding section.
+            download_links = page.locator(
+                "a[href$='.pdf'], a[href$='.doc'], a[href$='.docx'], "
+                "a[href$='.xls'], a[href$='.xlsx'], a[href$='.zip'], "
+                "a[download], a[href*='download']"
+            )
+            link_count = await download_links.count()
+            if link_count == 0:
+                log.debug("No downloadable files found on bidding details for %s", url)
+                return []
+
+            for i in range(link_count):
+                link = download_links.nth(i)
+                try:
+                    async with page.expect_download(timeout=30000) as dl_info:
+                        await link.click()
+                    download = await dl_info.value
+                    filename = download.suggested_filename or f"solicitation_{i}.pdf"
+                    dest = os.path.join(download_dir, filename)
+                    await download.save_as(dest)
+                    downloaded.append(dest)
+                    log.info("  Downloaded: %s", filename)
+                except Exception as exc:
+                    log.debug("  Download failed for link %d on %s: %s", i, url, exc)
+                    continue
+
+        except Exception as exc:
+            log.warning("Could not download solicitation from %s: %s", url, exc)
+        finally:
+            await page.close()
+
+        return downloaded
 
 
 BASE_URL = "https://canadabuys.canada.ca"
