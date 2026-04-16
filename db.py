@@ -82,7 +82,12 @@ async def init_schema():
             -- Seed associates if table is empty
             INSERT INTO associates (name)
             SELECT name FROM (VALUES
-                ('Edward'), ('Richard'), ('Jack'), ('John'), ('James')
+                ('Charles Radovic'),
+                ('Edouard Radovic'),
+                ('Edouard Radovic Admin'),
+                ('Jean-Michel Beaudoin Bombardier'),
+                ('Office'),
+                ('Richard Radovic')
             ) AS seed(name)
             WHERE NOT EXISTS (SELECT 1 FROM associates LIMIT 1);
         """)
