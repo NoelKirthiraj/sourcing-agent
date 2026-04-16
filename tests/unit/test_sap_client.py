@@ -62,7 +62,8 @@ async def test_login_detects_no_login_form(sap_client):
 
     result = await sap_client._try_login(page)
     assert result is True
-    assert sap_client._logged_in is True
+    # Should NOT cache _logged_in when login form is simply absent
+    assert sap_client._logged_in is False
 
 
 @pytest.mark.asyncio

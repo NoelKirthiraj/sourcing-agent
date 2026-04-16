@@ -75,9 +75,9 @@ class SAPClient:
             # Look for username field
             username_field = page.locator(SAP_USERNAME_SELECTOR).first
             if await username_field.count() == 0:
-                # No login form — might already be logged in or wrong page
-                log.debug("No username field found — may already be authenticated")
-                self._logged_in = True
+                # No login form — could be already authenticated, SSO redirect, or wrong page.
+                # Do NOT cache _logged_in here — we can't verify authentication state.
+                log.debug("No username field found — proceeding without login (not cached as authenticated)")
                 return True
 
             await username_field.fill(self._username)
