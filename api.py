@@ -79,6 +79,10 @@ class APIHandler(BaseHTTPRequestHandler):
                 tender_id = int(path.split("/")[3])
                 reason = body.get("reason", "")
                 self._handle_reject(tender_id, reason)
+            elif path.startswith("/api/tenders/") and path.endswith("/reassign"):
+                tender_id = int(path.split("/")[3])
+                new_associate = body.get("associate", "")
+                self._handle_reassign(tender_id, new_associate)
             elif path.startswith("/api/tenders/") and path.endswith("/pending"):
                 tender_id = int(path.split("/")[3])
                 self._handle_revert_pending(tender_id)
@@ -162,6 +166,16 @@ class APIHandler(BaseHTTPRequestHandler):
             self._json_response({"status": "rejected", "id": tender_id})
         else:
             self._json_response({"error": "not found or not pending"}, 400)
+
+    def _handle_reassign(self, tender_id, new_associate):
+        if not new_associate:
+            self._json_response({"error": "associate name required"}, 400)
+            return
+        result = _run_async(db.reassign_tender(tender_id, new_associate))
+        if result:
+            self._json_response({"status": "reassigned", "id": tender_id, "associate": new_associate})
+        else:
+            self._json_response({"error": "not found or not accepted"}, 400)
 
     def _handle_revert_pending(self, tender_id):
         result = _run_async(db.revert_to_pending(tender_id))

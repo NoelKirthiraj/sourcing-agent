@@ -228,6 +228,17 @@ async def revert_to_pending(tender_id: int) -> bool:
         return result == "UPDATE 1"
 
 
+async def reassign_tender(tender_id: int, new_associate: str) -> bool:
+    """Reassign an accepted tender to a different associate."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute("""
+            UPDATE tenders SET assigned_associate = $2
+            WHERE id = $1 AND status = 'accepted'
+        """, tender_id, new_associate)
+        return result == "UPDATE 1"
+
+
 async def mark_submitted(tender_id: int, cflow_record_id: str):
     """Mark a tender as submitted to CFlow."""
     pool = await get_pool()

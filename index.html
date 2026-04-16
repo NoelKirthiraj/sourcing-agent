@@ -2841,6 +2841,16 @@ async function bulkAcceptSelected() {
   refreshAssociateDropdown();
 }
 
+async function reassignTender(id, newAssociate) {
+  if (!newAssociate) return;
+  await reviewApi(`/api/tenders/${id}/reassign`, {
+    method: 'POST',
+    body: JSON.stringify({ associate: newAssociate })
+  });
+  loadAssociatesTab();
+  refreshAssociateDropdown();
+}
+
 async function revertToPending(id, btn) {
   btn.disabled = true;
   btn.textContent = '...';
@@ -2949,6 +2959,7 @@ async function loadAssociatesTab() {
     return;
   }
 
+  const allNames = associates.map(a => a.name);
   const cards = [];
   for (const a of associates) {
     let tenders = [];
@@ -2981,10 +2992,17 @@ async function loadAssociatesTab() {
         ${active.length === 0 ? '<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:0.75rem">No tenders assigned</div>' :
           active.map(t => {
             const closingSoon = isClosingSoon(t.closing_date);
-            return `<div class="assoc-tender-item">
-              <a class="assoc-tender-sol ${closingSoon ? 'assoc-closing-soon' : ''}" href="${escapeHtml(t.inquiry_link || '#')}" target="_blank">${escapeHtml(t.solicitation_no || '—')}</a>
-              <span class="assoc-tender-title" title="${escapeHtml(t.solicitation_title || '')}">${escapeHtml(t.solicitation_title || '—')}</span>
-              <span class="review-status ${t.status === 'accepted' ? 'accepted' : t.status === 'submitted' ? 'submitted' : 'pending'}">${(t.status || '').replace('_', ' ')}</span>
+            const otherNames = allNames.filter(n => n !== a.name);
+            const reassignOpts = otherNames.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+            return `<div class="assoc-tender-item" style="flex-wrap:wrap;gap:4px">
+              <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0">
+                <a class="assoc-tender-sol ${closingSoon ? 'assoc-closing-soon' : ''}" href="${escapeHtml(t.inquiry_link || '#')}" target="_blank">${escapeHtml(t.solicitation_no || '—')}</a>
+                <span class="assoc-tender-title" title="${escapeHtml(t.solicitation_title || '')}">${escapeHtml(t.solicitation_title || '—')}</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:4px">
+                ${t.status === 'accepted' ? `<select style="font-size:0.625rem;padding:1px 4px;background:var(--bg-card);color:var(--text-secondary);border:1px solid var(--border);border-radius:4px" onchange="reassignTender(${t.id},this.value)"><option value="">Reassign</option>${reassignOpts}</select>` : ''}
+                <span class="review-status ${t.status === 'accepted' ? 'accepted' : t.status === 'submitted' ? 'submitted' : 'pending'}">${(t.status || '').replace('_', ' ')}</span>
+              </div>
             </div>`;
           }).join('')
         }
