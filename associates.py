@@ -12,7 +12,6 @@ log = logging.getLogger(__name__)
 ASSOCIATES_DEFAULT = [
     "Charles Radovic",
     "Edouard Radovic",
-    "Edouard Radovic Admin",
     "Jean-Michel Beaudoin Bombardier",
     "Office",
     "Richard Radovic",

@@ -84,7 +84,6 @@ async def init_schema():
             SELECT name FROM (VALUES
                 ('Charles Radovic'),
                 ('Edouard Radovic'),
-                ('Edouard Radovic Admin'),
                 ('Jean-Michel Beaudoin Bombardier'),
                 ('Office'),
                 ('Richard Radovic')

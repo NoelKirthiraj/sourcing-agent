@@ -2911,7 +2911,7 @@ async function refreshAssociateDropdown() {
   select.innerHTML = '<option value="">All Associates</option>';
   const associates = await reviewApi('/api/associates');
   if (!associates) return;
-  associates.forEach(a => {
+  associates.filter(a => a.active).forEach(a => {
     const opt = document.createElement('option');
     opt.value = a.name;
     opt.textContent = `${a.name} (${a.active_tenders} active)`;
