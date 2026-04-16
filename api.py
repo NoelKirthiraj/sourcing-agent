@@ -52,6 +52,9 @@ class APIHandler(BaseHTTPRequestHandler):
         elif path.startswith("/api/tenders/") and path.endswith("/detail"):
             tender_id = path.split("/")[3]
             self._handle_tender_detail(tender_id)
+        elif path.startswith("/api/associates/") and path.endswith("/tenders"):
+            name = path.split("/")[3]
+            self._handle_associate_tenders(name, params)
         elif path == "/api/health":
             self._json_response({"status": "ok"})
         else:
@@ -113,6 +116,17 @@ class APIHandler(BaseHTTPRequestHandler):
                 if hasattr(v, "isoformat"):
                     a[k] = v.isoformat()
         self._json_response(associates)
+
+    def _handle_associate_tenders(self, name, params):
+        """Get tenders assigned to a specific associate."""
+        from urllib.parse import unquote
+        name = unquote(name)
+        tenders = _run_async(db.list_tenders(associate=name, limit=200))
+        for t in tenders:
+            for k, v in t.items():
+                if hasattr(v, "isoformat"):
+                    t[k] = v.isoformat()
+        self._json_response(tenders)
 
     def _handle_tender_detail(self, tender_id):
         try:
