@@ -45,29 +45,41 @@ async def run_agent():
     log.info("=" * 60)
 
     start_time = time.monotonic()
-    config = Config.load()
     use_db = _use_db()
 
     if use_db:
         import db
+        # Phase 2: only need scraper config, not CFlow config
+        from dotenv import load_dotenv
+        load_dotenv()
+        from scraper import ScraperConfig
+        scraper_config = ScraperConfig(
+            headless=os.environ.get("SCRAPER_HEADLESS", "true").strip().lower() in ("1", "true", "yes"),
+        )
         await db.init_schema()
         log.info("Phase 2 mode: staging tenders to PostgreSQL for dashboard review")
     else:
         log.info("Legacy mode: direct CFlow submission")
 
+    config = Config.load() if not use_db else None
+
     # Saturday → weekly filters (Open + Goods + Last 7 days)
     if datetime.now().weekday() == 5:  # 5 = Saturday
         log.info("Saturday detected — using weekly filters (Goods, Last 7 days)")
-        config.scraper.search_url = WEEKLY_URL
+        if use_db:
+            scraper_config.search_url = WEEKLY_URL
+        else:
+            config.scraper.search_url = WEEKLY_URL
 
     state = AgentState(path=Path("processed_solicitations.json"))
-    cflow = CFlowClient(config.cflow)
+    cflow = CFlowClient(config.cflow) if config else None
     notifier = Notifier()
     summary = RunSummary()
+    effective_scraper_config = scraper_config if use_db else config.scraper
 
     download_dir = tempfile.mkdtemp(prefix="sourcing_agent_")
     try:
-      async with CanadaBuysScraper(config.scraper) as scraper:
+      async with CanadaBuysScraper(effective_scraper_config) as scraper:
         log.info("Fetching tender listings from CanadaBuys...")
         tenders = await scraper.fetch_tender_list()
         log.info("Found %d tender(s) total", len(tenders))
@@ -127,6 +139,11 @@ async def run_agent():
 
             if use_db:
                 # Phase 2: stage to PostgreSQL for dashboard review
+                if not sol_no:
+                    log.warning("  Empty solicitation_no — skipping DB staging for %s", link)
+                    summary.error_count += 1
+                    summary.errors.append(f"Empty sol_no: {link}")
+                    continue
                 try:
                     import db as _db
                     tender_id = await _db.stage_tender(tender)
