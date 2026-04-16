@@ -76,7 +76,9 @@ def classify_and_save_csv(extraction: dict[str, Any], output_dir: str, sol_no: s
     result = classify(extraction)
 
     if result["file_type"] == "Multiple" and result["requirements_csv"]:
-        filename = f"{sol_no or 'requirements'}_requirements.csv"
+        # Sanitize sol_no to prevent path traversal
+        safe_sol_no = "".join(c for c in (sol_no or "requirements") if c.isalnum() or c in "-_")
+        filename = f"{safe_sol_no}_requirements.csv"
         csv_path = os.path.join(output_dir, filename)
         with open(csv_path, "w", newline="", encoding="utf-8") as f:
             f.write(result["requirements_csv"])
