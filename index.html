@@ -925,7 +925,9 @@ body::after {
   white-space: nowrap;
   color: var(--text-secondary);
 }
-.assoc-closing-soon { color: var(--red) !important; font-weight: 600; }
+.assoc-closing-soon { color: var(--orange) !important; font-weight: 600; }
+.assoc-tender-sol.sap-tender { color: #0070D2 !important; }
+.theme-corporate .assoc-tender-sol.sap-tender { color: #0070D2 !important; }
 
 #tab-review .tender-row {
   border-radius: 0 !important;
@@ -2773,7 +2775,7 @@ function renderReviewTender(t) {
           <span class="tender-sol">${escapeHtml(t.solicitation_no || '—')}</span>
           <span class="review-status ${statusMap[t.status] || ''}">${statusLabel}</span>
           ${t.assigned_associate ? `<span class="associate-badge">${escapeHtml(t.assigned_associate)}</span>` : ''}
-          ${t.bid_platform === 'SAP' ? '<span class="associate-badge" style="color:var(--orange)">SAP</span>' : ''}
+          ${t.bid_platform === 'SAP' ? '<span class="associate-badge" style="color:#0070D2;background:rgba(0,112,210,0.1)">SAP</span>' : ''}
         </div>
         <div class="tender-title">${escapeHtml(t.solicitation_title || 'Untitled')}</div>
         <div class="tender-meta">
@@ -3003,11 +3005,17 @@ async function loadAssociatesTab() {
         ${active.length === 0 ? '<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:0.75rem">No tenders assigned</div>' :
           active.map(t => {
             const closingSoon = isClosingSoon(t.closing_date);
+            const isSAP = t.bid_platform === 'SAP';
+            const solClasses = [
+              'assoc-tender-sol',
+              closingSoon ? 'assoc-closing-soon' : '',
+              isSAP ? 'sap-tender' : ''
+            ].filter(Boolean).join(' ');
             const otherNames = allNames.filter(n => n !== a.name);
             const reassignOpts = otherNames.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
             return `<div class="assoc-tender-item" style="flex-wrap:wrap;gap:4px">
               <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0">
-                <a class="assoc-tender-sol ${closingSoon ? 'assoc-closing-soon' : ''}" href="${escapeHtml(t.inquiry_link || '#')}" target="_blank">${escapeHtml(t.solicitation_no || '—')}</a>
+                <a class="${solClasses}" href="${escapeHtml(t.inquiry_link || '#')}" target="_blank">${escapeHtml(t.solicitation_no || '—')}</a>
                 <span class="assoc-tender-title" title="${escapeHtml(t.solicitation_title || '')}">${escapeHtml(t.solicitation_title || '—')}</span>
               </div>
               <div style="display:flex;align-items:center;gap:4px">
