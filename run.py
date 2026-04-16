@@ -18,6 +18,8 @@ def parse_args():
     p.add_argument("--no-detail", action="store_true", help="Skip detail pages")
     p.add_argument("--weekly", action="store_true", help="Use weekly filters (Open + Goods + Last 7 days)")
     p.add_argument("--scrape-only", action="store_true", help="Scrape + record dashboard data, skip CFlow")
+    p.add_argument("--init-db", action="store_true", help="Initialize PostgreSQL schema")
+    p.add_argument("--migrate-state", action="store_true", help="Migrate JSON state to PostgreSQL")
     return p.parse_args()
 
 async def main():
@@ -28,6 +30,21 @@ async def main():
     if args.discover_fields:
         import discover_fields
         await discover_fields.discover_fields()
+        return
+
+    if args.init_db:
+        import db
+        await db.init_schema()
+        print("Database schema initialized")
+        await db.close_pool()
+        return
+
+    if args.migrate_state:
+        import db
+        await db.init_schema()
+        count = await db.migrate_from_json(str(state_path))
+        print(f"Migrated {count} entries from {state_path} to PostgreSQL")
+        await db.close_pool()
         return
 
     if args.reset_state and not args.scrape_only and state_path.exists():
