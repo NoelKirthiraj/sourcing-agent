@@ -1627,7 +1627,7 @@ body.theme-corporate {
         <div class="review-filters">
           <select id="review-filter-status" onchange="loadReviewTenders()">
             <option value="">All Status</option>
-            <option value="pending_review">Pending</option>
+            <option value="pending_review" selected>Pending</option>
             <option value="accepted">Accepted</option>
             <option value="rejected">Rejected</option>
             <option value="submitted">Submitted</option>
@@ -2807,6 +2807,7 @@ async function acceptReviewTender(id, btn) {
   btn.textContent = '...';
   await reviewApi(`/api/tenders/${id}/accept`, { method: 'POST' });
   loadReviewTenders();
+  refreshAssociateDropdown();
 }
 
 async function rejectReviewTender(id, btn) {
@@ -2814,6 +2815,7 @@ async function rejectReviewTender(id, btn) {
   btn.textContent = '...';
   await reviewApi(`/api/tenders/${id}/reject`, { method: 'POST', body: '{}' });
   loadReviewTenders();
+  refreshAssociateDropdown();
 }
 
 async function bulkAcceptSelected() {
@@ -2824,6 +2826,22 @@ async function bulkAcceptSelected() {
     body: JSON.stringify({ ids })
   });
   loadReviewTenders();
+  refreshAssociateDropdown();
+}
+
+async function refreshAssociateDropdown() {
+  const select = document.getElementById('review-filter-associate');
+  const current = select.value;
+  select.innerHTML = '<option value="">All Associates</option>';
+  const associates = await reviewApi('/api/associates');
+  if (!associates) return;
+  associates.forEach(a => {
+    const opt = document.createElement('option');
+    opt.value = a.name;
+    opt.textContent = `${a.name} (${a.active_tenders} active)`;
+    if (a.name === current) opt.selected = true;
+    select.appendChild(opt);
+  });
 }
 
 async function updateReviewStats() {
