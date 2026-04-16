@@ -61,21 +61,28 @@ class APIHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
 
-        content_length = int(self.headers.get("Content-Length", 0))
-        body = json.loads(self.rfile.read(content_length)) if content_length > 0 else {}
+        try:
+            content_length = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(content_length)) if content_length > 0 else {}
+        except (json.JSONDecodeError, ValueError):
+            self._json_response({"error": "invalid JSON body"}, 400)
+            return
 
-        if path.startswith("/api/tenders/") and path.endswith("/accept"):
-            tender_id = int(path.split("/")[3])
-            self._handle_accept(tender_id)
-        elif path.startswith("/api/tenders/") and path.endswith("/reject"):
-            tender_id = int(path.split("/")[3])
-            reason = body.get("reason", "")
-            self._handle_reject(tender_id, reason)
-        elif path == "/api/tenders/bulk-accept":
-            ids = body.get("ids", [])
-            self._handle_bulk_accept(ids)
-        else:
-            self._json_response({"error": "not found"}, 404)
+        try:
+            if path.startswith("/api/tenders/") and path.endswith("/accept"):
+                tender_id = int(path.split("/")[3])
+                self._handle_accept(tender_id)
+            elif path.startswith("/api/tenders/") and path.endswith("/reject"):
+                tender_id = int(path.split("/")[3])
+                reason = body.get("reason", "")
+                self._handle_reject(tender_id, reason)
+            elif path == "/api/tenders/bulk-accept":
+                ids = body.get("ids", [])
+                self._handle_bulk_accept(ids)
+            else:
+                self._json_response({"error": "not found"}, 404)
+        except (ValueError, TypeError, IndexError):
+            self._json_response({"error": "invalid request"}, 400)
 
     def do_OPTIONS(self):
         """Handle CORS preflight."""

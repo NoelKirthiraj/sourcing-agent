@@ -229,9 +229,9 @@ tbody tr:hover { background: rgba(0, 212, 255, 0.03); }
 </div>
 
 <script>
-const API_BASE = window.location.hostname === 'localhost'
-  ? 'http://localhost:8000'
-  : (window.API_BASE || 'http://localhost:8000');
+const API_BASE = window.API_BASE
+  || (window.location.hostname === 'localhost' ? 'http://localhost:8000'
+  : window.location.origin);
 
 async function api(path, opts = {}) {
   const res = await fetch(API_BASE + path, {
