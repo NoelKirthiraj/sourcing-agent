@@ -1531,7 +1531,7 @@ body.theme-corporate {
         <div class="review-filters">
           <select id="review-filter-status" onchange="loadReviewTenders()">
             <option value="">All Status</option>
-            <option value="pending_review" selected>Pending</option>
+            <option value="pending_review">Pending</option>
             <option value="accepted">Accepted</option>
             <option value="rejected">Rejected</option>
             <option value="submitted">Submitted</option>
@@ -2614,20 +2614,21 @@ async function loadReviewTenders() {
   container.innerHTML = Object.entries(groups).map(([date, items]) => {
     const pending = items.filter(t => t.status === 'pending_review').length;
     const accepted = items.filter(t => t.status === 'accepted').length;
+    const rejected = items.filter(t => t.status === 'rejected').length;
     return `
-    <div class="log-entry${pending > 0 ? '' : ' has-errors'}" style="border-left-color: ${pending > 0 ? 'var(--cyan)' : 'var(--green)'}">
-      <div class="log-header">
-        <span class="log-time">${formatReviewDate(date)}</span>
+    <div style="margin-bottom:24px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:0 4px">
+        <div>
+          <span class="log-time" style="font-size:0.8125rem">${formatReviewDate(date)}</span>
+          <span class="log-stats" style="display:inline-flex;margin-left:16px">
+            <span>Found: <span class="count">${items.length}</span></span>
+            <span>Pending: <span class="count">${pending}</span></span>
+            <span>Accepted: <span class="count">${accepted}</span></span>
+          </span>
+        </div>
         <span class="log-status ${pending > 0 ? 'running' : 'success'}">${pending > 0 ? pending + ' PENDING' : 'REVIEWED'}</span>
       </div>
-      <div class="log-stats">
-        <span>Found: <span class="count">${items.length}</span></span>
-        <span>Pending: <span class="count">${pending}</span></span>
-        <span>Accepted: <span class="count">${accepted}</span></span>
-      </div>
-      <div class="log-details" style="display:block">
-        ${items.map(t => renderReviewTender(t)).join('')}
-      </div>
+      ${items.map(t => renderReviewTender(t)).join('')}
     </div>`;
   }).join('');
 
@@ -2644,8 +2645,9 @@ function renderReviewTender(t) {
   };
   const statusLabel = (t.status || '').replace('_', ' ');
 
+  const borderColor = isPending ? 'var(--yellow)' : t.status === 'accepted' ? 'var(--green)' : t.status === 'rejected' ? 'var(--red)' : 'var(--cyan)';
   return `
-  <div class="tender-row" style="border-left-color: ${isPending ? 'var(--yellow)' : t.status === 'accepted' ? 'var(--green)' : t.status === 'rejected' ? 'var(--red)' : 'var(--cyan)'}">
+  <div class="tender-row" style="border-left-color:${borderColor};border-radius:8px">
     <div class="tender-summary" onclick="this.parentElement.classList.toggle('expanded')">
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
