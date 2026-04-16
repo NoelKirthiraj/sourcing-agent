@@ -838,6 +838,95 @@ body::after {
 }
 .review-stats .count { font-weight: 600; color: var(--text-primary); }
 
+/* ─── Associate Cards ─── */
+.assoc-card {
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  padding: 20px;
+}
+.theme-corporate .assoc-card { background: #F8FAFC; border-color: #E2E8F0; }
+.assoc-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.assoc-card-name {
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+.assoc-card-total {
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--cyan);
+}
+.theme-corporate .assoc-card-total { color: #1E3A5F; }
+.assoc-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.assoc-stat {
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  text-align: center;
+}
+.theme-corporate .assoc-stat { background: #EFF6FF; }
+.assoc-stat-val {
+  font-family: var(--font-mono);
+  font-size: 1.125rem;
+  font-weight: 700;
+  display: block;
+}
+.assoc-stat-val.pending { color: var(--yellow); }
+.assoc-stat-val.accepted { color: var(--green); }
+.assoc-stat-val.submitted { color: var(--cyan); }
+.theme-corporate .assoc-stat-val.pending { color: #D97706; }
+.theme-corporate .assoc-stat-val.accepted { color: #16A34A; }
+.theme-corporate .assoc-stat-val.submitted { color: #1E3A5F; }
+.assoc-stat-lbl {
+  font-size: 0.5625rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.assoc-tenders {
+  max-height: 240px;
+  overflow-y: auto;
+}
+.assoc-tender-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.75rem;
+}
+.assoc-tender-item:last-child { border-bottom: none; }
+.assoc-tender-sol {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--cyan);
+  text-decoration: none;
+}
+.assoc-tender-sol:hover { text-decoration: underline; }
+.theme-corporate .assoc-tender-sol { color: #1E3A5F; }
+.assoc-tender-title {
+  flex: 1;
+  margin: 0 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+.assoc-closing-soon { color: var(--red) !important; font-weight: 600; }
+
 #tab-review .tender-row {
   border-radius: 0 !important;
   border-left-width: 3px !important;
@@ -1503,6 +1592,7 @@ body.theme-corporate {
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="switchTab('mission')">&#x1F4CB; Mission Control</button>
     <button class="nav-tab" onclick="switchTab('review')">&#x1F50D; Tender Review</button>
+    <button class="nav-tab" onclick="switchTab('associates')">&#x1F465; Associates</button>
   </div>
 
   <!-- Tab: Mission Control -->
@@ -1555,6 +1645,18 @@ body.theme-corporate {
       </div>
     </section>
   </div><!-- /tab-review -->
+
+  <!-- Tab: Associates -->
+  <div id="tab-associates" class="tab-content">
+    <section class="bottom" style="display:block">
+      <div class="section-panel" style="grid-column: 1 / -1">
+        <div class="section-title"><span class="icon">&#x1F465;</span> Associate Workload</div>
+        <div id="associates-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
+          <div class="log-empty">Loading associates...</div>
+        </div>
+      </div>
+    </section>
+  </div><!-- /tab-associates -->
 
 <!-- Settings Modal -->
 <div class="modal-overlay" id="settings-modal" onclick="if(event.target===this)closeSettingsModal()">
@@ -2577,6 +2679,7 @@ function switchTab(tab) {
   document.querySelector(`.nav-tab[onclick*="${tab}"]`).classList.add('active');
   document.getElementById(`tab-${tab}`).classList.add('active');
   if (tab === 'review') loadReviewTenders();
+  if (tab === 'associates') loadAssociatesTab();
 }
 
 async function reviewApi(path, opts = {}) {
@@ -2746,6 +2849,73 @@ function formatReviewDate(dateStr) {
 }
 
 loadReviewAssociates();
+
+/* ═══════════════════════════════════════════════════════════
+   ASSOCIATE WORKLOAD TAB
+   ═══════════════════════════════════════════════════════════ */
+async function loadAssociatesTab() {
+  const grid = document.getElementById('associates-grid');
+  grid.innerHTML = '<div class="log-empty">Loading...</div>';
+
+  const associates = await reviewApi('/api/associates');
+  if (!associates || !associates.length) {
+    grid.innerHTML = '<div class="log-empty">No associates found.</div>';
+    return;
+  }
+
+  const cards = [];
+  for (const a of associates) {
+    const tenders = await reviewApi(`/api/associates/${encodeURIComponent(a.name)}/tenders`);
+    const active = (tenders || []).filter(t => t.status !== 'rejected');
+
+    cards.push(`
+    <div class="assoc-card">
+      <div class="assoc-card-header">
+        <span class="assoc-card-name">${escapeHtml(a.name)}</span>
+        <span class="assoc-card-total">${a.active_tenders}</span>
+      </div>
+      <div class="assoc-stats">
+        <div class="assoc-stat">
+          <span class="assoc-stat-val pending">${a.pending_count}</span>
+          <span class="assoc-stat-lbl">Pending</span>
+        </div>
+        <div class="assoc-stat">
+          <span class="assoc-stat-val accepted">${a.accepted_count}</span>
+          <span class="assoc-stat-lbl">Accepted</span>
+        </div>
+        <div class="assoc-stat">
+          <span class="assoc-stat-val submitted">${a.submitted_count}</span>
+          <span class="assoc-stat-lbl">Submitted</span>
+        </div>
+      </div>
+      <div class="assoc-tenders">
+        ${active.length === 0 ? '<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:0.75rem">No tenders assigned</div>' :
+          active.map(t => {
+            const closingSoon = isClosingSoon(t.closing_date);
+            return `<div class="assoc-tender-item">
+              <a class="assoc-tender-sol ${closingSoon ? 'assoc-closing-soon' : ''}" href="${escapeHtml(t.inquiry_link || '#')}" target="_blank">${escapeHtml(t.solicitation_no || '—')}</a>
+              <span class="assoc-tender-title" title="${escapeHtml(t.solicitation_title || '')}">${escapeHtml(t.solicitation_title || '—')}</span>
+              <span class="review-status ${t.status === 'accepted' ? 'accepted' : t.status === 'submitted' ? 'submitted' : 'pending'}">${(t.status || '').replace('_', ' ')}</span>
+            </div>`;
+          }).join('')
+        }
+      </div>
+    </div>`);
+  }
+
+  grid.innerHTML = cards.join('');
+}
+
+function isClosingSoon(dateStr) {
+  if (!dateStr) return false;
+  const parts = dateStr.split('/');
+  if (parts.length === 3) {
+    const d = new Date(parts[0], parts[1] - 1, parts[2]);
+    const diff = (d - new Date()) / (1000 * 60 * 60 * 24);
+    return diff >= 0 && diff <= 7;
+  }
+  return false;
+}
 
 /* Boot */
 loadTheme();
