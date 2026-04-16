@@ -146,14 +146,10 @@ async def run_agent():
                     continue
                 try:
                     import db as _db
-                    import associates
 
-                    # Round-robin associate assignment
-                    assigned = await associates.assign_next()
-
-                    tender_id = await _db.stage_tender(tender, assigned_associate=assigned or "")
+                    tender_id = await _db.stage_tender(tender, assigned_associate="")
                     if tender_id:
-                        log.info("✓ Staged to DB: id=%d  (%s) → %s", tender_id, sol_no, assigned or "unassigned")
+                        log.info("✓ Staged to DB: id=%d  (%s)", tender_id, sol_no)
 
                         # LLM extraction if solicitation was downloaded
                         if downloaded_files:

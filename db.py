@@ -174,14 +174,33 @@ async def update_tender_extraction(
 
 
 async def accept_tender(tender_id: int) -> Optional[dict]:
-    """Mark a tender as accepted. Returns the tender record."""
+    """Mark a tender as accepted and assign an associate via round-robin.
+    Returns the tender record."""
     pool = await get_pool()
     async with pool.acquire() as conn:
+        # Round-robin: pick the associate with the fewest active (accepted) tenders
+        associate_row = await conn.fetchrow("""
+            SELECT a.name FROM associates a
+            LEFT JOIN tenders t ON t.assigned_associate = a.name AND t.status IN ('accepted', 'submitted')
+            WHERE a.active = TRUE
+            GROUP BY a.name
+            ORDER BY COUNT(t.id) ASC, a.last_assigned_at ASC NULLS FIRST
+            LIMIT 1
+        """)
+        assigned = associate_row["name"] if associate_row else ""
+
         row = await conn.fetchrow("""
-            UPDATE tenders SET status = 'accepted', reviewed_at = NOW()
+            UPDATE tenders SET status = 'accepted', reviewed_at = NOW(), assigned_associate = $2
             WHERE id = $1 AND status = 'pending_review'
             RETURNING *
-        """, tender_id)
+        """, tender_id, assigned)
+
+        if row and assigned:
+            await conn.execute(
+                "UPDATE associates SET last_assigned_at = NOW() WHERE name = $1",
+                assigned,
+            )
+
         return dict(row) if row else None
 
 
