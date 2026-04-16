@@ -3011,15 +3011,13 @@ async function loadAssociatesTab() {
             ].filter(Boolean).join(' ');
             const otherNames = allNames.filter(n => n !== a.name);
             const reassignOpts = otherNames.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
-            return `<div class="assoc-tender-item" style="flex-wrap:wrap;gap:4px">
-              <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0">
-                <a class="${solClasses}" href="${escapeHtml(t.inquiry_link || '#')}" target="_blank">${escapeHtml(t.solicitation_no || '—')}</a>
-                <span class="assoc-tender-title" title="${escapeHtml(t.solicitation_title || '')}">${escapeHtml(t.solicitation_title || '—')}</span>
+            return `<div class="assoc-tender-item" style="flex-direction:column;align-items:stretch;gap:4px;padding:8px 0">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+                <a class="${solClasses}" href="${escapeHtml(t.inquiry_link || '#')}" target="_blank" style="flex-shrink:0">${escapeHtml(t.solicitation_no || '—')}</a>
+                <span class="review-status ${t.status === 'accepted' ? 'accepted' : t.status === 'submitted' ? 'submitted' : 'pending'}" style="flex-shrink:0">${(t.status || '').replace('_', ' ')}</span>
               </div>
-              <div style="display:flex;align-items:center;gap:4px">
-                ${t.status === 'accepted' ? `<select style="font-size:0.625rem;padding:1px 4px;background:var(--bg-card);color:var(--text-secondary);border:1px solid var(--border);border-radius:4px" onchange="reassignTender(${t.id},this.value)"><option value="">Reassign</option>${reassignOpts}</select>` : ''}
-                <span class="review-status ${t.status === 'accepted' ? 'accepted' : t.status === 'submitted' ? 'submitted' : 'pending'}">${(t.status || '').replace('_', ' ')}</span>
-              </div>
+              <div class="assoc-tender-title" style="white-space:normal;overflow:visible">${escapeHtml(t.solicitation_title || '—')}</div>
+              ${t.status === 'accepted' ? `<select style="font-size:0.625rem;padding:2px 6px;background:var(--bg-card);color:var(--text-secondary);border:1px solid var(--border);border-radius:4px;width:100%;margin-top:2px" onchange="reassignTender(${t.id},this.value)"><option value="">Reassign to...</option>${reassignOpts}</select>` : ''}
             </div>`;
           }).join('')
         }
