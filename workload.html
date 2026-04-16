@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAD Global — Associate Workload</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-deep: #050816; --bg-base: #0A0E27; --bg-surface: #111738;
+  --bg-card: #151B3D; --bg-elevated: #1A2248;
+  --cyan: #00D4FF; --orange: #FF6B35; --green: #00FF88;
+  --red: #FF3B5C; --yellow: #FFD93D;
+  --text-primary: #E8ECF4; --text-secondary: #8892B0; --text-muted: #4A5280;
+  --border: rgba(0, 212, 255, 0.1);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg-deep); color: var(--text-primary); font-family: 'Outfit', sans-serif; min-height: 100vh; }
+.header {
+  background: var(--bg-base); border-bottom: 1px solid var(--border);
+  padding: 16px 32px; display: flex; align-items: center; justify-content: space-between;
+}
+.header h1 {
+  font-family: 'Orbitron', sans-serif; font-size: 20px;
+  background: linear-gradient(135deg, var(--cyan), var(--orange));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.nav { display: flex; gap: 16px; }
+.nav a {
+  color: var(--text-secondary); text-decoration: none; font-size: 14px;
+  padding: 6px 12px; border-radius: 6px; transition: all 0.2s;
+}
+.nav a:hover { color: var(--cyan); background: rgba(0,212,255,0.05); }
+.nav a.active { color: var(--cyan); border-bottom: 2px solid var(--cyan); }
+.grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px; padding: 24px 32px;
+}
+.card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 20px; transition: all 0.2s;
+}
+.card:hover { border-color: rgba(0,212,255,0.3); }
+.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.card-name {
+  font-family: 'Orbitron', sans-serif; font-size: 16px; font-weight: 600;
+}
+.card-badge {
+  font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700;
+  color: var(--cyan);
+}
+.card-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+.stat {
+  background: var(--bg-surface); border-radius: 8px; padding: 10px;
+  text-align: center;
+}
+.stat-value {
+  font-family: 'JetBrains Mono', monospace; font-size: 18px;
+  font-weight: 700; display: block;
+}
+.stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-pending .stat-value { color: var(--yellow); }
+.stat-accepted .stat-value { color: var(--green); }
+.stat-submitted .stat-value { color: var(--cyan); }
+.tender-list { max-height: 300px; overflow-y: auto; }
+.tender-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.03);
+  font-size: 13px;
+}
+.tender-item:last-child { border-bottom: none; }
+.tender-sol {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: var(--cyan); text-decoration: none;
+}
+.tender-sol:hover { text-decoration: underline; }
+.tender-title-sm {
+  flex: 1; margin: 0 8px; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; color: var(--text-secondary);
+}
+.tender-status {
+  font-size: 10px; padding: 2px 8px; border-radius: 10px;
+  text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;
+}
+.ts-pending { background: rgba(255,217,61,0.15); color: var(--yellow); }
+.ts-accepted { background: rgba(0,255,136,0.15); color: var(--green); }
+.ts-submitted { background: rgba(0,212,255,0.15); color: var(--cyan); }
+.closing-soon { color: var(--red) !important; font-weight: 600; }
+.empty { text-align: center; padding: 32px; color: var(--text-muted); }
+.loading { text-align: center; padding: 64px; color: var(--text-secondary); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Associate Workload</h1>
+  <div class="nav">
+    <a href="index.html">Mission Control</a>
+    <a href="review.html">Tender Review</a>
+    <a href="workload.html" class="active">Workload</a>
+  </div>
+</div>
+
+<div id="loading" class="loading">Loading associate data...</div>
+<div id="grid" class="grid" style="display:none"></div>
+
+<script>
+const API_BASE = window.API_BASE
+  || (window.location.hostname === 'localhost' ? 'http://localhost:8000'
+  : window.location.origin);
+
+async function api(path) {
+  const res = await fetch(API_BASE + path);
+  return res.json();
+}
+
+function isClosingSoon(dateStr) {
+  if (!dateStr) return false;
+  // Try MM/DD/YYYY format
+  const parts = dateStr.split('/');
+  if (parts.length === 3) {
+    const d = new Date(parts[2], parts[0] - 1, parts[1]);
+    const diff = (d - new Date()) / (1000 * 60 * 60 * 24);
+    return diff >= 0 && diff <= 7;
+  }
+  return false;
+}
+
+async function loadWorkload() {
+  const associates = await api('/api/associates');
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+
+  for (const a of associates) {
+    const tenders = await api(`/api/associates/${encodeURIComponent(a.name)}/tenders`);
+
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="card-header">
+        <span class="card-name">${a.name}</span>
+        <span class="card-badge">${a.active_tenders}</span>
+      </div>
+      <div class="card-stats">
+        <div class="stat stat-pending">
+          <span class="stat-value">${a.pending_count}</span>
+          <span class="stat-label">Pending</span>
+        </div>
+        <div class="stat stat-accepted">
+          <span class="stat-value">${a.accepted_count}</span>
+          <span class="stat-label">Accepted</span>
+        </div>
+        <div class="stat stat-submitted">
+          <span class="stat-value">${a.submitted_count}</span>
+          <span class="stat-label">Submitted</span>
+        </div>
+      </div>
+      <div class="tender-list">
+        ${tenders.length === 0 ? '<div class="empty">No tenders assigned</div>' :
+          tenders.filter(t => t.status !== 'rejected').map(t => {
+            const statusClass = {pending_review:'ts-pending', accepted:'ts-accepted', submitted:'ts-submitted'}[t.status] || '';
+            const closingSoon = isClosingSoon(t.closing_date) ? 'closing-soon' : '';
+            return `<div class="tender-item">
+              <a class="tender-sol ${closingSoon}" href="${t.inquiry_link}" target="_blank">${t.solicitation_no || '—'}</a>
+              <span class="tender-title-sm" title="${t.solicitation_title}">${t.solicitation_title || '—'}</span>
+              <span class="tender-status ${statusClass}">${(t.status||'').replace('_',' ')}</span>
+            </div>`;
+          }).join('')
+        }
+      </div>
+    `;
+    grid.appendChild(card);
+  }
+
+  document.getElementById('loading').style.display = 'none';
+  grid.style.display = 'grid';
+}
+
+loadWorkload();
+// Refresh every 60 seconds
+setInterval(loadWorkload, 60000);
+</script>
+</body>
+</html>
