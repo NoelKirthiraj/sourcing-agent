@@ -20,6 +20,7 @@ def parse_args():
     p.add_argument("--scrape-only", action="store_true", help="Scrape + record dashboard data, skip CFlow")
     p.add_argument("--init-db", action="store_true", help="Initialize PostgreSQL schema")
     p.add_argument("--migrate-state", action="store_true", help="Migrate JSON state to PostgreSQL")
+    p.add_argument("--list-associates", action="store_true", help="Show associate workload table")
     return p.parse_args()
 
 async def main():
@@ -48,6 +49,19 @@ async def main():
         await db.init_schema()
         count = await db.migrate_from_json(str(state_path))
         print(f"Migrated {count} entries from {state_path} to PostgreSQL")
+        await db.close_pool()
+        return
+
+    if args.list_associates:
+        from dotenv import load_dotenv
+        load_dotenv()
+        import db, associates
+        await db.init_schema()
+        workload = await associates.get_workload()
+        print(f"\n{'Name':<15} {'Active':<8} {'Pending':<10} {'Accepted':<10} {'Submitted':<10} {'Total Active'}")
+        print("─" * 70)
+        for a in workload:
+            print(f"{a['name']:<15} {'Yes' if a['active'] else 'No':<8} {a['pending_count']:<10} {a['accepted_count']:<10} {a['submitted_count']:<10} {a['active_tenders']}")
         await db.close_pool()
         return
 
