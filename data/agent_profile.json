@@ -1,10 +1,10 @@
 {
-  "xp": 990,
-  "level": 9,
-  "level_title": "Commander",
-  "total_processed": 990,
-  "total_runs": 24,
-  "current_streak": 8,
+  "xp": 1023,
+  "level": 10,
+  "level_title": "Legend",
+  "total_processed": 1023,
+  "total_runs": 25,
+  "current_streak": 9,
   "best_streak": 13,
   "achievements": [
     {
@@ -31,8 +31,13 @@
       "id": "sharpshooter",
       "name": "Sharpshooter",
       "earned_at": "2026-03-30T22:35:50.815634+00:00"
+    },
+    {
+      "id": "thousand",
+      "name": "Thousand",
+      "earned_at": "2026-04-16T22:41:24.433624+00:00"
     }
   ],
-  "last_run_at": "2026-04-15T22:42:37.021671+00:00",
+  "last_run_at": "2026-04-16T22:41:24.433528+00:00",
   "last_status": "success"
 }
