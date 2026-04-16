@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAD Global — Tender Review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-deep: #050816;
+  --bg-base: #0A0E27;
+  --bg-surface: #111738;
+  --bg-card: #151B3D;
+  --bg-elevated: #1A2248;
+  --cyan: #00D4FF;
+  --orange: #FF6B35;
+  --green: #00FF88;
+  --red: #FF3B5C;
+  --yellow: #FFD93D;
+  --text-primary: #E8ECF4;
+  --text-secondary: #8892B0;
+  --text-muted: #4A5280;
+  --border: rgba(0, 212, 255, 0.1);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: 'Outfit', sans-serif;
+  min-height: 100vh;
+}
+.header {
+  background: var(--bg-base);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.header h1 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 20px;
+  background: linear-gradient(135deg, var(--cyan), var(--orange));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.header .stats {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.filters {
+  padding: 16px 32px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.filters select, .filters input {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 14px;
+}
+.filters select:focus, .filters input:focus { outline: 1px solid var(--cyan); }
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: 'Outfit', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+.btn-accept { background: var(--green); color: #000; }
+.btn-accept:hover { filter: brightness(1.2); }
+.btn-reject { background: var(--red); color: #fff; }
+.btn-reject:hover { filter: brightness(1.2); }
+.btn-bulk { background: var(--cyan); color: #000; }
+.btn-bulk:hover { filter: brightness(1.2); }
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+.btn-outline:hover { border-color: var(--cyan); color: var(--cyan); }
+.table-wrap {
+  padding: 0 32px 32px;
+  overflow-x: auto;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+thead th {
+  background: var(--bg-surface);
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: sticky;
+  top: 0;
+  border-bottom: 1px solid var(--border);
+}
+tbody td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+tbody tr:hover { background: rgba(0, 212, 255, 0.03); }
+.status-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.status-pending { background: rgba(255, 217, 61, 0.15); color: var(--yellow); }
+.status-accepted { background: rgba(0, 255, 136, 0.15); color: var(--green); }
+.status-rejected { background: rgba(255, 59, 92, 0.15); color: var(--red); }
+.status-submitted { background: rgba(0, 212, 255, 0.15); color: var(--cyan); }
+.platform-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.platform-sap { background: rgba(255, 107, 53, 0.2); color: var(--orange); }
+.platform-cb { background: rgba(0, 212, 255, 0.1); color: var(--cyan); }
+.sol-link {
+  color: var(--cyan);
+  text-decoration: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+}
+.sol-link:hover { text-decoration: underline; }
+.tender-title {
+  font-weight: 500;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.actions { display: flex; gap: 6px; }
+.detail-panel {
+  display: none;
+  background: var(--bg-card);
+  padding: 16px;
+  border-radius: 8px;
+  margin: 8px 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.detail-panel.open { display: block; }
+.detail-panel h4 {
+  color: var(--cyan);
+  margin-bottom: 8px;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+.detail-panel p { color: var(--text-secondary); margin-bottom: 12px; }
+.empty-state {
+  text-align: center;
+  padding: 64px;
+  color: var(--text-muted);
+  font-size: 16px;
+}
+.loading { text-align: center; padding: 64px; color: var(--text-secondary); }
+.select-all { margin-right: 8px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Tender Review</h1>
+  <div class="stats">
+    <span id="stats-pending">0 pending</span> ·
+    <span id="stats-accepted">0 accepted</span> ·
+    <span id="stats-rejected">0 rejected</span>
+  </div>
+</div>
+
+<div class="filters">
+  <select id="filter-status">
+    <option value="">All Status</option>
+    <option value="pending_review" selected>Pending Review</option>
+    <option value="accepted">Accepted</option>
+    <option value="rejected">Rejected</option>
+    <option value="submitted">Submitted</option>
+  </select>
+  <select id="filter-associate">
+    <option value="">All Associates</option>
+  </select>
+  <button class="btn btn-bulk" onclick="bulkAccept()">Accept Selected</button>
+  <button class="btn btn-outline" onclick="loadTenders()">Refresh</button>
+</div>
+
+<div class="table-wrap">
+  <div id="loading" class="loading">Loading tenders...</div>
+  <table id="tender-table" style="display:none">
+    <thead>
+      <tr>
+        <th><input type="checkbox" class="select-all" onchange="toggleSelectAll(this)"></th>
+        <th>Sol No</th>
+        <th>Title</th>
+        <th>Closing</th>
+        <th>Platform</th>
+        <th>Associate</th>
+        <th>File Type</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="tender-body"></tbody>
+  </table>
+  <div id="empty" class="empty-state" style="display:none">No tenders found</div>
+</div>
+
+<script>
+const API_BASE = window.location.hostname === 'localhost'
+  ? 'http://localhost:8000'
+  : (window.API_BASE || 'http://localhost:8000');
+
+async function api(path, opts = {}) {
+  const res = await fetch(API_BASE + path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts
+  });
+  return res.json();
+}
+
+async function loadTenders() {
+  const status = document.getElementById('filter-status').value;
+  const associate = document.getElementById('filter-associate').value;
+  let url = '/api/tenders?limit=200';
+  if (status) url += '&status=' + status;
+  if (associate) url += '&associate=' + associate;
+
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('tender-table').style.display = 'none';
+  document.getElementById('empty').style.display = 'none';
+
+  const tenders = await api(url);
+  const tbody = document.getElementById('tender-body');
+  tbody.innerHTML = '';
+
+  if (tenders.length === 0) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('empty').style.display = 'block';
+    return;
+  }
+
+  tenders.forEach(t => {
+    const statusClass = {
+      pending_review: 'status-pending',
+      accepted: 'status-accepted',
+      rejected: 'status-rejected',
+      submitted: 'status-submitted'
+    }[t.status] || '';
+    const platformClass = t.bid_platform === 'SAP' ? 'platform-sap' : 'platform-cb';
+    const isPending = t.status === 'pending_review';
+
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${isPending ? `<input type="checkbox" class="tender-check" value="${t.id}">` : ''}</td>
+      <td><a class="sol-link" href="${t.inquiry_link}" target="_blank">${t.solicitation_no || '—'}</a></td>
+      <td class="tender-title" title="${t.solicitation_title}">${t.solicitation_title || '—'}</td>
+      <td style="font-family:'JetBrains Mono';font-size:12px">${t.closing_date || '—'}</td>
+      <td><span class="platform-badge ${platformClass}">${t.bid_platform || '—'}</span></td>
+      <td>${t.assigned_associate || '—'}</td>
+      <td>${t.file_type || '—'}</td>
+      <td><span class="status-badge ${statusClass}">${(t.status || '').replace('_', ' ')}</span></td>
+      <td class="actions">
+        ${isPending ? `
+          <button class="btn btn-accept" onclick="acceptTender(${t.id}, this)">Accept</button>
+          <button class="btn btn-reject" onclick="rejectTender(${t.id}, this)">Reject</button>
+        ` : ''}
+        <button class="btn btn-outline" onclick="toggleDetail(${t.id})">Detail</button>
+      </td>
+    `;
+    tbody.appendChild(row);
+
+    // Hidden detail row
+    const detailRow = document.createElement('tr');
+    detailRow.id = `detail-${t.id}`;
+    detailRow.style.display = 'none';
+    detailRow.innerHTML = `<td colspan="9">
+      <div class="detail-panel open">
+        <h4>Summary</h4><p>${t.summary_of_contract || 'Not extracted yet'}</p>
+        <h4>Requirements</h4><p>${t.requirements || 'Not extracted yet'}</p>
+        <h4>Mandatory Criteria</h4><p>${t.mandatory_criteria || 'Not extracted yet'}</p>
+        <h4>Submission Method</h4><p>${t.submission_method || 'Not determined'}</p>
+        <h4>Contact</h4><p>${t.contact_name || ''} · ${t.contact_email || ''} · ${t.contact_phone || ''}</p>
+        <h4>Client</h4><p>${t.client || '—'}</p>
+      </div>
+    </td>`;
+    tbody.appendChild(detailRow);
+  });
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('tender-table').style.display = 'table';
+  updateStats();
+}
+
+async function acceptTender(id, btn) {
+  btn.disabled = true;
+  btn.textContent = '...';
+  await api(`/api/tenders/${id}/accept`, { method: 'POST' });
+  loadTenders();
+}
+
+async function rejectTender(id, btn) {
+  btn.disabled = true;
+  btn.textContent = '...';
+  await api(`/api/tenders/${id}/reject`, { method: 'POST', body: '{}' });
+  loadTenders();
+}
+
+async function bulkAccept() {
+  const ids = [...document.querySelectorAll('.tender-check:checked')].map(c => c.value);
+  if (ids.length === 0) return alert('Select tenders first');
+  await api('/api/tenders/bulk-accept', {
+    method: 'POST',
+    body: JSON.stringify({ ids })
+  });
+  loadTenders();
+}
+
+function toggleDetail(id) {
+  const row = document.getElementById(`detail-${id}`);
+  row.style.display = row.style.display === 'none' ? '' : 'none';
+}
+
+function toggleSelectAll(cb) {
+  document.querySelectorAll('.tender-check').forEach(c => c.checked = cb.checked);
+}
+
+async function updateStats() {
+  const all = await api('/api/tenders?limit=1000');
+  const counts = { pending_review: 0, accepted: 0, rejected: 0, submitted: 0 };
+  all.forEach(t => { if (counts[t.status] !== undefined) counts[t.status]++; });
+  document.getElementById('stats-pending').textContent = counts.pending_review + ' pending';
+  document.getElementById('stats-accepted').textContent = counts.accepted + ' accepted';
+  document.getElementById('stats-rejected').textContent = counts.rejected + ' rejected';
+}
+
+async function loadAssociates() {
+  const associates = await api('/api/associates');
+  const select = document.getElementById('filter-associate');
+  associates.forEach(a => {
+    const opt = document.createElement('option');
+    opt.value = a.name;
+    opt.textContent = `${a.name} (${a.active_tenders} active)`;
+    select.appendChild(opt);
+  });
+}
+
+// Event listeners for filters
+document.getElementById('filter-status').addEventListener('change', loadTenders);
+document.getElementById('filter-associate').addEventListener('change', loadTenders);
+
+// Init
+loadAssociates();
+loadTenders();
+</script>
+</body>
+</html>
