@@ -183,7 +183,7 @@ async def accept_tender(tender_id: int) -> Optional[dict]:
             SELECT a.name FROM associates a
             LEFT JOIN tenders t ON t.assigned_associate = a.name AND t.status IN ('accepted', 'submitted')
             WHERE a.active = TRUE
-            GROUP BY a.name
+            GROUP BY a.name, a.last_assigned_at
             ORDER BY COUNT(t.id) ASC, a.last_assigned_at ASC NULLS FIRST
             LIMIT 1
         """)
