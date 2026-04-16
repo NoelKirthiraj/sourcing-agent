@@ -35,12 +35,15 @@ async def add_associate(name: str) -> bool:
     pool = await db.get_pool()
     async with pool.acquire() as conn:
         try:
-            await conn.execute(
-                "INSERT INTO associates (name) VALUES ($1) ON CONFLICT (name) DO NOTHING",
+            row = await conn.fetchrow(
+                "INSERT INTO associates (name) VALUES ($1) ON CONFLICT (name) DO NOTHING RETURNING id",
                 name,
             )
-            log.info("Added associate: %s", name)
-            return True
+            if row:
+                log.info("Added associate: %s", name)
+                return True
+            log.info("Associate already exists: %s", name)
+            return False
         except Exception as exc:
             log.error("Failed to add associate %s: %s", name, exc)
             return False

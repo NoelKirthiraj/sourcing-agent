@@ -56,8 +56,9 @@ class FakeAcquire:
 
 
 @pytest.mark.asyncio
-async def test_add_associate():
+async def test_add_associate_new():
     conn = AsyncMock()
+    conn.fetchrow = AsyncMock(return_value={"id": 6})
     pool = MagicMock()
     pool.acquire.return_value = FakeAcquire(conn)
 
@@ -67,7 +68,21 @@ async def test_add_associate():
         associates.db = mock_db
         result = await associates.add_associate("NewPerson")
         assert result is True
-        conn.execute.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_add_associate_duplicate():
+    conn = AsyncMock()
+    conn.fetchrow = AsyncMock(return_value=None)  # ON CONFLICT DO NOTHING
+    pool = MagicMock()
+    pool.acquire.return_value = FakeAcquire(conn)
+
+    with patch("associates.db") as mock_db:
+        mock_db.get_pool = AsyncMock(return_value=pool)
+        import associates
+        associates.db = mock_db
+        result = await associates.add_associate("Edward")
+        assert result is False
 
 
 @pytest.mark.asyncio
