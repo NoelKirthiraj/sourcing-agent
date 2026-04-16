@@ -307,12 +307,13 @@ async def migrate_from_json(json_path: str):
     async with pool.acquire() as conn:
         for sol_no, entry in data.items():
             try:
-                await conn.execute("""
+                row = await conn.fetchrow("""
                     INSERT INTO tenders (
                         solicitation_no, solicitation_title, inquiry_link,
                         cflow_record_id, status, scraped_at
                     ) VALUES ($1, $2, $3, $4, 'submitted', $5)
                     ON CONFLICT (solicitation_no) DO NOTHING
+                    RETURNING id
                 """,
                     sol_no,
                     entry.get("title", ""),
@@ -320,7 +321,8 @@ async def migrate_from_json(json_path: str):
                     entry.get("cflow_request_id", ""),
                     entry.get("processed_at", datetime.now(timezone.utc).isoformat()),
                 )
-                migrated += 1
+                if row:
+                    migrated += 1
             except Exception as exc:
                 log.warning("Failed to migrate %s: %s", sol_no, exc)
 

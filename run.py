@@ -33,6 +33,8 @@ async def main():
         return
 
     if args.init_db:
+        from dotenv import load_dotenv
+        load_dotenv()
         import db
         await db.init_schema()
         print("Database schema initialized")
@@ -40,6 +42,8 @@ async def main():
         return
 
     if args.migrate_state:
+        from dotenv import load_dotenv
+        load_dotenv()
         import db
         await db.init_schema()
         count = await db.migrate_from_json(str(state_path))
