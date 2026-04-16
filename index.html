@@ -1636,6 +1636,7 @@ body.theme-corporate {
             <option value="">All Associates</option>
           </select>
           <button class="review-btn bulk" onclick="bulkAcceptSelected()">Accept Selected</button>
+          <button class="review-btn" style="background:var(--green-dim);color:var(--green)" onclick="submitAllAccepted()">Submit Accepted to CFlow</button>
           <button class="review-btn" style="background:var(--bg-surface);color:var(--text-secondary)" onclick="loadReviewTenders()">Refresh</button>
         </div>
         <div class="review-stats" id="review-stats"></div>
@@ -2785,6 +2786,10 @@ function renderReviewTender(t) {
           <button class="review-btn reject" onclick="event.stopPropagation();rejectReviewTender(${t.id},this)">Reject</button>
           <label style="font-size:0.6875rem;color:var(--text-muted);cursor:pointer"><input type="checkbox" class="review-check" value="${t.id}" onclick="event.stopPropagation()"> select</label>
         </div>` : ''}
+        ${t.status === 'accepted' ? `
+        <div class="tender-actions">
+          <button class="review-btn" style="background:var(--cyan-dim);color:var(--cyan)" onclick="event.stopPropagation();submitReviewTender(${t.id},this)">Submit to CFlow</button>
+        </div>` : ''}
       </div>
       <span class="tender-chevron">&#x25B6;</span>
     </div>
@@ -2827,6 +2832,38 @@ async function bulkAcceptSelected() {
   });
   loadReviewTenders();
   refreshAssociateDropdown();
+}
+
+async function submitReviewTender(id, btn) {
+  btn.disabled = true;
+  btn.textContent = 'Submitting...';
+  const result = await reviewApi(`/api/tenders/${id}/submit`, { method: 'POST' });
+  if (result && result.status === 'submitted') {
+    btn.textContent = 'Submitted';
+  } else {
+    btn.textContent = 'Failed';
+    btn.style.color = 'var(--red)';
+  }
+  setTimeout(() => { loadReviewTenders(); refreshAssociateDropdown(); }, 1000);
+}
+
+async function submitAllAccepted() {
+  if (!confirm('Submit all accepted tenders to CFlow?')) return;
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = 'Submitting...';
+  const result = await reviewApi('/api/tenders/submit-accepted', { method: 'POST' });
+  if (result) {
+    btn.textContent = `Done: ${result.submitted || 0} submitted`;
+  } else {
+    btn.textContent = 'Failed';
+  }
+  setTimeout(() => {
+    btn.disabled = false;
+    btn.textContent = 'Submit Accepted to CFlow';
+    loadReviewTenders();
+    refreshAssociateDropdown();
+  }, 2000);
 }
 
 async function refreshAssociateDropdown() {

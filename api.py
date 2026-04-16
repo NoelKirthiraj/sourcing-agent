@@ -79,9 +79,14 @@ class APIHandler(BaseHTTPRequestHandler):
                 tender_id = int(path.split("/")[3])
                 reason = body.get("reason", "")
                 self._handle_reject(tender_id, reason)
+            elif path.startswith("/api/tenders/") and path.endswith("/submit"):
+                tender_id = int(path.split("/")[3])
+                self._handle_submit(tender_id)
             elif path == "/api/tenders/bulk-accept":
                 ids = body.get("ids", [])
                 self._handle_bulk_accept(ids)
+            elif path == "/api/tenders/submit-accepted":
+                self._handle_submit_all_accepted()
             else:
                 self._json_response({"error": "not found"}, 404)
         except (ValueError, TypeError, IndexError):
@@ -162,6 +167,37 @@ class APIHandler(BaseHTTPRequestHandler):
             if result:
                 accepted += 1
         self._json_response({"accepted": accepted, "total": len(ids)})
+
+    def _handle_submit(self, tender_id):
+        """Submit a single accepted tender to CFlow."""
+        try:
+            from submit import submit_tender
+            from config import Config
+            from cflow_client import CFlowClient
+            config = Config.load()
+            cflow = CFlowClient(config.cflow)
+            success = _run_async(submit_tender(tender_id, cflow))
+            if success:
+                self._json_response({"status": "submitted", "id": tender_id})
+            else:
+                self._json_response({"error": "submission failed"}, 500)
+        except Exception as exc:
+            log.error("Submit failed for %d: %s", tender_id, exc)
+            self._json_response({"error": str(exc)}, 500)
+
+    def _handle_submit_all_accepted(self):
+        """Submit all accepted tenders to CFlow."""
+        try:
+            from submit import submit_all_accepted
+            from config import Config
+            from cflow_client import CFlowClient
+            config = Config.load()
+            cflow = CFlowClient(config.cflow)
+            counts = _run_async(submit_all_accepted(cflow))
+            self._json_response(counts)
+        except Exception as exc:
+            log.error("Submit all failed: %s", exc)
+            self._json_response({"error": str(exc)}, 500)
 
     def _json_response(self, data, status=200):
         self.send_response(status)
