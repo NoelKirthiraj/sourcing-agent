@@ -2802,13 +2802,24 @@ function renderReviewTender(t) {
     </div>
     <div class="tender-details">
       <div class="detail-grid">
+        <div class="detail-label">Sol. Number</div><div class="detail-value">${escapeHtml(t.solicitation_no || '—')}</div>
+        <div class="detail-label">Title</div><div class="detail-value">${escapeHtml(t.solicitation_title || '—')}</div>
+        <div class="detail-label">Client</div><div class="detail-value">${escapeHtml(t.client || '—')}</div>
+        <div class="detail-label">Closing Date</div><div class="detail-value">${escapeHtml(t.closing_date || '—')} ${escapeHtml(t.time_and_zone || '')}</div>
+        <div class="detail-label">Platform</div><div class="detail-value">${escapeHtml(t.bid_platform || '—')}</div>
+        ${t.assigned_associate ? `<div class="detail-label">Associate</div><div class="detail-value">${escapeHtml(t.assigned_associate)}</div>` : ''}
+        ${t.file_type ? `<div class="detail-label">File Type</div><div class="detail-value">${escapeHtml(t.file_type)}</div>` : ''}
+        <div class="detail-label">Contact</div><div class="detail-value">${escapeHtml(t.contact_name || '—')}</div>
+        ${t.contact_email ? `<div class="detail-label">Email</div><div class="detail-value"><a href="mailto:${escapeHtml(t.contact_email)}">${escapeHtml(t.contact_email)}</a></div>` : ''}
+        ${t.contact_phone ? `<div class="detail-label">Phone</div><div class="detail-value">${escapeHtml(t.contact_phone)}</div>` : ''}
+        <div class="detail-label">Portal Link</div><div class="detail-value"><a href="${escapeHtml(t.inquiry_link || '#')}" target="_blank">${escapeHtml(t.inquiry_link || '—')}</a></div>
+        ${t.gsin ? `<div class="detail-label">Description</div><div class="detail-value description">${escapeHtml(t.gsin)}</div>` : ''}
         ${t.summary_of_contract ? `<div class="detail-label">Summary</div><div class="detail-value">${escapeHtml(t.summary_of_contract)}</div>` : ''}
         ${t.requirements ? `<div class="detail-label">Requirements</div><div class="detail-value description">${escapeHtml(t.requirements)}</div>` : ''}
         ${t.mandatory_criteria ? `<div class="detail-label">Mandatory</div><div class="detail-value">${escapeHtml(t.mandatory_criteria)}</div>` : ''}
         ${t.submission_method ? `<div class="detail-label">Submission</div><div class="detail-value">${escapeHtml(t.submission_method)}</div>` : ''}
-        ${t.contact_name ? `<div class="detail-label">Contact</div><div class="detail-value">${escapeHtml(t.contact_name)}</div>` : ''}
-        ${t.contact_email ? `<div class="detail-label">Email</div><div class="detail-value"><a href="mailto:${escapeHtml(t.contact_email)}">${escapeHtml(t.contact_email)}</a></div>` : ''}
-        ${t.inquiry_link ? `<div class="detail-label">Portal Link</div><div class="detail-value"><a href="${escapeHtml(t.inquiry_link)}" target="_blank">${escapeHtml(t.inquiry_link)}</a></div>` : ''}
+        ${t.notifications ? `<div class="detail-label">Amendments</div><div class="detail-value">${escapeHtml(t.notifications)}</div>` : ''}
+        <div class="detail-label">Scraped</div><div class="detail-value">${t.scraped_at ? new Date(t.scraped_at).toLocaleString() : '—'}</div>
       </div>
     </div>
   </div>`;
