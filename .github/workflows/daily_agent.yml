@@ -53,6 +53,16 @@ jobs:
       - name: Run agent
         env:
           WORKFLOW_START: ${{ env.WORKFLOW_START }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SAP_USERNAME: ${{ secrets.SAP_USERNAME }}
+          SAP_PASSWORD: ${{ secrets.SAP_PASSWORD }}
+          CFLOW_BASE_URL: ${{ secrets.CFLOW_BASE_URL }}
+          CFLOW_API_KEY: ${{ secrets.CFLOW_API_KEY }}
+          CFLOW_USER_KEY: ${{ secrets.CFLOW_USER_KEY }}
+          CFLOW_USERNAME: ${{ secrets.CFLOW_USERNAME }}
+          CFLOW_WORKFLOW_NAME: ${{ secrets.CFLOW_WORKFLOW_NAME }}
+          CFLOW_SUBMIT_NOW: 'false'
         run: |
           # Determine mode: manual input > Saturday auto-detect > daily default
           if [ -n "${{ github.event.inputs.mode }}" ]; then
@@ -64,9 +74,9 @@ jobs:
           fi
           echo "Running in $MODE mode"
           if [ "$MODE" = "weekly" ]; then
-            python run.py --scrape-only --weekly
+            python run.py --weekly
           else
-            python run.py --scrape-only
+            python run.py
           fi
 
       - name: Upload agent log
