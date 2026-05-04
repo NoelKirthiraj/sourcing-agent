@@ -59,7 +59,7 @@ class SAPClient:
             # Step 1: Load SAP discovery page
             log.debug("SAP: loading discovery page %s", sap_url[:80])
             await page.goto(sap_url, timeout=60000, wait_until="load")
-            await page.wait_for_timeout(5000)
+            await page.wait_for_timeout(8000)
 
             if not self._logged_in:
                 # Step 2: Click Respond to trigger login flow
@@ -103,6 +103,9 @@ class SAPClient:
 
             # Step 7: Download documents from the event page
             current = self._context.pages[-1]
+            # Wait for event page to fully load (SAP SPA renders slowly)
+            await current.wait_for_timeout(10000)
+            log.debug("SAP: event page URL: %s", current.url[:100])
             downloaded = await self._download_event_documents(current, download_dir)
 
         except Exception as exc:
@@ -125,7 +128,8 @@ class SAPClient:
             for frame in page.frames:
                 ef = frame.locator(
                     "input[type='email'], input[name*='user'], "
-                    "input[name*='email'], input[name='UserName'], #username"
+                    "input[name*='email'], input[name='UserName'], "
+                    "input[id*='username'], #username"
                 ).first
                 if await ef.count() > 0:
                     email_field = ef
@@ -142,8 +146,8 @@ class SAPClient:
             # Click Next/Continue (the first step of SAP's two-step login)
             for frame in page.frames:
                 submit = frame.locator(
-                    "button:has-text('Continue'), button:has-text('Next'), "
-                    "button[type='submit']"
+                    "button:has-text('Next'), button:has-text('Continue'), "
+                    "button[type='submit'], button[id*='nextButton']"
                 ).first
                 if await submit.count() > 0:
                     await submit.click()
@@ -203,55 +207,95 @@ class SAPClient:
             return False
 
     async def _download_event_documents(self, page: Page, download_dir: str) -> list[str]:
-        """Download documents from the SAP event page after login."""
+        """Download documents from the SAP event page after login.
+
+        SAP event pages have a sidebar with sections like:
+        - GENERAL INFORMATION
+        - BID SOLICITATION DOC
+        - AMENDMENTS TO BID SOLICITATION
+        - BIDDER INSTRUCTIONS
+
+        Documents are typically in BID SOLICITATION DOC section.
+        """
         downloaded: list[str] = []
         os.makedirs(download_dir, exist_ok=True)
 
         try:
             body = (await page.locator("body").inner_text()).strip()
+            log.debug("SAP event page text (first 300): %s", body[:300])
 
-            # Look for "BID SOLICITATION" section in the sidebar
-            bid_doc = page.locator("text=BID SOLICITATION").first
-            if await bid_doc.count() > 0:
-                log.debug("SAP: clicking BID SOLICITATION section")
-                await bid_doc.click()
-                await page.wait_for_timeout(5000)
+            # Navigate to BID SOLICITATION section
+            # SAP uses numbered sections in the sidebar
+            for section_text in ["BID SOLICITATION", "SOLICITATION", "DOCUMENTS"]:
+                section = page.locator(f"text=/{section_text}/i").first
+                if await section.count() > 0:
+                    log.debug("SAP: clicking '%s' section", section_text)
+                    await section.click()
+                    await page.wait_for_timeout(5000)
+                    break
 
-            # Look for downloadable file links
-            # SAP event pages have links to documents in the content area
+            # After clicking section, look for file download links
+            # SAP renders documents as clickable links/icons
+            # Try multiple strategies
+
+            # Strategy 1: Direct download links
             doc_links = page.locator(
                 "a[href*='download'], a[href$='.pdf'], a[href$='.doc'], "
                 "a[href$='.docx'], a[href$='.xlsx'], a[href$='.zip'], "
                 "a[download], a[href*='FileDownload'], a[href*='filedownload']"
             )
             link_count = await doc_links.count()
-            log.debug("SAP: found %d potential download links", link_count)
+            log.debug("SAP: strategy 1 (href links): %d found", link_count)
 
-            # Also look for links with file-like text
+            # Strategy 2: File-name text links
             file_text_links = page.locator(
-                "a:has-text('.pdf'), a:has-text('.doc'), a:has-text('.xlsx')"
+                "a:has-text('.pdf'), a:has-text('.doc'), a:has-text('.xlsx'), "
+                "a:has-text('.zip')"
             )
-            text_link_count = await file_text_links.count()
+            text_count = await file_text_links.count()
+            log.debug("SAP: strategy 2 (text links): %d found", text_count)
 
+            # Strategy 3: SAP-specific download buttons/icons
+            sap_download = page.locator(
+                "button:has-text('Download'), button[title*='Download'], "
+                "a[title*='Download'], img[alt*='download']"
+            )
+            sap_count = await sap_download.count()
+            log.debug("SAP: strategy 3 (download buttons): %d found", sap_count)
+
+            # Strategy 4: Attachment section with file icons
+            attachment_links = page.locator(
+                "a[class*='attachment'], a[class*='file'], "
+                "span[class*='attachment'] a, td a[href*='FileDownload']"
+            )
+            att_count = await attachment_links.count()
+            log.debug("SAP: strategy 4 (attachment class): %d found", att_count)
+
+            # Collect all unique links
             all_links = []
-            # Collect href-based links
-            for i in range(link_count):
-                all_links.append(doc_links.nth(i))
-            # Collect text-based links (avoiding duplicates)
-            for i in range(text_link_count):
-                all_links.append(file_text_links.nth(i))
+            for loc, cnt in [(doc_links, link_count), (file_text_links, text_count),
+                             (sap_download, sap_count), (attachment_links, att_count)]:
+                for i in range(cnt):
+                    all_links.append(loc.nth(i))
 
             if not all_links:
-                log.debug("SAP: no downloadable documents found on event page")
+                # Last resort: dump the page content for debugging
+                log.info("SAP: no download links found. Page sections visible:")
+                sections = page.locator("a[bh='PMI'], td.headerText, div.sectionTitle")
+                sec_count = await sections.count()
+                for i in range(min(sec_count, 10)):
+                    txt = (await sections.nth(i).inner_text()).strip()
+                    if txt:
+                        log.info("  Section: %s", txt[:80])
                 return []
 
-            for i, link in enumerate(all_links[:10]):  # Max 10 files
+            log.info("SAP: attempting to download %d files", len(all_links))
+            for i, link in enumerate(all_links[:10]):
                 try:
                     async with page.expect_download(timeout=30000) as dl_info:
                         await link.click()
                     download = await dl_info.value
                     filename = download.suggested_filename or f"sap_doc_{i}.pdf"
-                    # Only download English files if both EN/FR exist
                     if "-fr." in filename.lower() or "_fr." in filename.lower() or "-fra" in filename.lower():
                         log.debug("SAP: skipping French file %s", filename)
                         continue
@@ -260,7 +304,7 @@ class SAPClient:
                     downloaded.append(dest)
                     log.info("  SAP downloaded: %s", filename)
                 except Exception as exc:
-                    log.debug("  SAP download failed for link %d: %s", i, exc)
+                    log.debug("  SAP download attempt %d: %s", i, exc)
                     continue
 
         except Exception as exc:
