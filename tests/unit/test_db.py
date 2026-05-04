@@ -85,7 +85,11 @@ async def test_stage_tender_returns_zero_on_conflict(mock_pool):
 @pytest.mark.asyncio
 async def test_accept_tender_updates_status(mock_pool):
     pool, conn = mock_pool
-    conn.fetchrow = AsyncMock(return_value={"id": 1, "status": "accepted"})
+    # First fetchrow returns associate name, second returns updated tender
+    conn.fetchrow = AsyncMock(side_effect=[
+        {"name": "Charles Radovic"},
+        {"id": 1, "status": "accepted", "assigned_associate": "Charles Radovic"},
+    ])
 
     import db
     db._pool = pool

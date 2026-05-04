@@ -23,8 +23,10 @@ def test_has_credentials_true(sap_client):
 
 
 def test_has_credentials_false(mock_context):
-    client = SAPClient(mock_context, username="", password="")
-    assert client.has_credentials is False
+    import os
+    with patch.dict(os.environ, {}, clear=True):
+        client = SAPClient(mock_context, username="", password="")
+        assert client.has_credentials is False
 
 
 @pytest.mark.asyncio

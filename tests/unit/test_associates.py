@@ -118,5 +118,5 @@ async def test_deactivate_nonexistent_returns_false():
 def test_default_associates_list():
     import associates
     assert len(associates.ASSOCIATES_DEFAULT) == 5
-    assert "Edward" in associates.ASSOCIATES_DEFAULT
-    assert "James" in associates.ASSOCIATES_DEFAULT
+    assert "Charles Radovic" in associates.ASSOCIATES_DEFAULT
+    assert "Richard Radovic" in associates.ASSOCIATES_DEFAULT
