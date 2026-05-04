@@ -23,6 +23,43 @@ from config import Config
 from notifier import Notifier, RunSummary
 import dashboard_data
 
+import zipfile
+
+
+def _extract_english_pdf_from_zip(zip_path: str, extract_dir: str) -> list[str]:
+    """Extract English PDFs from a ZIP file. Returns list of extracted file paths."""
+    extracted = []
+    try:
+        with zipfile.ZipFile(zip_path, "r") as zf:
+            for name in zf.namelist():
+                lower = name.lower()
+                # Skip French files
+                if any(fr in lower for fr in ["_fr.", "-fr.", "_fre.", "demande", "français", "francais"]):
+                    continue
+                # Extract PDFs and spreadsheets
+                if lower.endswith((".pdf", ".xlsx", ".xls", ".doc", ".docx")):
+                    dest = os.path.join(extract_dir, os.path.basename(name))
+                    with open(dest, "wb") as f:
+                        f.write(zf.read(name))
+                    extracted.append(dest)
+                    log.info("  Extracted from ZIP: %s", os.path.basename(name))
+    except Exception as exc:
+        log.warning("  ZIP extraction failed for %s: %s", zip_path, exc)
+    return extracted
+
+
+def _resolve_downloaded_files(downloaded_files: list[str], download_dir: str) -> list[str]:
+    """If any downloaded files are ZIPs, extract them and return the actual files."""
+    resolved = []
+    for fpath in downloaded_files:
+        if fpath.lower().endswith(".zip"):
+            extracted = _extract_english_pdf_from_zip(fpath, download_dir)
+            resolved.extend(extracted)
+        else:
+            resolved.append(fpath)
+    return resolved
+
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -155,6 +192,10 @@ async def run_agent():
                     else:
                         log.info("  SAP tender, no CanadaBuys files, no SAP credentials — manual download needed")
 
+            # Resolve ZIPs to actual files (SAP downloads are typically ZIPs)
+            if downloaded_files:
+                downloaded_files = _resolve_downloaded_files(downloaded_files, download_dir)
+
             if use_db:
                 # Phase 2: stage to PostgreSQL for dashboard review
                 if not sol_no:
@@ -171,13 +212,22 @@ async def run_agent():
 
                         # LLM extraction if solicitation was downloaded
                         if downloaded_files:
+                            # Pick the best English PDF for extraction
+                            pdf_files = [f for f in downloaded_files if f.lower().endswith(".pdf")]
+                            en_pdfs = [f for f in pdf_files if not any(
+                                fr in os.path.basename(f).lower()
+                                for fr in ["_fr.", "-fr.", "_fre.", "demande", "français"]
+                            )]
+                            extract_file = (en_pdfs or pdf_files or downloaded_files)[0]
+                            log.info("  Extracting from: %s", os.path.basename(extract_file))
+
                             await _db.update_tender_extraction(
-                                tender_id, solicitation_path=downloaded_files[0]
+                                tender_id, solicitation_path=extract_file
                             )
                             try:
                                 from extractor import extract_from_pdf
                                 from classifier import classify_and_save_csv
-                                extraction = await extract_from_pdf(downloaded_files[0])
+                                extraction = await extract_from_pdf(extract_file)
                                 if extraction:
                                     classified = classify_and_save_csv(
                                         extraction, download_dir, sol_no=sol_no
