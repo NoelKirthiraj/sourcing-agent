@@ -89,13 +89,13 @@ class CFlowClient:
                 "Contact Phone":           tender.get("contact_phone", ""),
                 "GSN":                     tender.get("gsin_description", ""),
                 "Number of Amendment(s)":  tender.get("notifications", ""),
-                "Inquiry (CONTRACT or SAP)": tender.get("bid_platform", ""),
+                "Inquiry (CONTRACT or SAP)": self._map_platform(tender.get("bid_platform", "")),
                 # Phase 2: LLM extraction + classification + assignment
                 "Summary of Contract":     tender.get("summary_of_contract", ""),
                 "Requirement(s)":          tender.get("requirements", ""),
                 "Mandatory Criteria's":    tender.get("mandatory_criteria", ""),
-                "Submission of BID":       tender.get("submission_method", ""),
-                "File is Multiple or Clone or Regular": tender.get("file_type", ""),
+                "Submission of BID":       self._map_submission_method(tender.get("submission_method", "")),
+                "File is Multiple or Clone or Regular": self._map_file_type(tender.get("file_type", "")),
                 "Associate Name":          tender.get("assigned_associate", ""),
             },
         }
@@ -131,6 +131,39 @@ class CFlowClient:
             tender_id = m.group(1)
             return f"https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/{tender_id}/notifications"
         return ""
+
+    @staticmethod
+    def _map_platform(bid_platform: str) -> str:
+        """Map internal bid_platform to CFlow dropdown values: CONTRACT or SAP."""
+        if not bid_platform:
+            return ""
+        return "SAP" if bid_platform.upper() == "SAP" else "CONTRACT"
+
+    @staticmethod
+    def _map_submission_method(method: str) -> str:
+        """Map LLM extraction submission method to CFlow dropdown values."""
+        if not method:
+            return ""
+        m = method.lower().strip()
+        if "sap" in m:
+            return "SAP"
+        if "e-post" in m or "e post" in m or "electronic" in m:
+            return "E Post"
+        if "fax" in m or "email" in m or "e-mail" in m:
+            return "FAX Email"
+        if "mail" in m:
+            return "Mail"
+        return method  # pass through if unrecognized
+
+    @staticmethod
+    def _map_file_type(file_type: str) -> str:
+        """Map classifier file_type to CFlow dropdown values: Regular, Master, or Clone."""
+        if not file_type:
+            return ""
+        # "Multiple" from classifier maps to "Master" in CFlow
+        if file_type.lower() == "multiple":
+            return "Master"
+        return file_type  # "Regular" passes through as-is
 
     async def attach_solicitation(self, record_id: str, file_path: str) -> bool:
         """Upload a solicitation file to the 'UpLoad Solicitation' field on a record."""

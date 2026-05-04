@@ -94,9 +94,9 @@ class TestBuildPayload:
         payload = client._build_payload(sample_tender)
         assert "/notifications" in payload["values"]["Notification Link"]
 
-    def test_bid_platform_set(self, client, sample_tender):
+    def test_bid_platform_canadabuys_maps_to_contract(self, client, sample_tender):
         payload = client._build_payload(sample_tender)
-        assert payload["values"]["Inquiry (CONTRACT or SAP)"] == "CanadaBuys"
+        assert payload["values"]["Inquiry (CONTRACT or SAP)"] == "CONTRACT"
 
     def test_sap_platform(self, client, sample_tender):
         sample_tender["bid_platform"] = "SAP"
