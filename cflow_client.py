@@ -90,6 +90,13 @@ class CFlowClient:
                 "GSN":                     tender.get("gsin_description", ""),
                 "Number of Amendment(s)":  tender.get("notifications", ""),
                 "Inquiry (CONTRACT or SAP)": tender.get("bid_platform", ""),
+                # Phase 2: LLM extraction + classification + assignment
+                "Summary of Contract":     tender.get("summary_of_contract", ""),
+                "Requirement(s)":          tender.get("requirements", ""),
+                "Mandatory Criteria's":    tender.get("mandatory_criteria", ""),
+                "Submission of BID":       tender.get("submission_method", ""),
+                "File is Multiple or Clone or Regular": tender.get("file_type", ""),
+                "Associate Name":          tender.get("assigned_associate", ""),
             },
         }
 

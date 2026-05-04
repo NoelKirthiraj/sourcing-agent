@@ -18,6 +18,10 @@ def parse_args():
     p.add_argument("--no-detail", action="store_true", help="Skip detail pages")
     p.add_argument("--weekly", action="store_true", help="Use weekly filters (Open + Goods + Last 7 days)")
     p.add_argument("--scrape-only", action="store_true", help="Scrape + record dashboard data, skip CFlow")
+    p.add_argument("--init-db", action="store_true", help="Initialize PostgreSQL schema")
+    p.add_argument("--migrate-state", action="store_true", help="Migrate JSON state to PostgreSQL")
+    p.add_argument("--submit-accepted", action="store_true", help="Submit all accepted tenders to CFlow")
+    p.add_argument("--list-associates", action="store_true", help="Show associate workload table")
     return p.parse_args()
 
 async def main():
@@ -28,6 +32,52 @@ async def main():
     if args.discover_fields:
         import discover_fields
         await discover_fields.discover_fields()
+        return
+
+    if args.init_db:
+        from dotenv import load_dotenv
+        load_dotenv()
+        import db
+        await db.init_schema()
+        print("Database schema initialized")
+        await db.close_pool()
+        return
+
+    if args.migrate_state:
+        from dotenv import load_dotenv
+        load_dotenv()
+        import db
+        await db.init_schema()
+        count = await db.migrate_from_json(str(state_path))
+        print(f"Migrated {count} entries from {state_path} to PostgreSQL")
+        await db.close_pool()
+        return
+
+    if args.submit_accepted:
+        from dotenv import load_dotenv
+        load_dotenv()
+        from config import Config
+        from cflow_client import CFlowClient
+        import db, submit
+        config = Config.load()
+        await db.init_schema()
+        cflow = CFlowClient(config.cflow)
+        counts = await submit.submit_all_accepted(cflow)
+        print(f"Submitted: {counts['submitted']} | Failed: {counts['failed']} | Total: {counts['total']}")
+        await db.close_pool()
+        return
+
+    if args.list_associates:
+        from dotenv import load_dotenv
+        load_dotenv()
+        import db, associates
+        await db.init_schema()
+        workload = await associates.get_workload()
+        print(f"\n{'Name':<15} {'Active':<8} {'Pending':<10} {'Accepted':<10} {'Submitted':<10} {'Total Active'}")
+        print("─" * 70)
+        for a in workload:
+            print(f"{a['name']:<15} {'Yes' if a['active'] else 'No':<8} {a['pending_count']:<10} {a['accepted_count']:<10} {a['submitted_count']:<10} {a['active_tenders']}")
+        await db.close_pool()
         return
 
     if args.reset_state and not args.scrape_only and state_path.exists():
