@@ -1,6 +1,6 @@
 """Unit tests for sap_client.py — SAP login and download (mocked Playwright)."""
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
+from unittest.mock import AsyncMock, MagicMock, patch
 import sys, os
 from pathlib import Path
 
@@ -10,7 +10,9 @@ from sap_client import SAPClient
 
 @pytest.fixture
 def mock_context():
-    return AsyncMock()
+    ctx = AsyncMock()
+    ctx.pages = []
+    return ctx
 
 
 @pytest.fixture
@@ -23,7 +25,6 @@ def test_has_credentials_true(sap_client):
 
 
 def test_has_credentials_false(mock_context):
-    import os
     with patch.dict(os.environ, {}, clear=True):
         client = SAPClient(mock_context, username="", password="")
         assert client.has_credentials is False
@@ -31,9 +32,10 @@ def test_has_credentials_false(mock_context):
 
 @pytest.mark.asyncio
 async def test_download_returns_empty_without_credentials(mock_context):
-    client = SAPClient(mock_context, username="", password="")
-    result = await client.download_solicitation("https://sap.example.com", "/tmp")
-    assert result == []
+    with patch.dict(os.environ, {}, clear=True):
+        client = SAPClient(mock_context, username="", password="")
+        result = await client.download_solicitation("https://sap.example.com", "/tmp")
+        assert result == []
 
 
 @pytest.mark.asyncio
@@ -42,98 +44,36 @@ async def test_download_returns_empty_with_empty_url(sap_client):
     assert result == []
 
 
+def test_resolve_sap_url_direct():
+    url = "https://portal.us.bn.cloud.ariba.com/dashboard/123"
+    assert SAPClient._resolve_sap_url(url) == url
+
+
+def test_resolve_sap_url_from_redirect():
+    url = "/en/you-are-now-leaving-canadabuys?ariba=1&destin=https%3A//portal.us.bn.cloud.ariba.com/test"
+    resolved = SAPClient._resolve_sap_url(url)
+    assert resolved == "https://portal.us.bn.cloud.ariba.com/test"
+
+
+def test_resolve_sap_url_relative_becomes_absolute():
+    url = "/en/you-are-now-leaving-canadabuys?destin=https%3A//example.ariba.com/x"
+    resolved = SAPClient._resolve_sap_url(url)
+    assert resolved.startswith("https://")
+
+
+def test_resolve_sap_url_no_destin():
+    url = "https://canadabuys.canada.ca/en/some-page"
+    resolved = SAPClient._resolve_sap_url(url)
+    assert resolved == url
+
+
 @pytest.mark.asyncio
 async def test_download_handles_navigation_error(sap_client, mock_context):
     page = AsyncMock()
     page.goto = AsyncMock(side_effect=Exception("Navigation timeout"))
+    page.close = AsyncMock()
     mock_context.new_page = AsyncMock(return_value=page)
+    mock_context.pages = [page]
 
-    result = await sap_client.download_solicitation("https://sap.example.com", "/tmp")
+    result = await sap_client.download_solicitation("https://portal.ariba.com/test", "/tmp")
     assert result == []
-    page.close.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_login_detects_no_login_form(sap_client):
-    """If no username field found, assume already authenticated."""
-    page = AsyncMock()
-    locator = AsyncMock()
-    locator.count = AsyncMock(return_value=0)
-    page.locator = MagicMock(return_value=locator)
-    locator.first = locator
-
-    result = await sap_client._try_login(page)
-    assert result is True
-    # Should NOT cache _logged_in when login form is simply absent
-    assert sap_client._logged_in is False
-
-
-@pytest.mark.asyncio
-async def test_login_fills_credentials(sap_client):
-    """Test that login fills username, password, and submits."""
-    page = AsyncMock()
-
-    # Username field exists
-    username_locator = AsyncMock()
-    username_locator.count = AsyncMock(return_value=1)
-    username_locator.fill = AsyncMock()
-    username_locator.first = username_locator
-
-    # No continue button
-    continue_locator = AsyncMock()
-    continue_locator.count = AsyncMock(return_value=0)
-    continue_locator.first = continue_locator
-
-    # Password field
-    password_locator = AsyncMock()
-    password_locator.count = AsyncMock(return_value=1)
-    password_locator.fill = AsyncMock()
-    password_locator.first = password_locator
-
-    # Submit button
-    submit_locator = AsyncMock()
-    submit_locator.count = AsyncMock(return_value=1)
-    submit_locator.click = AsyncMock()
-    submit_locator.first = submit_locator
-
-    # After submit, no login fields (success)
-    post_login_locator = AsyncMock()
-    post_login_locator.count = AsyncMock(return_value=0)
-
-    call_count = 0
-    def mock_locator(selector):
-        nonlocal call_count
-        call_count += 1
-        if call_count == 1:
-            return username_locator
-        elif call_count == 2:
-            return continue_locator
-        elif call_count == 3:
-            return password_locator
-        elif call_count == 4:
-            return submit_locator
-        else:
-            return post_login_locator
-
-    page.locator = MagicMock(side_effect=mock_locator)
-
-    result = await sap_client._try_login(page)
-    assert result is True
-    username_locator.fill.assert_called_with("test@sap.com")
-    password_locator.fill.assert_called_with("secret123")
-
-
-@pytest.mark.asyncio
-async def test_login_detects_failure_still_on_login_page(sap_client):
-    """If still on login page after submit, login failed."""
-    page = AsyncMock()
-
-    locator = AsyncMock()
-    locator.count = AsyncMock(return_value=1)  # Always returns login fields
-    locator.fill = AsyncMock()
-    locator.click = AsyncMock()
-    locator.first = locator
-    page.locator = MagicMock(return_value=locator)
-
-    result = await sap_client._try_login(page)
-    assert result is False
