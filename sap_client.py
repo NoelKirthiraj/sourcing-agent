@@ -101,13 +101,18 @@ class SAPClient:
         downloaded: list[str] = []
 
         try:
-            # Step 1: Load SAP discovery page
+            # Step 1: Load SAP discovery page (SPA — needs time to render)
             log.debug("SAP: loading %s", sap_url[:80])
             await page.goto(sap_url, timeout=60000, wait_until="load")
-            await page.wait_for_timeout(8000)
+            await page.wait_for_timeout(15000)  # SAP SPA needs time
 
             # Step 2: Login if needed
             if not self._logged_in:
+                # Wait for SPA to render Respond button
+                try:
+                    await page.locator("button:has-text('Respond')").wait_for(timeout=15000)
+                except:
+                    log.debug("SAP: Respond button not found after wait, checking page...")
                 success = await self._login_flow(page)
                 if not success:
                     log.warning("SAP login failed")
