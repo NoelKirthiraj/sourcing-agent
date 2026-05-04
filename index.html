@@ -2818,8 +2818,9 @@ function renderReviewTender(t) {
         <div class="detail-label">Portal Link</div><div class="detail-value"><a href="${escapeHtml(t.inquiry_link || '#')}" target="_blank">${escapeHtml(t.inquiry_link || '—')}</a></div>
         ${t.gsin ? `<div class="detail-label">Description</div><div class="detail-value description">${escapeHtml(t.gsin)}</div>` : ''}
         ${t.summary_of_contract ? `<div class="detail-label">Summary</div><div class="detail-value">${escapeHtml(t.summary_of_contract)}</div>` : ''}
-        ${t.requirements ? `<div class="detail-label">Requirements</div><div class="detail-value description">${escapeHtml(t.requirements)}</div>` : ''}
-        ${t.mandatory_criteria ? `<div class="detail-label">Mandatory</div><div class="detail-value">${escapeHtml(t.mandatory_criteria)}</div>` : ''}
+        ${t.requirements ? `<div class="detail-label">Requirements</div><div class="detail-value description" style="white-space:pre-wrap">${escapeHtml(t.requirements)}</div>` : ''}
+        ${t.file_type === 'Multiple' && t.requirements_csv ? `<div class="detail-label">CSV</div><div class="detail-value"><a href="${REVIEW_API}/api/tenders/${t.id}/csv" target="_blank" style="color:var(--cyan);text-decoration:none;font-family:var(--font-mono);font-size:0.75rem">&#x1F4E5; Download Requirements CSV</a></div>` : ''}
+        ${t.mandatory_criteria ? `<div class="detail-label">Mandatory</div><div class="detail-value description" style="white-space:pre-wrap">${escapeHtml(t.mandatory_criteria)}</div>` : ''}
         ${t.submission_method ? `<div class="detail-label">Submission</div><div class="detail-value">${escapeHtml(t.submission_method)}</div>` : ''}
         ${t.notifications ? `<div class="detail-label">Amendments</div><div class="detail-value">${escapeHtml(t.notifications)}</div>` : ''}
         <div class="detail-label">Scraped</div><div class="detail-value">${t.scraped_at ? new Date(t.scraped_at).toLocaleString() : '—'}</div>

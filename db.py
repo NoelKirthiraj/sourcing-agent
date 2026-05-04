@@ -159,6 +159,7 @@ async def update_tender_extraction(
     file_type: str = "",
     solicitation_path: str = "",
     requirements_csv_path: str = "",
+    requirements_csv: str = "",
 ):
     """Update a tender with LLM extraction results."""
     pool = await get_pool()
@@ -171,10 +172,12 @@ async def update_tender_extraction(
                 submission_method = $5,
                 file_type = $6,
                 solicitation_path = $7,
-                requirements_csv_path = $8
+                requirements_csv_path = $8,
+                requirements_csv = $9
             WHERE id = $1
         """, tender_id, summary, requirements, mandatory_criteria,
-            submission_method, file_type, solicitation_path, requirements_csv_path)
+            submission_method, file_type, solicitation_path, requirements_csv_path,
+            requirements_csv)
 
 
 async def accept_tender(tender_id: int) -> Optional[dict]:

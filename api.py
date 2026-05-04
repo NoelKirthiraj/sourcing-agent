@@ -55,6 +55,9 @@ class APIHandler(BaseHTTPRequestHandler):
         elif path.startswith("/api/associates/") and path.endswith("/tenders"):
             name = path.split("/")[3]
             self._handle_associate_tenders(name, params)
+        elif path.startswith("/api/tenders/") and path.endswith("/csv"):
+            tender_id = path.split("/")[3]
+            self._handle_csv_download(tender_id)
         elif path == "/api/health":
             self._json_response({"status": "ok"})
         else:
@@ -139,6 +142,28 @@ class APIHandler(BaseHTTPRequestHandler):
                 if hasattr(v, "isoformat"):
                     t[k] = v.isoformat()
         self._json_response(tenders)
+
+    def _handle_csv_download(self, tender_id):
+        """Serve the requirements CSV for a tender as a downloadable file."""
+        try:
+            tender = _run_async(db.get_tender(int(tender_id)))
+            if not tender:
+                self._json_response({"error": "not found"}, 404)
+                return
+            csv_content = tender.get("requirements_csv", "")
+            if not csv_content:
+                self._json_response({"error": "no CSV available for this tender"}, 404)
+                return
+            sol_no = tender.get("solicitation_no", "tender")
+            safe_name = "".join(c for c in sol_no if c.isalnum() or c in "-_")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/csv")
+            self.send_header("Content-Disposition", f'attachment; filename="{safe_name}_requirements.csv"')
+            self._cors_headers()
+            self.end_headers()
+            self.wfile.write(csv_content.encode("utf-8"))
+        except (ValueError, TypeError):
+            self._json_response({"error": "invalid id"}, 400)
 
     def _handle_tender_detail(self, tender_id):
         try:

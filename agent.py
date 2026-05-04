@@ -182,14 +182,27 @@ async def run_agent():
                                     classified = classify_and_save_csv(
                                         extraction, download_dir, sol_no=sol_no
                                     )
+                                    # For display: use text for Regular, formatted string for Multiple
+                                    req_display = classified.get("requirements_text", "")
+                                    if not req_display and extraction.get("requirements"):
+                                        reqs = extraction["requirements"]
+                                        if isinstance(reqs, list):
+                                            req_display = "\n".join(
+                                                f"Item {r.get('item','')}: {r.get('description','')} — Qty: {r.get('quantity','')} {r.get('unit_of_issue','')}"
+                                                for r in reqs
+                                            )
+                                        else:
+                                            req_display = str(reqs)
+
                                     await _db.update_tender_extraction(
                                         tender_id,
                                         summary=extraction.get("summary_of_contract", ""),
-                                        requirements=classified.get("requirements_text", "") or str(extraction.get("requirements", "")),
+                                        requirements=req_display,
                                         mandatory_criteria=extraction.get("mandatory_criteria", ""),
                                         submission_method=extraction.get("submission_method", ""),
                                         file_type=classified.get("file_type", ""),
                                         requirements_csv_path=classified.get("csv_path", ""),
+                                        requirements_csv=classified.get("requirements_csv", ""),
                                     )
                                     log.info("  LLM extraction complete: file_type=%s", classified.get("file_type", ""))
                             except Exception as exc:
