@@ -244,9 +244,17 @@ class CanadaBuysScraper:
 
         # Detect bid platform from description text BEFORE clicking Contact tab,
         # which overwrites `text` and may lose the SAP wording.
-        detail["bid_platform"] = "SAP" if re.search(
-            r"SAP\s+(?:Ariba|Business\s+Network)", text, re.IGNORECASE
-        ) else "CanadaBuys"
+        is_sap = bool(re.search(r"SAP\s+(?:Ariba|Business\s+Network)", text, re.IGNORECASE))
+        detail["bid_platform"] = "SAP" if is_sap else "CanadaBuys"
+
+        # Extract SAP link if present
+        if is_sap:
+            sap_link = page.locator("a[href*='app.jaggaer.com'], a[href*='supplier.ariba.com'], a[href*='sap.com'], a:has-text('SAP')").first
+            try:
+                if await sap_link.count() > 0:
+                    detail["sap_link"] = await sap_link.get_attribute("href") or ""
+            except Exception:
+                detail["sap_link"] = ""
 
         # Click the Contact information tab to reveal contact fields.
         contact_tab = page.locator("text=Contact information").first

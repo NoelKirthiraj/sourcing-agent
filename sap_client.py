@@ -6,6 +6,7 @@ when a tender requires SAP rather than direct CanadaBuys download.
 import logging
 import os
 from typing import Any
+from urllib.parse import urlparse, parse_qs, unquote
 
 from playwright.async_api import BrowserContext, Page
 
@@ -42,11 +43,17 @@ class SAPClient:
         if not sap_url:
             return []
 
+        # Resolve the actual SAP URL from CanadaBuys redirect links
+        sap_url = self._resolve_sap_url(sap_url)
+        if not sap_url:
+            log.warning("Could not resolve SAP URL")
+            return []
+
         page = await self._context.new_page()
         downloaded: list[str] = []
 
         try:
-            await page.goto(sap_url, timeout=30000, wait_until="domcontentloaded")
+            await page.goto(sap_url, timeout=60000, wait_until="domcontentloaded")
             await page.wait_for_load_state("networkidle", timeout=30000)
 
             # Check if we need to log in
@@ -68,6 +75,33 @@ class SAPClient:
             await page.close()
 
         return downloaded
+
+    @staticmethod
+    def _resolve_sap_url(url: str) -> str:
+        """Extract the actual SAP URL from a CanadaBuys redirect link.
+        e.g. /en/you-are-now-leaving-canadabuys?...destin=https://portal.us.bn.cloud.ariba.com/...
+        """
+        # Make absolute if relative
+        if url.startswith("/"):
+            url = "https://canadabuys.canada.ca" + url
+
+        # If it's already a direct SAP URL, return as-is
+        if "ariba.com" in url or "jaggaer.com" in url or "sap.com" in url:
+            if "leaving-canadabuys" not in url:
+                return url
+
+        # Extract destin= parameter from CanadaBuys redirect
+        try:
+            parsed = urlparse(url)
+            params = parse_qs(parsed.query)
+            destin = params.get("destin", params.get("destination", [""]))
+            if destin and destin[0]:
+                return unquote(destin[0])
+        except Exception:
+            pass
+
+        # If we can't extract, return the original (Playwright will follow redirects)
+        return url
 
     async def _try_login(self, page: Page) -> bool:
         """Attempt to log into SAP. Returns True on success."""

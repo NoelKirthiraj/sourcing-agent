@@ -56,7 +56,7 @@ async def extract_from_pdf(pdf_path: str) -> dict[str, Any]:
         pdf_data = base64.standard_b64encode(path.read_bytes()).decode("utf-8")
 
         message = client.messages.create(
-            model="claude-sonnet-4-6-20250514",
+            model="claude-sonnet-4-6",
             max_tokens=4096,
             messages=[
                 {

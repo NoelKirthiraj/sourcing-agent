@@ -123,19 +123,37 @@ async def run_agent():
             bid_platform = tender.get("bid_platform", "CanadaBuys")
             log.info("New tender: [%s] %s (platform: %s)", sol_no, tender.get("solicitation_title", ""), bid_platform)
 
-            # Download solicitation files from CanadaBuys if available.
+            # Download solicitation files — always try CanadaBuys first,
+            # even for SAP tenders (some have files on both platforms).
             downloaded_files: list[str] = []
-            if bid_platform != "SAP":
-                try:
-                    downloaded_files = await scraper.download_solicitation(link, download_dir)
-                    if downloaded_files:
-                        summary.files_downloaded += len(downloaded_files)
-                        log.info("  Downloaded %d file(s) for %s", len(downloaded_files), sol_no)
-                except Exception as exc:
-                    log.warning("  File download failed for %s: %s", sol_no, exc)
-            else:
+            try:
+                downloaded_files = await scraper.download_solicitation(link, download_dir)
+                if downloaded_files:
+                    summary.files_downloaded += len(downloaded_files)
+                    log.info("  Downloaded %d file(s) from CanadaBuys for %s", len(downloaded_files), sol_no)
+            except Exception as exc:
+                log.debug("  CanadaBuys download attempt for %s: %s", sol_no, exc)
+
+            # If SAP and no files from CanadaBuys, try SAP auto-download
+            if bid_platform == "SAP":
                 summary.sap_flagged += 1
-                log.info("  SAP tender — flagged for manual solicitation download")
+                if not downloaded_files:
+                    sap_user = os.environ.get("SAP_USERNAME", "")
+                    if sap_user:
+                        try:
+                            from sap_client import SAPClient
+                            sap = SAPClient(scraper._context)
+                            sap_link = tender.get("sap_link", "") or tender.get("inquiry_link", "")
+                            downloaded_files = await sap.download_solicitation(sap_link, download_dir)
+                            if downloaded_files:
+                                summary.files_downloaded += len(downloaded_files)
+                                log.info("  SAP download: %d file(s) for %s", len(downloaded_files), sol_no)
+                            else:
+                                log.info("  No files from CanadaBuys or SAP for %s", sol_no)
+                        except Exception as exc:
+                            log.warning("  SAP download failed for %s: %s", sol_no, exc)
+                    else:
+                        log.info("  SAP tender, no CanadaBuys files, no SAP credentials — manual download needed")
 
             if use_db:
                 # Phase 2: stage to PostgreSQL for dashboard review
