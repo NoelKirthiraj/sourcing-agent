@@ -179,14 +179,24 @@ async def run_agent():
                     if sap_user:
                         try:
                             from sap_client import SAPClient
-                            sap = SAPClient(scraper._context)
-                            sap_link = tender.get("sap_link", "") or tender.get("inquiry_link", "")
-                            downloaded_files = await sap.download_solicitation(sap_link, download_dir)
-                            if downloaded_files:
-                                summary.files_downloaded += len(downloaded_files)
-                                log.info("  SAP download: %d file(s) for %s", len(downloaded_files), sol_no)
-                            else:
-                                log.info("  No files from CanadaBuys or SAP for %s", sol_no)
+                            # Use a FRESH browser context for SAP — CanadaBuys cookies
+                            # and cache-busting headers interfere with SAP's SPA rendering
+                            sap_context = await scraper._browser.new_context(
+                                user_agent=scraper._USER_AGENT,
+                                accept_downloads=True,
+                                viewport={"width": 1280, "height": 900},
+                            )
+                            try:
+                                sap = SAPClient(sap_context)
+                                sap_link = tender.get("sap_link", "") or tender.get("inquiry_link", "")
+                                downloaded_files = await sap.download_solicitation(sap_link, download_dir)
+                                if downloaded_files:
+                                    summary.files_downloaded += len(downloaded_files)
+                                    log.info("  SAP download: %d file(s) for %s", len(downloaded_files), sol_no)
+                                else:
+                                    log.info("  No files from CanadaBuys or SAP for %s", sol_no)
+                            finally:
+                                await sap_context.close()
                         except Exception as exc:
                             log.warning("  SAP download failed for %s: %s", sol_no, exc)
                     else:
