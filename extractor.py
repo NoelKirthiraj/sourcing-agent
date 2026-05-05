@@ -57,7 +57,7 @@ async def extract_from_pdf(pdf_path: str) -> dict[str, Any]:
 
         message = client.messages.create(
             model="claude-sonnet-4-6",
-            max_tokens=4096,
+            max_tokens=8192,
             messages=[
                 {
                     "role": "user",
@@ -92,7 +92,45 @@ async def extract_from_pdf(pdf_path: str) -> dict[str, Any]:
 
     except json.JSONDecodeError as exc:
         log.warning("LLM returned invalid JSON for %s: %s", pdf_path, exc)
+        # Try to salvage partial JSON — extract what we can
+        try:
+            result = _salvage_partial_json(response_text)
+            if result:
+                log.info("Salvaged partial extraction for %s", path.name)
+                return result
+        except Exception:
+            pass
         return {}
     except Exception as exc:
         log.warning("LLM extraction failed for %s: %s", pdf_path, exc)
         return {}
+
+
+def _salvage_partial_json(text: str) -> dict:
+    """Try to extract fields from truncated JSON response."""
+    result = {}
+    # Try to find each field individually
+    for field in ["summary_of_contract", "mandatory_criteria", "submission_method", "is_multi_inquiry"]:
+        try:
+            import re
+            pattern = rf'"{field}"\s*:\s*"((?:[^"\\]|\\.)*)"'
+            match = re.search(pattern, text)
+            if match:
+                result[field] = match.group(1).replace("\\n", "\n").replace('\\"', '"')
+        except Exception:
+            pass
+    # Check for is_multi_inquiry as boolean
+    if "is_multi_inquiry" not in result:
+        if '"is_multi_inquiry": true' in text.lower():
+            result["is_multi_inquiry"] = True
+        elif '"is_multi_inquiry": false' in text.lower():
+            result["is_multi_inquiry"] = False
+    # Try to get requirements as string (may be truncated)
+    try:
+        import re
+        req_match = re.search(r'"requirements"\s*:\s*"((?:[^"\\]|\\.)*)"', text)
+        if req_match:
+            result["requirements"] = req_match.group(1).replace("\\n", "\n").replace('\\"', '"')
+    except Exception:
+        pass
+    return result if result else {}
