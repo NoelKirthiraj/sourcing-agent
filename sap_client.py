@@ -227,7 +227,7 @@ class SAPClient:
 
     async def _find_event_page(self) -> Page | None:
         """Find the SAP event page among open pages."""
-        for _ in range(6):
+        for _ in range(12):  # 12 × 5s = 60s max wait
             for pg in self._context.pages:
                 if "ariba.com/Sourcing" in pg.url:
                     return pg
@@ -275,27 +275,58 @@ class SAPClient:
             log.info("SAP: no attachments available for this tender")
             return []
 
-        # Step 4: Select all items — find and click the "Total" checkbox
-        ss3 = os.path.join(tempfile.gettempdir(), "sap_vision_step3.png")
-        await page.screenshot(path=ss3)
-        checkboxes = await _ask_claude_for_buttons(ss3)
-        log.debug("SAP vision step 3: found %d elements", len(checkboxes))
+        # Step 4: Select all items — use DOM to find and click checkboxes
+        # SAP uses standard HTML checkboxes in the attachment selection page
+        checkboxes = page.locator("input[type='checkbox']")
+        cb_count = await checkboxes.count()
+        log.debug("SAP: found %d checkboxes on attachment page", cb_count)
 
-        # Find the Total/Select All checkbox
-        total_cb = next((b for b in checkboxes if "total" in b.get("label", "").lower() or "select all" in b.get("label", "").lower()), None)
-        if total_cb:
-            log.debug("SAP: clicking Total checkbox at (%d, %d)", total_cb["x"], total_cb["y"])
-            await page.mouse.click(total_cb["x"], total_cb["y"])
-            await page.wait_for_timeout(3000)
+        if cb_count > 0:
+            # Click the first checkbox (usually "Title" or "Totals" — selects all)
+            try:
+                await checkboxes.first.click(force=True)
+                await page.wait_for_timeout(2000)
+                log.debug("SAP: clicked first checkbox (select all)")
+            except Exception:
+                # Fallback: try vision for the checkbox
+                ss3 = os.path.join(tempfile.gettempdir(), "sap_vision_step3.png")
+                await page.screenshot(path=ss3)
+                cb_buttons = await _ask_claude_for_buttons(ss3)
+                total_cb = next((b for b in cb_buttons if "total" in b.get("label", "").lower() or "select" in b.get("label", "").lower()), None)
+                if total_cb:
+                    await page.mouse.click(total_cb["x"], total_cb["y"])
+                    await page.wait_for_timeout(2000)
+        else:
+            log.debug("SAP: no checkboxes found — may already be selected or different UI")
 
-        # Step 5: Click final Download Attachments button
+        # Step 5: Click final Download Attachments button — try DOM first, then vision
+        dl_btn = page.locator("button:has-text('Download Attachments'), a:has-text('Download Attachments')").first
         ss4 = os.path.join(tempfile.gettempdir(), "sap_vision_step4.png")
         await page.screenshot(path=ss4)
-        final = await _ask_claude_for_buttons(ss4)
 
+        if await dl_btn.count() > 0:
+            try:
+                fd = None  # skip vision, use DOM
+                await dl_btn.click(force=True)
+                log.info("SAP: clicked Download Attachments via DOM")
+                await page.wait_for_timeout(30000)
+                # Save downloads
+                for dl in dl_files:
+                    fname = dl.suggested_filename or "sap_document.pdf"
+                    if "-fr." in fname.lower() or "_fr." in fname.lower():
+                        continue
+                    dest = os.path.join(download_dir, fname)
+                    await dl.save_as(dest)
+                    downloaded.append(dest)
+                    log.info("  SAP downloaded: %s", fname)
+                return downloaded
+            except Exception as exc:
+                log.debug("SAP: DOM click failed, trying vision: %s", exc)
+
+        # Vision fallback for download button
+        final = await _ask_claude_for_buttons(ss4)
         fd = next((b for b in final if "download" in b.get("label", "").lower() and b.get("type") == "button"), None)
         if not fd:
-            # Fallback: the blue "Download Attachments" button is usually top-right
             fd = next((b for b in final if "download attach" in b.get("label", "").lower()), None)
 
         if fd:
