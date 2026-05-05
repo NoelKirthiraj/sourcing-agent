@@ -32,8 +32,26 @@ Rules:
 """
 
 
+def _extract_docx_text(docx_path: str) -> str:
+    """Extract plain text from a DOCX file (it's a ZIP of XML)."""
+    import re
+    import zipfile
+    try:
+        with zipfile.ZipFile(docx_path) as zf:
+            if "word/document.xml" not in zf.namelist():
+                return ""
+            xml = zf.read("word/document.xml").decode("utf-8", errors="replace")
+            # Strip XML tags to get plain text
+            text = re.sub(r"<[^>]+>", " ", xml)
+            text = re.sub(r"\s+", " ", text).strip()
+            return text
+    except Exception as exc:
+        log.warning("DOCX text extraction failed for %s: %s", docx_path, exc)
+        return ""
+
+
 async def extract_from_pdf(pdf_path: str) -> dict[str, Any]:
-    """Send a PDF to Claude API and extract structured solicitation fields.
+    """Send a PDF or DOCX to Claude API and extract structured solicitation fields.
 
     Returns dict with keys: summary_of_contract, requirements,
     mandatory_criteria, submission_method, is_multi_inquiry.
@@ -41,7 +59,7 @@ async def extract_from_pdf(pdf_path: str) -> dict[str, Any]:
     """
     path = Path(pdf_path)
     if not path.exists():
-        log.warning("PDF not found: %s", pdf_path)
+        log.warning("File not found: %s", pdf_path)
         return {}
 
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
@@ -49,34 +67,44 @@ async def extract_from_pdf(pdf_path: str) -> dict[str, Any]:
         log.warning("ANTHROPIC_API_KEY not set — skipping LLM extraction")
         return {}
 
+    is_docx = path.suffix.lower() in (".docx", ".doc")
+
     try:
         import anthropic
 
         client = anthropic.Anthropic(api_key=api_key)
-        pdf_data = base64.standard_b64encode(path.read_bytes()).decode("utf-8")
+
+        if is_docx:
+            # DOCX: extract text and send as text content
+            docx_text = _extract_docx_text(pdf_path)
+            if not docx_text:
+                log.warning("Could not extract text from DOCX: %s", pdf_path)
+                return {}
+            # Truncate to ~50K chars to stay within token limits
+            if len(docx_text) > 50000:
+                docx_text = docx_text[:50000] + "\n\n[TRUNCATED]"
+            content = [
+                {"type": "text", "text": f"Here is the text content of a solicitation document ({path.name}):\n\n{docx_text}\n\n{EXTRACTION_PROMPT}"},
+            ]
+        else:
+            # PDF: send as document
+            pdf_data = base64.standard_b64encode(path.read_bytes()).decode("utf-8")
+            content = [
+                {
+                    "type": "document",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "application/pdf",
+                        "data": pdf_data,
+                    },
+                },
+                {"type": "text", "text": EXTRACTION_PROMPT},
+            ]
 
         message = client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=8192,
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "document",
-                            "source": {
-                                "type": "base64",
-                                "media_type": "application/pdf",
-                                "data": pdf_data,
-                            },
-                        },
-                        {
-                            "type": "text",
-                            "text": EXTRACTION_PROMPT,
-                        },
-                    ],
-                }
-            ],
+            messages=[{"role": "user", "content": content}],
         )
 
         response_text = message.content[0].text.strip()
