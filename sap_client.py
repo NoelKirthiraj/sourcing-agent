@@ -65,7 +65,24 @@ Return ONLY the JSON array, no explanation. If nothing found, return []."""},
                 ],
             }],
         )
-        return _parse_claude_json(message.content[0].text)
+        result = _parse_claude_json(message.content[0].text)
+        if result:
+            return result
+
+        # Retry with simpler prompt if JSON parsing failed
+        log.debug("Vision retry with simpler prompt...")
+        message2 = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=512,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": img_data}},
+                    {"type": "text", "text": 'Find the "Download Content" button in this screenshot. Return ONLY: [{"label":"Download Content","x":NUMBER,"y":NUMBER,"confidence":"high","type":"button"}]'},
+                ],
+            }],
+        )
+        return _parse_claude_json(message2.content[0].text)
     except Exception as exc:
         log.warning("Claude vision failed: %s", exc)
         return []
