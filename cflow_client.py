@@ -93,7 +93,7 @@ class CFlowClient:
                 # Phase 2: LLM extraction + classification + assignment
                 "Summary of Contract":     tender.get("summary_of_contract", ""),
                 "Requirement(s)":          tender.get("requirements", ""),
-                "Mandatory Criteria's":    tender.get("mandatory_criteria", ""),
+                "Mandatory Criteria\u2019s":    tender.get("mandatory_criteria", ""),
                 "Submission of BID":       self._map_submission_method(tender.get("submission_method", "")),
                 "File is Multiple or Clone or Regular": self._map_file_type(tender.get("file_type", "")),
                 "Associate Name":          tender.get("assigned_associate", ""),
