@@ -8264,5 +8264,30 @@
     ],
     "duration_seconds": 1050.1,
     "mode": "weekly"
+  },
+  {
+    "run_at": "2026-05-11T14:30:42.288400+00:00",
+    "total_found": 6,
+    "new_count": 1,
+    "skipped_count": 5,
+    "error_count": 0,
+    "errors": [],
+    "new_tenders": [
+      {
+        "solicitation_no": "W6369-26-A093/A",
+        "solicitation_title": "Blood Collection Mixer",
+        "gsin_description": "The Department of National Defence (DND) has a requirement for a National Individual Standing Offer (NISO) that will allow the Canadian Forces Health Services (CFHS) clinics throughout Canada to purchase Blood Collection Mixers, operator training, and technical service training on an \u201cas and when requested basis.\u201d Blood Collection Mixers are required to support the Emergency Donor Panel (EDP) and enable the collection of Fresh Whole Blood (FWB) in operational environments. The blood collection mixer must enable safe, accurate, and efficient blood collection in field conditions and meet the clinical and logistical demands of deployed military medical operations. The period of the Standing Offer will be from Standing Offer issue date to 31 March 2031 inclusive. Canada retains the rights to negotiate with suppliers on any procurement. Documents may be submitted in either official language of Canada.",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/cb-475-22207594",
+        "closing_date": "2026/05/29",
+        "time_and_zone": "EDT",
+        "notifications": "2026/05/11",
+        "client": "Department of National Defence (DND)",
+        "contact_name": "Binh Duong",
+        "contact_email": "binh.duong@forces.gc.ca",
+        "contact_phone": ""
+      }
+    ],
+    "duration_seconds": 90.2,
+    "mode": "daily"
   }
 ]
