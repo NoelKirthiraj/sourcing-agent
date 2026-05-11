@@ -216,9 +216,26 @@ async def run_agent():
                 try:
                     import db as _db
 
+                    notes: list[str] = []
+
+                    # Collect processing notes
+                    if bid_platform == "SAP":
+                        if downloaded_files:
+                            notes.append(f"SAP tender — {len(downloaded_files)} file(s) downloaded")
+                        elif not os.environ.get("SAP_USERNAME"):
+                            notes.append("SAP tender — no SAP credentials configured, manual download needed")
+                        else:
+                            notes.append("SAP tender — login failed, manual download needed")
+                    elif not downloaded_files:
+                        notes.append("No solicitation documents found on CanadaBuys")
+
                     tender_id = await _db.stage_tender(tender, assigned_associate="")
                     if tender_id:
                         log.info("✓ Staged to DB: id=%d  (%s)", tender_id, sol_no)
+
+                        # Write initial notes
+                        if notes:
+                            await _db.add_processing_note(tender_id, "\n".join(notes))
 
                         # LLM extraction if solicitation was downloaded
                         if downloaded_files:
@@ -230,6 +247,7 @@ async def run_agent():
                             )]
                             extract_file = (en_pdfs or pdf_files or downloaded_files)[0]
                             log.info("  Extracting from: %s", os.path.basename(extract_file))
+                            await _db.add_processing_note(tender_id, f"Downloaded {len(downloaded_files)} file(s) — extracting from: {os.path.basename(extract_file)}")
 
                             await _db.update_tender_extraction(
                                 tender_id, solicitation_path=extract_file
@@ -265,8 +283,12 @@ async def run_agent():
                                         requirements_csv=classified.get("requirements_csv", ""),
                                     )
                                     log.info("  LLM extraction complete: file_type=%s", classified.get("file_type", ""))
+                                    await _db.add_processing_note(tender_id, f"LLM extraction complete — file type: {classified.get('file_type', 'unknown')}")
+                                else:
+                                    await _db.add_processing_note(tender_id, "LLM extraction returned no results")
                             except Exception as exc:
                                 log.warning("  LLM extraction failed for %s: %s", sol_no, exc)
+                                await _db.add_processing_note(tender_id, f"LLM extraction failed: {exc}")
                         summary.new_count += 1
                         summary.new_tenders.append(tender)
                     else:

@@ -304,6 +304,7 @@ async function loadTenders() {
         <h4>Submission Method</h4><p>${t.submission_method || 'Not determined'}</p>
         <h4>Contact</h4><p>${t.contact_name || ''} · ${t.contact_email || ''} · ${t.contact_phone || ''}</p>
         <h4>Client</h4><p>${t.client || '—'}</p>
+        ${t.processing_notes ? `<h4>Processing Notes</h4><pre style="background:#1a1a2e;color:#e0e0e0;padding:12px;border-radius:6px;font-size:12px;white-space:pre-wrap;border-left:3px solid ${t.processing_notes.includes('failed') || t.processing_notes.includes('manual') ? '#FF3B5C' : '#00D4FF'}">${t.processing_notes}</pre>` : ''}
       </div>
     </td>`;
     tbody.appendChild(detailRow);

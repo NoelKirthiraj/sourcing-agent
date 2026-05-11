@@ -66,6 +66,7 @@ async def init_schema():
                 status              VARCHAR(20) DEFAULT 'pending_review',
                 cflow_record_id     VARCHAR(50) DEFAULT '',
                 notifications       TEXT DEFAULT '',
+                processing_notes    TEXT DEFAULT '',
                 scraped_at          TIMESTAMPTZ DEFAULT NOW(),
                 reviewed_at         TIMESTAMPTZ,
                 submitted_at        TIMESTAMPTZ,
@@ -89,6 +90,10 @@ async def init_schema():
                 ('Richard Radovic')
             ) AS seed(name)
             WHERE NOT EXISTS (SELECT 1 FROM associates LIMIT 1);
+        """)
+        # Migrations — add columns to existing tables
+        await conn.execute("""
+            ALTER TABLE tenders ADD COLUMN IF NOT EXISTS processing_notes TEXT DEFAULT '';
         """)
         log.info("Database schema initialized")
 
@@ -147,6 +152,19 @@ async def stage_tender(tender: dict[str, Any], assigned_associate: str = "") -> 
             assigned_associate,
         )
         return row["id"] if row else 0
+
+
+async def add_processing_note(tender_id: int, note: str):
+    """Append a note to the tender's processing_notes field."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute("""
+            UPDATE tenders SET processing_notes =
+                CASE WHEN processing_notes = '' THEN $2
+                     ELSE processing_notes || E'\n' || $2
+                END
+            WHERE id = $1
+        """, tender_id, note)
 
 
 async def update_tender_extraction(
