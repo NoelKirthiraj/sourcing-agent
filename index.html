@@ -2948,7 +2948,9 @@ async function loadReviewAssociates() {
 
 function formatReviewDate(dateStr) {
   if (!dateStr || dateStr === 'Unknown') return dateStr;
-  const d = new Date(dateStr);
+  // Parse as local date — "2026-05-11" with T00:00:00 to avoid UTC timezone shift
+  const parts = dateStr.split('-');
+  const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   return `${months[d.getMonth()]} ${d.getDate()} ${d.getFullYear()}`;
 }
