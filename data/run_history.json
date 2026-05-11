@@ -8289,5 +8289,30 @@
     ],
     "duration_seconds": 90.2,
     "mode": "daily"
+  },
+  {
+    "run_at": "2026-05-11T14:49:35.300099+00:00",
+    "total_found": 6,
+    "new_count": 1,
+    "skipped_count": 5,
+    "error_count": 0,
+    "errors": [],
+    "new_tenders": [
+      {
+        "solicitation_no": "BC13388MJ2026",
+        "solicitation_title": "Asphalt Resurfacing Highways: West Vancouver Area: Hwy 1 and Cypress\u2026",
+        "gsin_description": "The Work includes typical highway construction activities associated with an asphalt resurfacing project. Treatments consist of milling and asphalt overlay on Highway 1, including 60 mm milling with localized pavement repairs up to an additional 80 mm, and reconstruction of Cypress Bowl Road through pulverization of the existing asphalt pavement followed by an asphalt concrete overlay. Please direct all project specific enquiries related to this RFx by email to the Project Contact identified below and on the \u201cOpportunity Details\u201d tab under Additional Information SCT3. Project Contact Name: Vincent Ong Email Address: Vincent.Ong@gov.bc.ca",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/bc13388mj2026",
+        "closing_date": "2026/05/28",
+        "time_and_zone": "EDT",
+        "notifications": "",
+        "client": "South Coast Regional Office",
+        "contact_name": "",
+        "contact_email": "Provincialcontracts@gov.bc.ca",
+        "contact_phone": ""
+      }
+    ],
+    "duration_seconds": 76.7,
+    "mode": "daily"
   }
 ]
