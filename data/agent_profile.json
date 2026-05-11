@@ -1,43 +1,43 @@
 {
-  "xp": 1988,
+  "xp": 1983,
   "level": 10,
   "level_title": "Legend",
-  "total_processed": 1988,
-  "total_runs": 40,
-  "current_streak": 24,
-  "best_streak": 24,
+  "total_processed": 1983,
+  "total_runs": 39,
+  "current_streak": 23,
+  "best_streak": 23,
   "achievements": [
     {
       "id": "first_launch",
       "name": "First Launch",
-      "earned_at": "2026-05-11T14:05:56.613841+00:00"
+      "earned_at": "2026-05-11T14:25:49.746126+00:00"
     },
     {
       "id": "century",
       "name": "Century",
-      "earned_at": "2026-05-11T14:05:56.613841+00:00"
+      "earned_at": "2026-05-11T14:25:49.746126+00:00"
     },
     {
       "id": "sharpshooter",
       "name": "Sharpshooter",
-      "earned_at": "2026-05-11T14:05:56.613841+00:00"
+      "earned_at": "2026-05-11T14:25:49.746126+00:00"
     },
     {
       "id": "speed_demon",
       "name": "Speed Demon",
-      "earned_at": "2026-05-11T14:05:56.613841+00:00"
+      "earned_at": "2026-05-11T14:25:49.746126+00:00"
     },
     {
       "id": "weekly_warrior",
       "name": "Weekly Warrior",
-      "earned_at": "2026-05-11T14:05:56.613841+00:00"
+      "earned_at": "2026-05-11T14:25:49.746126+00:00"
     },
     {
       "id": "thousand",
       "name": "Thousand",
-      "earned_at": "2026-05-11T14:05:56.613841+00:00"
+      "earned_at": "2026-05-11T14:25:49.746126+00:00"
     }
   ],
-  "last_run_at": "2026-05-11T14:10:45.487849+00:00",
+  "last_run_at": "2026-05-02T23:09:23.094667+00:00",
   "last_status": "success"
 }
