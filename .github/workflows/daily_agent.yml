@@ -74,9 +74,9 @@ jobs:
           fi
           echo "Running in $MODE mode"
           if [ "$MODE" = "weekly" ]; then
-            python run.py --weekly
+            python run.py --scrape-only --weekly
           else
-            python run.py
+            python run.py --scrape-only
           fi
 
       - name: Upload agent log
