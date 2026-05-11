@@ -184,15 +184,22 @@ async def main():
             print(f"\n{status.title()}. New: {summary.new_count} | Skipped: {summary.skipped_count} | Errors: {summary.error_count}")
         return
 
-    from config import Config
-    config = Config.load()
+    import os
+    use_db = bool(os.environ.get("DATABASE_URL", ""))
 
-    if args.visible:
+    if use_db:
+        # Phase 2: agent.py handles its own config — skip Config.load()
+        config = None
+    else:
+        from config import Config
+        config = Config.load()
+
+    if config and args.visible:
         config.scraper.headless = False
-    if args.weekly:
+    if config and args.weekly:
         from scraper import WEEKLY_URL
         config.scraper.search_url = WEEKLY_URL
-    if args.pages:
+    if config and args.pages:
         config.scraper.max_pages = args.pages
 
     if args.dry_run:
