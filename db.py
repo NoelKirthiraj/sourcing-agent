@@ -85,8 +85,6 @@ async def init_schema():
             SELECT name FROM (VALUES
                 ('Charles Radovic'),
                 ('Edouard Radovic'),
-                ('Jean-Michel Beaudoin Bombardier'),
-                ('Office'),
                 ('Richard Radovic')
             ) AS seed(name)
             WHERE NOT EXISTS (SELECT 1 FROM associates LIMIT 1);
