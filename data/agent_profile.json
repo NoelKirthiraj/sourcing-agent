@@ -1,11 +1,11 @@
 {
-  "xp": 2075,
+  "xp": 2096,
   "level": 10,
   "level_title": "Legend",
-  "total_processed": 2075,
-  "total_runs": 45,
-  "current_streak": 29,
-  "best_streak": 29,
+  "total_processed": 2096,
+  "total_runs": 46,
+  "current_streak": 30,
+  "best_streak": 30,
   "achievements": [
     {
       "id": "first_launch",
@@ -36,8 +36,13 @@
       "id": "thousand",
       "name": "Thousand",
       "earned_at": "2026-05-11T14:25:49.746126+00:00"
+    },
+    {
+      "id": "iron_streak",
+      "name": "Iron Streak",
+      "earned_at": "2026-05-15T23:17:03.443190+00:00"
     }
   ],
-  "last_run_at": "2026-05-14T23:17:17.662084+00:00",
+  "last_run_at": "2026-05-15T23:17:03.443041+00:00",
   "last_status": "success"
 }
