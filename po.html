@@ -8,13 +8,38 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+/* Corporate palette — default. Mirrors DESIGN.md's corporate theme so this
+   iframe matches the parent dashboard when it's in Corporate mode. */
 :root {
+  --bg-deep: #FFFFFF;
+  --bg-base: #FFFFFF;
+  --bg-surface: #F8F9FA;
+  --bg-card: #FFFFFF;
+  --bg-elevated: #F1F5F9;
+  --cyan: #1E3A5F;       /* navy primary accent */
+  --cyan-rgb: 30, 58, 95;
+  --orange: #D97706;
+  --green: #16A34A;
+  --red: #DC2626;
+  --yellow: #D97706;
+  --text-primary: #1A202C;
+  --text-secondary: #64748B;
+  --text-muted: #94A3B8;
+  --border: #E2E8F0;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+/* Fun palette — opt-in via `body.theme-fun` (synced from parent localStorage
+   so the iframe follows the dashboard's Fun/Corporate toggle). */
+body.theme-fun {
   --bg-deep: #050816;
   --bg-base: #0A0E27;
   --bg-surface: #111738;
   --bg-card: #151B3D;
   --bg-elevated: #1A2248;
   --cyan: #00D4FF;
+  --cyan-rgb: 0, 212, 255;
   --orange: #FF6B35;
   --green: #00FF88;
   --red: #FF3B5C;
@@ -23,6 +48,8 @@
   --text-secondary: #8892B0;
   --text-muted: #4A5280;
   --border: rgba(0, 212, 255, 0.12);
+  --shadow-sm: none;
+  --shadow-md: none;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
@@ -51,6 +78,7 @@ body {
   border-radius: 16px;
   padding: 24px;
   margin-bottom: 24px;
+  box-shadow: var(--shadow-sm);
 }
 .muted { color: var(--text-secondary); font-size: 13px; }
 .code, .mono {
@@ -83,20 +111,20 @@ body {
   background: var(--bg-elevated);
   color: var(--text-primary);
   border-color: var(--cyan);
-  box-shadow: 0 0 24px rgba(0,212,255,0.08);
+  box-shadow: 0 0 0 1px var(--cyan) inset, var(--shadow-md);
 }
-.step.done { color: var(--green); border-color: rgba(0,255,136,0.3); }
+.step.done { color: var(--green); border-color: var(--green); }
 .step .num {
   width: 26px; height: 26px;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-family: 'Orbitron', sans-serif;
   font-weight: 600;
-  background: rgba(0,212,255,0.1);
+  background: rgba(var(--cyan-rgb), 0.1);
   color: var(--cyan);
   flex-shrink: 0;
 }
-.step.done .num { background: rgba(0,255,136,0.15); color: var(--green); }
+.step.done .num { background: rgba(22, 163, 74, 0.12); color: var(--green); }
 
 /* Upload */
 .upload-grid {
@@ -121,7 +149,7 @@ body {
 .drop.has-file {
   border-color: var(--green);
   border-style: solid;
-  background: rgba(0,255,136,0.04);
+  background: rgba(22, 163, 74, 0.06);
 }
 .drop .label {
   font-family: 'Orbitron', sans-serif;
@@ -155,15 +183,24 @@ body {
   gap: 8px;
 }
 .btn-primary {
-  background: linear-gradient(135deg, var(--cyan), #0088CC);
-  color: #001828;
+  background: var(--cyan);
+  color: #FFFFFF;
 }
-.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,212,255,0.3); }
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(var(--cyan-rgb), 0.25);
+  filter: brightness(1.08);
+}
 .btn-primary:disabled {
   background: var(--bg-elevated);
   color: var(--text-muted);
   cursor: not-allowed;
   transform: none; box-shadow: none;
+  filter: none;
+}
+body.theme-fun .btn-primary {
+  background: linear-gradient(135deg, var(--cyan), #0088CC);
+  color: #001828;
 }
 .btn-secondary {
   background: var(--bg-elevated);
@@ -179,11 +216,15 @@ body {
 
 /* Warnings */
 .warnings {
-  background: rgba(255,107,53,0.08);
-  border: 1px solid rgba(255,107,53,0.3);
+  background: rgba(217, 119, 6, 0.08);
+  border: 1px solid rgba(217, 119, 6, 0.32);
   border-radius: 12px;
   padding: 14px 18px;
   margin-bottom: 18px;
+}
+body.theme-fun .warnings {
+  background: rgba(255,107,53,0.08);
+  border-color: rgba(255,107,53,0.3);
 }
 .warnings .heading {
   font-family: 'Orbitron', sans-serif;
@@ -271,8 +312,10 @@ table.items {
   border-bottom: 1px solid var(--border);
   vertical-align: top;
 }
-.items tr.bad-math td { background: rgba(255,59,92,0.06); }
-.items tr.unmatched td { background: rgba(255,107,53,0.06); }
+.items tr.bad-math td { background: rgba(220, 38, 38, 0.05); }
+.items tr.unmatched td { background: rgba(217, 119, 6, 0.06); }
+body.theme-fun .items tr.bad-math td { background: rgba(255,59,92,0.06); }
+body.theme-fun .items tr.unmatched td { background: rgba(255,107,53,0.06); }
 .items .num-input {
   background: var(--bg-surface);
   color: var(--text-primary);
@@ -305,10 +348,14 @@ table.items {
   text-transform: uppercase;
   letter-spacing: 1px;
 }
-.row-status.matched { color: var(--green); background: rgba(0,255,136,0.1); }
-.row-status.fuzzy { color: var(--yellow); background: rgba(255,217,61,0.1); }
-.row-status.unmatched { color: var(--orange); background: rgba(255,107,53,0.12); }
-.row-status.bad { color: var(--red); background: rgba(255,59,92,0.12); }
+.row-status.matched { color: var(--green); background: rgba(22, 163, 74, 0.1); }
+.row-status.fuzzy { color: var(--orange); background: rgba(217, 119, 6, 0.1); }
+.row-status.unmatched { color: var(--orange); background: rgba(217, 119, 6, 0.14); }
+.row-status.bad { color: var(--red); background: rgba(220, 38, 38, 0.12); }
+body.theme-fun .row-status.matched { background: rgba(0,255,136,0.1); }
+body.theme-fun .row-status.fuzzy { color: var(--yellow); background: rgba(255,217,61,0.1); }
+body.theme-fun .row-status.unmatched { background: rgba(255,107,53,0.12); }
+body.theme-fun .row-status.bad { background: rgba(255,59,92,0.12); }
 .items .icon-btn {
   background: transparent;
   border: 1px solid var(--border);
@@ -367,10 +414,14 @@ table.items {
 .spinner {
   display: inline-block;
   width: 14px; height: 14px;
-  border: 2px solid rgba(0,212,255,0.2);
+  border: 2px solid rgba(var(--cyan-rgb), 0.2);
   border-top-color: var(--cyan);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+}
+.btn-primary .spinner {
+  border-color: rgba(255,255,255,0.35);
+  border-top-color: #FFFFFF;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -394,6 +445,18 @@ table.items {
 </style>
 </head>
 <body>
+<script>
+// Apply theme before any visible content paints, so the iframe doesn't
+// flash corporate-then-fun (or vice versa). Default skin is corporate;
+// follow the parent dashboard's Fun/Corporate toggle via localStorage.
+(function() {
+  try {
+    if (localStorage.getItem('theme') === 'fun') {
+      document.body.classList.add('theme-fun');
+    }
+  } catch (_) { /* localStorage blocked — stay on corporate default */ }
+})();
+</script>
 <div class="wrap">
 
   <div class="steps" id="steps">
