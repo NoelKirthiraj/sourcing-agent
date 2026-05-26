@@ -158,6 +158,22 @@ async def run_agent():
                     continue
 
             bid_platform = tender.get("bid_platform", "CanadaBuys")
+
+            # Drop non-federal Ariba tenants (Nova Scotia provincial, municipal,
+            # other Ariba customers federated through CanadaBuys). Federal Canada
+            # buyer lives on portal.us.bn.cloud.ariba.com — anything else is out
+            # of scope and our SAP creds won't authenticate against it.
+            if bid_platform == "SAP" and tender.get("sap_link"):
+                from sap_client import SAPClient
+                from urllib.parse import urlparse
+                dest_url = SAPClient._resolve_sap_url(tender["sap_link"])
+                dest_host = (urlparse(dest_url).hostname or "").lower()
+                if dest_host and not dest_host.endswith("bn.cloud.ariba.com"):
+                    summary.skipped_count += 1
+                    log.info("Skipping third-party SAP tender [%s] %s (host: %s)",
+                             sol_no, tender.get("solicitation_title", ""), dest_host)
+                    continue
+
             log.info("New tender: [%s] %s (platform: %s)", sol_no, tender.get("solicitation_title", ""), bid_platform)
 
             # Download solicitation files — always try CanadaBuys first,
