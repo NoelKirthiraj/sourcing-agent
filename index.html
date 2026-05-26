@@ -1596,6 +1596,7 @@ body.theme-corporate {
     <button class="nav-tab active" onclick="switchTab('mission')">&#x1F4CB; Mission Control</button>
     <button class="nav-tab" onclick="switchTab('review')">&#x1F50D; Tender Review</button>
     <button class="nav-tab" onclick="switchTab('associates')">&#x1F465; Associates</button>
+    <button class="nav-tab" onclick="switchTab('po')">&#x1F4DD; Generate PO</button>
   </div>
 
   <!-- Tab: Mission Control -->
@@ -1661,6 +1662,17 @@ body.theme-corporate {
       </div>
     </section>
   </div><!-- /tab-associates -->
+
+  <!-- Tab: Generate PO -->
+  <div id="tab-po" class="tab-content">
+    <section class="bottom" style="display:block">
+      <div class="section-panel" style="grid-column: 1 / -1; padding: 0; overflow: hidden">
+        <iframe id="po-frame"
+                title="Generate Purchase Order"
+                style="width:100%;border:0;display:block;min-height:1600px;background:transparent"></iframe>
+      </div>
+    </section>
+  </div><!-- /tab-po -->
 
 <!-- Settings Modal -->
 <div class="modal-overlay" id="settings-modal" onclick="if(event.target===this)closeSettingsModal()">
@@ -2684,6 +2696,22 @@ function switchTab(tab) {
   document.getElementById(`tab-${tab}`).classList.add('active');
   if (tab === 'review') loadReviewTenders();
   if (tab === 'associates') loadAssociatesTab();
+  if (tab === 'po') loadPoTab();
+}
+
+function loadPoTab() {
+  const frame = document.getElementById('po-frame');
+  if (frame.dataset.loaded === '1') return;
+  // Pass the dashboard's API base to the iframe so it talks to the same backend
+  const src = 'po.html?api=' + encodeURIComponent(REVIEW_API);
+  frame.addEventListener('load', () => {
+    try {
+      // Inject API base before any script reads it
+      frame.contentWindow.PO_API_BASE = REVIEW_API;
+    } catch (_) { /* cross-origin safe */ }
+  }, { once: true });
+  frame.src = src;
+  frame.dataset.loaded = '1';
 }
 
 async function reviewApi(path, opts = {}) {

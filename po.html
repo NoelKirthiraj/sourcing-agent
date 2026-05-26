@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAD Global — Generate PO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-deep: #050816;
+  --bg-base: #0A0E27;
+  --bg-surface: #111738;
+  --bg-card: #151B3D;
+  --bg-elevated: #1A2248;
+  --cyan: #00D4FF;
+  --orange: #FF6B35;
+  --green: #00FF88;
+  --red: #FF3B5C;
+  --yellow: #FFD93D;
+  --text-primary: #E8ECF4;
+  --text-secondary: #8892B0;
+  --text-muted: #4A5280;
+  --border: rgba(0, 212, 255, 0.12);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: 'Outfit', sans-serif;
+  min-height: 100vh;
+  padding: 24px;
+}
+.wrap { max-width: 1280px; margin: 0 auto; }
+.section-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 13px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--cyan);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.section-title .icon { font-size: 18px; }
+.panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+.muted { color: var(--text-secondary); font-size: 13px; }
+.code, .mono {
+  font-family: 'JetBrains Mono', monospace;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* Step indicator */
+.steps {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.step {
+  flex: 1;
+  min-width: 180px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+  transition: all 0.25s;
+}
+.step.active {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border-color: var(--cyan);
+  box-shadow: 0 0 24px rgba(0,212,255,0.08);
+}
+.step.done { color: var(--green); border-color: rgba(0,255,136,0.3); }
+.step .num {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 600;
+  background: rgba(0,212,255,0.1);
+  color: var(--cyan);
+  flex-shrink: 0;
+}
+.step.done .num { background: rgba(0,255,136,0.15); color: var(--green); }
+
+/* Upload */
+.upload-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 720px) { .upload-grid { grid-template-columns: 1fr; } }
+.drop {
+  border: 2px dashed var(--border);
+  border-radius: 14px;
+  padding: 28px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--bg-surface);
+}
+.drop:hover, .drop.over {
+  border-color: var(--cyan);
+  background: var(--bg-elevated);
+}
+.drop.has-file {
+  border-color: var(--green);
+  border-style: solid;
+  background: rgba(0,255,136,0.04);
+}
+.drop .label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+.drop .hint { color: var(--text-muted); font-size: 12px; margin-top: 8px; }
+.drop .filename {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--green);
+  word-break: break-all;
+  font-size: 13px;
+}
+.drop input[type="file"] { display: none; }
+
+/* Buttons */
+.btn {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 11px 22px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--cyan), #0088CC);
+  color: #001828;
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,212,255,0.3); }
+.btn-primary:disabled {
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  transform: none; box-shadow: none;
+}
+.btn-secondary {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover { border-color: var(--cyan); }
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+/* Warnings */
+.warnings {
+  background: rgba(255,107,53,0.08);
+  border: 1px solid rgba(255,107,53,0.3);
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 18px;
+}
+.warnings .heading {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--orange);
+  margin-bottom: 8px;
+}
+.warnings ul { list-style: none; padding-left: 0; }
+.warnings li {
+  font-size: 13px;
+  color: var(--text-primary);
+  padding: 4px 0;
+  padding-left: 20px;
+  position: relative;
+}
+.warnings li:before {
+  content: "▶";
+  position: absolute;
+  left: 0;
+  color: var(--orange);
+  font-size: 9px;
+  top: 6px;
+}
+
+/* Form */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 18px;
+}
+@media (max-width: 720px) { .form-grid { grid-template-columns: 1fr; } }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.field input, .field textarea, .field select {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 14px;
+  transition: border-color 0.15s;
+}
+.field input:focus, .field textarea:focus, .field select:focus {
+  outline: none;
+  border-color: var(--cyan);
+}
+.field textarea { resize: vertical; min-height: 60px; }
+.field-full { grid-column: 1 / -1; }
+.subgrid {
+  display: grid;
+  gap: 12px 18px;
+  grid-template-columns: 1fr 1fr;
+}
+
+/* Items table */
+.items-wrap { overflow-x: auto; }
+table.items {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 760px;
+}
+.items th {
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.items td {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.items tr.bad-math td { background: rgba(255,59,92,0.06); }
+.items tr.unmatched td { background: rgba(255,107,53,0.06); }
+.items .num-input {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  width: 100%;
+  min-width: 90px;
+  text-align: right;
+}
+.items .num-input.error { border-color: var(--red); }
+.items .text-input {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  width: 100%;
+}
+.items .row-status {
+  display: inline-flex;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.row-status.matched { color: var(--green); background: rgba(0,255,136,0.1); }
+.row-status.fuzzy { color: var(--yellow); background: rgba(255,217,61,0.1); }
+.row-status.unmatched { color: var(--orange); background: rgba(255,107,53,0.12); }
+.row-status.bad { color: var(--red); background: rgba(255,59,92,0.12); }
+.items .icon-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+.items .icon-btn:hover { color: var(--red); border-color: var(--red); }
+
+.totals {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+  gap: 24px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.totals .label { color: var(--text-secondary); font-size: 12px; }
+.totals .value {
+  font-size: 18px;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.totals .total .value { color: var(--cyan); font-size: 24px; }
+
+/* History */
+.po-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 16px;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.po-row:last-child { border-bottom: none; }
+.po-row .po-id {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.po-row .supplier { color: var(--text-secondary); font-size: 13px; }
+.po-row .amount { font-family: 'JetBrains Mono', monospace; color: var(--cyan); }
+.po-row .date {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 36px 16px;
+  font-size: 14px;
+}
+.spinner {
+  display: inline-block;
+  width: 14px; height: 14px;
+  border: 2px solid rgba(0,212,255,0.2);
+  border-top-color: var(--cyan);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  z-index: 1000;
+  display: none;
+  max-width: 360px;
+}
+.toast.show { display: block; animation: slidein 0.25s ease-out; }
+.toast.success { border-color: var(--green); color: var(--green); }
+.toast.error { border-color: var(--red); color: var(--red); }
+@keyframes slidein { from { transform: translateY(20px); opacity: 0; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="steps" id="steps">
+    <div class="step active" data-step="1"><span class="num">1</span><div>Upload contract + quote</div></div>
+    <div class="step" data-step="2"><span class="num">2</span><div>Review extracted draft</div></div>
+    <div class="step" data-step="3"><span class="num">3</span><div>Generate &amp; download</div></div>
+  </div>
+
+  <!-- STEP 1: UPLOAD -->
+  <div class="panel" id="step1">
+    <div class="section-title"><span class="icon">📄</span> Source Documents</div>
+    <p class="muted" style="margin-bottom:18px">
+      Upload the <strong>awarded contract</strong> and the <strong>supplier quote</strong>.
+      Both must be text PDFs (not scans). Max 10&nbsp;MB each.
+    </p>
+    <div class="upload-grid">
+      <label class="drop" id="drop-contract">
+        <div class="label">Awarded Contract</div>
+        <div class="filename" id="filename-contract">Drop PDF or click to browse</div>
+        <div class="hint">Government / DND signed contract document</div>
+        <input type="file" id="file-contract" accept="application/pdf,.pdf">
+      </label>
+      <label class="drop" id="drop-quote">
+        <div class="label">Supplier Quote</div>
+        <div class="filename" id="filename-quote">Drop PDF or click to browse</div>
+        <div class="hint">The supplier's quotation PDF</div>
+        <input type="file" id="file-quote" accept="application/pdf,.pdf">
+      </label>
+    </div>
+    <div style="display:flex;gap:12px;margin-top:18px;align-items:center">
+      <button class="btn btn-primary" id="btn-extract" disabled>
+        <span id="extract-label">Extract fields</span>
+      </button>
+      <span class="muted" id="extract-status">Both files required to continue.</span>
+    </div>
+  </div>
+
+  <!-- STEP 2: REVIEW -->
+  <div class="panel" id="step2" style="display:none">
+    <div class="section-title"><span class="icon">✏️</span> Review &amp; Edit</div>
+
+    <div id="warnings-box"></div>
+
+    <div class="form-grid" style="margin-bottom:24px">
+      <div class="field">
+        <label>PO Number</label>
+        <input id="f-po_number" type="text">
+      </div>
+      <div class="field">
+        <label>PO Date</label>
+        <input id="f-po_date" type="date">
+      </div>
+
+      <div class="field">
+        <label>Contract Number</label>
+        <input id="f-contract_no" type="text">
+      </div>
+      <div class="field">
+        <label>Quote Number</label>
+        <input id="f-quote_no" type="text">
+      </div>
+
+      <div class="field field-full">
+        <label>Title / Description</label>
+        <input id="f-title" type="text">
+      </div>
+
+      <div class="field">
+        <label>Currency</label>
+        <select id="f-currency">
+          <option value="USD">USD</option>
+          <option value="CAD">CAD</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Delivery Date</label>
+        <input id="f-delivery_date" type="text" placeholder="e.g. 31 March 2026">
+      </div>
+
+      <div class="field">
+        <label>Incoterms</label>
+        <input id="f-incoterms" type="text">
+      </div>
+      <div class="field">
+        <label>Payment Terms</label>
+        <input id="f-payment_terms" type="text">
+      </div>
+    </div>
+
+    <div class="section-title" style="font-size:11px"><span class="icon">🏢</span> Supplier</div>
+    <div class="form-grid" style="margin-bottom:24px">
+      <div class="field"><label>Name</label><input id="f-supplier_name" type="text"></div>
+      <div class="field"><label>Attention</label><input id="f-supplier_attention" type="text"></div>
+      <div class="field field-full"><label>Address Lines (one per row)</label>
+        <textarea id="f-supplier_lines" rows="3"></textarea>
+      </div>
+      <div class="field"><label>Email</label><input id="f-supplier_email" type="text"></div>
+      <div class="field"><label>CAGE Code</label><input id="f-supplier_cage" type="text"></div>
+    </div>
+
+    <div class="section-title" style="font-size:11px"><span class="icon">📍</span> Ship To</div>
+    <div class="form-grid" style="margin-bottom:24px">
+      <div class="field"><label>Destination Name</label><input id="f-ship_name" type="text"></div>
+      <div class="field field-full"><label>Address Lines (one per row)</label>
+        <textarea id="f-ship_lines" rows="3"></textarea>
+      </div>
+    </div>
+
+    <div class="section-title" style="font-size:11px"><span class="icon">📦</span> Line Items</div>
+    <div class="items-wrap">
+      <table class="items">
+        <thead>
+          <tr>
+            <th style="width:42px">#</th>
+            <th style="min-width:120px">Part #</th>
+            <th>Description</th>
+            <th style="width:80px">Qty</th>
+            <th style="width:64px">Unit</th>
+            <th style="width:120px">Unit Price</th>
+            <th style="width:120px">Extended</th>
+            <th style="width:100px">Status</th>
+            <th style="width:40px"></th>
+          </tr>
+        </thead>
+        <tbody id="items-body"></tbody>
+      </table>
+    </div>
+    <div style="display:flex;gap:12px;margin-top:10px">
+      <button class="btn btn-ghost" id="btn-add-item">+ Add line</button>
+    </div>
+    <div class="totals">
+      <div><div class="label">Subtotal</div><div class="value mono" id="totals-subtotal">0.00</div></div>
+      <div class="total"><div class="label">Total</div><div class="value mono" id="totals-total">0.00</div></div>
+    </div>
+
+    <div class="section-title" style="font-size:11px;margin-top:24px"><span class="icon">📜</span> Flow-down Contract Terms</div>
+    <div class="field">
+      <label>One clause per line</label>
+      <textarea id="f-clauses" rows="6"></textarea>
+    </div>
+
+    <div class="section-title" style="font-size:11px;margin-top:24px"><span class="icon">✍️</span> Authorization &amp; Notes</div>
+    <div class="form-grid">
+      <div class="field"><label>Authorized By (Name)</label><input id="f-auth_name" type="text"></div>
+      <div class="field"><label>Title</label><input id="f-auth_title" type="text"></div>
+      <div class="field field-full"><label>Notes (optional)</label><textarea id="f-notes" rows="3"></textarea></div>
+    </div>
+
+    <div style="display:flex;gap:12px;margin-top:24px;align-items:center;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="resetFlow()">Start over</button>
+      <button class="btn btn-primary" id="btn-generate" disabled>
+        <span id="generate-label">Generate PO</span>
+      </button>
+    </div>
+    <div class="muted" id="generate-status" style="text-align:right;margin-top:6px;font-size:12px"></div>
+  </div>
+
+  <!-- STEP 3: HISTORY / DOWNLOAD -->
+  <div class="panel" id="step3" style="display:none">
+    <div class="section-title"><span class="icon">✅</span> Generated</div>
+    <div id="success-card"></div>
+  </div>
+
+  <!-- Generated PO history -->
+  <div class="panel">
+    <div class="section-title"><span class="icon">📚</span> Recent Purchase Orders</div>
+    <div id="po-history"><div class="empty">Loading…</div></div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API_BASE = (() => {
+  // Priority: explicit window var (same-origin iframe), then ?api=... query,
+  // then empty (same-origin fetches).
+  if (window.PO_API_BASE) return window.PO_API_BASE.replace(/\/$/, '');
+  const m = window.location.search.match(/[?&]api=([^&]+)/);
+  return m ? decodeURIComponent(m[1]).replace(/\/$/, '') : '';
+})();
+
+const state = {
+  contractFile: null,
+  quoteFile: null,
+  draft: null,
+  extractedContract: null,
+  extractedQuote: null,
+  contractB64: null,
+  quoteB64: null,
+  warnings: [],
+};
+
+// ── Step management ────────────────────────────────────────────────────────
+function setStep(n) {
+  document.querySelectorAll('.step').forEach(el => {
+    const s = parseInt(el.dataset.step);
+    el.classList.toggle('active', s === n);
+    el.classList.toggle('done', s < n);
+  });
+  document.getElementById('step1').style.display = n === 1 ? 'block' : 'none';
+  document.getElementById('step2').style.display = n === 2 ? 'block' : 'none';
+  document.getElementById('step3').style.display = n === 3 ? 'block' : 'none';
+}
+
+// ── Upload UI ──────────────────────────────────────────────────────────────
+function wireDrop(dropId, fileInputId, filenameId, target) {
+  const drop = document.getElementById(dropId);
+  const input = document.getElementById(fileInputId);
+  const label = document.getElementById(filenameId);
+
+  input.addEventListener('change', e => {
+    const f = e.target.files[0];
+    if (f) attachFile(f, target, drop, label);
+  });
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', e => {
+    e.preventDefault();
+    drop.classList.remove('over');
+    const f = e.dataTransfer.files[0];
+    if (f) attachFile(f, target, drop, label);
+  });
+}
+
+function attachFile(file, target, drop, label) {
+  if (file.type && file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+    return showToast('Must be a PDF file.', 'error');
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    return showToast('File too large — max 10 MB.', 'error');
+  }
+  state[target] = file;
+  drop.classList.add('has-file');
+  label.textContent = file.name;
+  updateExtractButton();
+}
+
+function updateExtractButton() {
+  const ready = state.contractFile && state.quoteFile;
+  document.getElementById('btn-extract').disabled = !ready;
+  document.getElementById('extract-status').textContent = ready
+    ? 'Click "Extract fields" to send both PDFs to the extractor.'
+    : 'Both files required to continue.';
+}
+
+// ── Extraction ─────────────────────────────────────────────────────────────
+async function runExtract() {
+  const btn = document.getElementById('btn-extract');
+  const label = document.getElementById('extract-label');
+  const status = document.getElementById('extract-status');
+  btn.disabled = true;
+  label.innerHTML = '<span class="spinner"></span> Extracting…';
+  status.textContent = 'Reading contract + quote (~15–30s).';
+
+  const fd = new FormData();
+  fd.append('contract', state.contractFile);
+  fd.append('quote', state.quoteFile);
+
+  try {
+    const res = await fetch(API_BASE + '/api/po/extract', {
+      method: 'POST',
+      body: fd,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Extraction failed');
+
+    state.draft = data.draft;
+    state.extractedContract = data.extracted_contract;
+    state.extractedQuote = data.extracted_quote;
+    state.contractB64 = data.contract_b64;
+    state.quoteB64 = data.quote_b64;
+    state.warnings = data.warnings || [];
+
+    fillForm(state.draft);
+    renderWarnings(state.warnings);
+    setStep(2);
+    showToast('Extraction complete.', 'success');
+  } catch (err) {
+    showToast(err.message || 'Extraction failed', 'error');
+    status.textContent = (err.message || 'Failed') + ' — please try again or proceed manually.';
+  } finally {
+    label.textContent = 'Extract fields';
+    btn.disabled = false;
+  }
+}
+
+// ── Draft → form ───────────────────────────────────────────────────────────
+function fillForm(draft) {
+  const v = id => document.getElementById(id);
+  v('f-po_number').value = draft.po_number || '';
+  v('f-po_date').value = draft.po_date || new Date().toISOString().slice(0, 10);
+  v('f-contract_no').value = draft.contract_no || '';
+  v('f-quote_no').value = draft.quote_no || '';
+  v('f-title').value = draft.title || '';
+  v('f-currency').value = draft.currency || 'USD';
+  v('f-delivery_date').value = draft.delivery_date || '';
+  v('f-incoterms').value = draft.incoterms || '';
+  v('f-payment_terms').value = draft.payment_terms || '';
+
+  const s = draft.supplier || {};
+  v('f-supplier_name').value = s.name || '';
+  v('f-supplier_attention').value = s.attention || '';
+  v('f-supplier_lines').value = (s.lines || []).join('\n');
+  v('f-supplier_email').value = s.email || '';
+  v('f-supplier_cage').value = s.cage_code || '';
+
+  const st = draft.ship_to || {};
+  v('f-ship_name').value = st.name || '';
+  v('f-ship_lines').value = (st.lines || []).join('\n');
+
+  v('f-clauses').value = (draft.flow_down_clauses || []).join('\n');
+
+  const a = draft.authorized_by || {};
+  v('f-auth_name').value = a.name || '';
+  v('f-auth_title').value = a.title || '';
+  v('f-notes').value = draft.notes || '';
+
+  renderItems(draft.items || []);
+  recompute();
+}
+
+function renderWarnings(warnings) {
+  const box = document.getElementById('warnings-box');
+  if (!warnings || warnings.length === 0) {
+    box.innerHTML = '';
+    return;
+  }
+  box.innerHTML = `<div class="warnings">
+    <div class="heading">⚠ Heads up</div>
+    <ul>${warnings.map(w => `<li>${escapeHtml(w)}</li>`).join('')}</ul>
+  </div>`;
+}
+
+// ── Items table ────────────────────────────────────────────────────────────
+function renderItems(items) {
+  const body = document.getElementById('items-body');
+  body.innerHTML = items.map((it, i) => itemRow(it, i)).join('');
+}
+
+function itemRow(it, idx) {
+  const status = it.match_status || 'matched';
+  const badge = `<span class="row-status ${status}">${status}</span>`;
+  return `
+  <tr data-idx="${idx}">
+    <td class="mono">${idx + 1}</td>
+    <td><input class="text-input" data-field="part_no" value="${escapeAttr(it.part_no || '')}"></td>
+    <td><input class="text-input" data-field="description" value="${escapeAttr(it.description || '')}"></td>
+    <td><input class="num-input" data-field="qty" type="number" step="any" value="${it.qty || 0}"></td>
+    <td><input class="text-input" data-field="unit" value="${escapeAttr(it.unit || 'EA')}" style="text-align:center"></td>
+    <td><input class="num-input" data-field="unit_price" type="number" step="0.01" value="${it.unit_price || 0}"></td>
+    <td><input class="num-input" data-field="extended" type="number" step="0.01" value="${(it.extended || 0).toFixed(2)}" readonly></td>
+    <td>${badge}</td>
+    <td><button class="icon-btn" onclick="removeItem(${idx})">✕</button></td>
+  </tr>`;
+}
+
+function removeItem(idx) {
+  state.draft.items.splice(idx, 1);
+  state.draft.items.forEach((it, i) => it.line = i + 1);
+  renderItems(state.draft.items);
+  recompute();
+}
+
+document.addEventListener('input', e => {
+  const tr = e.target.closest('tr[data-idx]');
+  if (!tr) return;
+  const idx = parseInt(tr.dataset.idx);
+  const field = e.target.dataset.field;
+  if (field === undefined || !state.draft) return;
+  const it = state.draft.items[idx];
+  if (field === 'qty' || field === 'unit_price') {
+    it[field] = parseFloat(e.target.value || 0);
+    it.extended = +(it.qty * it.unit_price).toFixed(2);
+    tr.querySelector('[data-field="extended"]').value = it.extended.toFixed(2);
+  } else {
+    it[field] = e.target.value;
+  }
+  recompute();
+});
+
+function recompute() {
+  if (!state.draft) return;
+  const items = state.draft.items || [];
+  let subtotal = 0;
+  let hasError = false;
+  items.forEach((it, i) => {
+    const qty = parseFloat(it.qty || 0);
+    const price = parseFloat(it.unit_price || 0);
+    const ext = +(qty * price).toFixed(2);
+    it.extended = ext;
+    subtotal += ext;
+    const row = document.querySelector(`tr[data-idx="${i}"]`);
+    if (!row) return;
+    const reportedExt = parseFloat(row.querySelector('[data-field="extended"]').value);
+    const mathBad = Math.abs(ext - reportedExt) > 0.011;
+    const negative = qty <= 0 || price < 0;
+    row.classList.toggle('bad-math', mathBad || negative);
+    row.querySelector('[data-field="qty"]').classList.toggle('error', qty <= 0);
+    row.querySelector('[data-field="unit_price"]').classList.toggle('error', price < 0);
+    if (mathBad || negative) hasError = true;
+  });
+  state.draft.subtotal = +subtotal.toFixed(2);
+  state.draft.total = state.draft.subtotal;
+  const cur = document.getElementById('f-currency').value || 'USD';
+  document.getElementById('totals-subtotal').textContent = `${cur} ${subtotal.toFixed(2)}`;
+  document.getElementById('totals-total').textContent = `${cur} ${state.draft.total.toFixed(2)}`;
+
+  document.getElementById('btn-generate').disabled = hasError || items.length === 0;
+  document.getElementById('generate-status').textContent = hasError
+    ? 'Fix highlighted rows before generating.'
+    : `${items.length} line${items.length === 1 ? '' : 's'} — ready to generate.`;
+}
+
+document.getElementById('btn-add-item').addEventListener('click', () => {
+  if (!state.draft) state.draft = { items: [] };
+  const items = state.draft.items;
+  items.push({
+    line: items.length + 1,
+    part_no: '', description: '', qty: 1, unit: 'EA',
+    unit_price: 0, extended: 0,
+    match_status: 'matched', match_note: '', math_ok: true,
+  });
+  renderItems(items);
+  recompute();
+});
+
+// ── Form → draft ───────────────────────────────────────────────────────────
+function syncFormToDraft() {
+  if (!state.draft) state.draft = {};
+  const d = state.draft;
+  const v = id => document.getElementById(id).value;
+  const split = s => s.split('\n').map(l => l.trim()).filter(Boolean);
+
+  d.po_number = v('f-po_number');
+  d.po_date = v('f-po_date');
+  d.contract_no = v('f-contract_no');
+  d.quote_no = v('f-quote_no');
+  d.title = v('f-title');
+  d.currency = v('f-currency');
+  d.delivery_date = v('f-delivery_date');
+  d.incoterms = v('f-incoterms');
+  d.payment_terms = v('f-payment_terms');
+
+  d.supplier = d.supplier || {};
+  d.supplier.name = v('f-supplier_name');
+  d.supplier.attention = v('f-supplier_attention');
+  d.supplier.lines = split(v('f-supplier_lines'));
+  d.supplier.email = v('f-supplier_email');
+  d.supplier.cage_code = v('f-supplier_cage');
+
+  d.ship_to = { name: v('f-ship_name'), lines: split(v('f-ship_lines')) };
+
+  d.flow_down_clauses = split(v('f-clauses'));
+
+  d.authorized_by = { name: v('f-auth_name'), title: v('f-auth_title') };
+  d.notes = v('f-notes');
+
+  // items already reflected by input handler; ensure subtotal/total fresh
+  recompute();
+}
+
+// ── Generate ───────────────────────────────────────────────────────────────
+async function runGenerate() {
+  syncFormToDraft();
+  const btn = document.getElementById('btn-generate');
+  const label = document.getElementById('generate-label');
+  btn.disabled = true;
+  label.innerHTML = '<span class="spinner"></span> Generating…';
+
+  try {
+    const res = await fetch(API_BASE + '/api/po', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        draft: state.draft,
+        extracted_contract: state.extractedContract,
+        extracted_quote: state.extractedQuote,
+        contract_b64: state.contractB64,
+        quote_b64: state.quoteB64,
+        contract_filename: state.contractFile?.name || '',
+        quote_filename: state.quoteFile?.name || '',
+        warnings: state.warnings,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const details = (data.details || []).map(d => `• ${d}`).join('\n');
+      throw new Error(data.error + (details ? ':\n' + details : ''));
+    }
+    showSuccess(data);
+    setStep(3);
+    loadHistory();
+    showToast('PO generated.', 'success');
+  } catch (err) {
+    showToast(err.message || 'Generate failed', 'error');
+  } finally {
+    label.textContent = 'Generate PO';
+    btn.disabled = false;
+  }
+}
+
+function showSuccess(data) {
+  const url = API_BASE + data.download_url;
+  document.getElementById('success-card').innerHTML = `
+    <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
+      <div style="font-size:56px;line-height:1">📄</div>
+      <div style="flex:1;min-width:240px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:18px;color:var(--green)">${escapeHtml(data.po_number)}${data.revision > 1 ? ` (rev ${data.revision})` : ''}</div>
+        <div class="muted" style="margin-top:4px">Saved with full audit lineage. Re-downloadable from history below.</div>
+      </div>
+      <a class="btn btn-primary" href="${url}" download>⬇ Download .docx</a>
+      <button class="btn btn-secondary" onclick="resetFlow()">Generate another</button>
+    </div>`;
+}
+
+// ── History ────────────────────────────────────────────────────────────────
+async function loadHistory() {
+  const target = document.getElementById('po-history');
+  try {
+    const res = await fetch(API_BASE + '/api/po');
+    const rows = await res.json();
+    if (!rows.length) {
+      target.innerHTML = '<div class="empty">No POs generated yet.</div>';
+      return;
+    }
+    target.innerHTML = rows.map(r => `
+      <div class="po-row">
+        <div>
+          <div class="po-id">${escapeHtml(r.po_number)}${r.revision > 1 ? ` <span class="muted">rev ${r.revision}</span>` : ''}</div>
+          <div class="supplier">${escapeHtml(r.supplier_name || '—')} · ${escapeHtml(r.contract_no || '—')}</div>
+        </div>
+        <div class="amount">${r.currency} ${(r.total || 0).toFixed(2)}</div>
+        <div class="date">${(r.generated_at || '').slice(0,10)}</div>
+        <a class="btn btn-secondary" href="${API_BASE}${r.download_url}" download>⬇</a>
+      </div>
+    `).join('');
+  } catch (err) {
+    target.innerHTML = '<div class="empty">Could not load history.</div>';
+  }
+}
+
+// ── Utility ────────────────────────────────────────────────────────────────
+function resetFlow() {
+  state.contractFile = null;
+  state.quoteFile = null;
+  state.draft = null;
+  state.extractedContract = null;
+  state.extractedQuote = null;
+  state.contractB64 = null;
+  state.quoteB64 = null;
+  state.warnings = [];
+  ['file-contract', 'file-quote'].forEach(id => document.getElementById(id).value = '');
+  ['drop-contract', 'drop-quote'].forEach(id => document.getElementById(id).classList.remove('has-file'));
+  document.getElementById('filename-contract').textContent = 'Drop PDF or click to browse';
+  document.getElementById('filename-quote').textContent = 'Drop PDF or click to browse';
+  updateExtractButton();
+  setStep(1);
+}
+
+function showToast(msg, kind = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast show ${kind}`;
+  setTimeout(() => t.classList.remove('show'), 4500);
+}
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+// escapeHtml already encodes `"` — no separate attribute escaper needed.
+const escapeAttr = escapeHtml;
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+wireDrop('drop-contract', 'file-contract', 'filename-contract', 'contractFile');
+wireDrop('drop-quote', 'file-quote', 'filename-quote', 'quoteFile');
+document.getElementById('btn-extract').addEventListener('click', runExtract);
+document.getElementById('btn-generate').addEventListener('click', runGenerate);
+loadHistory();
+</script>
+</body>
+</html>

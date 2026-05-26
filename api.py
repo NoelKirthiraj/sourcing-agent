@@ -22,11 +22,19 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
 import db
+import po_routes
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 _loop = None
+
+# Hard upper bound on request body size to prevent a malicious Content-Length
+# header from causing an OOM by inflating rfile.read(N). /api/po accepts
+# base64-encoded PDFs so it gets a larger cap; everything else stays small.
+_LARGE_BODY_PATHS = ("/api/po", "/api/po/extract")
+_LARGE_BODY_MAX = 30 * 1024 * 1024   # 30 MB — fits two 10MB base64 PDFs + metadata
+_SMALL_BODY_MAX = 64 * 1024          # 64 KB — every other JSON POST
 
 
 def _run_async(coro):
@@ -58,6 +66,15 @@ class APIHandler(BaseHTTPRequestHandler):
         elif path.startswith("/api/tenders/") and path.endswith("/csv"):
             tender_id = path.split("/")[3]
             self._handle_csv_download(tender_id)
+        elif path == "/api/po":
+            po_routes.handle_list(self, _run_async)
+        elif path.startswith("/api/po/") and path.endswith("/docx"):
+            # /api/po/<uuid>/docx
+            parts = path.split("/")
+            if len(parts) >= 5:
+                po_routes.handle_download(self, _run_async, parts[3])
+            else:
+                self._json_response({"error": "invalid path"}, 400)
         elif path == "/api/health":
             self._json_response({"status": "ok"})
         else:
@@ -67,8 +84,29 @@ class APIHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
 
+        # Enforce a per-path body-size ceiling before reading anything off the
+        # socket. Without this, a malicious Content-Length header (e.g. 10 GB)
+        # would cause rfile.read() to allocate enough memory to OOM the server.
         try:
             content_length = int(self.headers.get("Content-Length", 0))
+        except (TypeError, ValueError):
+            content_length = 0
+        body_cap = _LARGE_BODY_MAX if path in _LARGE_BODY_PATHS else _SMALL_BODY_MAX
+        if content_length > body_cap:
+            mb = content_length / (1024 * 1024)
+            cap_mb = body_cap / (1024 * 1024)
+            self._json_response(
+                {"error": f"request body too large ({mb:.1f} MB; max {cap_mb:.0f} MB)"},
+                413,
+            )
+            return
+
+        # PO extract uses multipart — handle before the JSON-parsing block below.
+        if path == "/api/po/extract":
+            po_routes.handle_extract(self, _run_async)
+            return
+
+        try:
             body = json.loads(self.rfile.read(content_length)) if content_length > 0 else {}
         except (json.JSONDecodeError, ValueError):
             self._json_response({"error": "invalid JSON body"}, 400)
@@ -97,6 +135,8 @@ class APIHandler(BaseHTTPRequestHandler):
                 self._handle_bulk_accept(ids)
             elif path == "/api/tenders/submit-accepted":
                 self._handle_submit_all_accepted()
+            elif path == "/api/po":
+                po_routes.handle_generate(self, _run_async, body)
             else:
                 self._json_response({"error": "not found"}, 404)
         except (ValueError, TypeError, IndexError):
