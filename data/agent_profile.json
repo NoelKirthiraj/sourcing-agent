@@ -1,11 +1,11 @@
 {
-  "xp": 2170,
-  "level": 10,
-  "level_title": "Legend",
-  "total_processed": 2170,
-  "total_runs": 49,
-  "current_streak": 33,
-  "best_streak": 33,
+  "xp": 16,
+  "level": 2,
+  "level_title": "Rookie",
+  "total_processed": 16,
+  "total_runs": 1,
+  "current_streak": 1,
+  "best_streak": 1,
   "achievements": [
     {
       "id": "first_launch",
@@ -43,6 +43,6 @@
       "earned_at": "2026-05-15T23:17:03.443190+00:00"
     }
   ],
-  "last_run_at": "2026-05-25T23:15:40.611244+00:00",
+  "last_run_at": "2026-05-26T15:27:22.763981+00:00",
   "last_status": "success"
 }
