@@ -93,6 +93,46 @@ async def init_schema():
         await conn.execute("""
             ALTER TABLE tenders ADD COLUMN IF NOT EXISTS processing_notes TEXT DEFAULT '';
         """)
+
+        # Purchase Orders (PO generator feature)
+        # UUIDs are generated in Python (uuid.uuid4()) rather than via
+        # gen_random_uuid() so we don't need CREATE EXTENSION pgcrypto —
+        # which fails on managed Postgres tiers (Railway free, Supabase,
+        # Heroku) where the app role isn't a superuser.
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS pos (
+                id                  SERIAL PRIMARY KEY,
+                uuid                UUID NOT NULL UNIQUE,
+                po_number           VARCHAR(60) NOT NULL,
+                revision            INTEGER NOT NULL DEFAULT 1,
+                tender_id           INTEGER REFERENCES tenders(id) ON DELETE SET NULL,
+                contract_no         TEXT DEFAULT '',
+                supplier_name       TEXT DEFAULT '',
+                quote_no            TEXT DEFAULT '',
+                currency            VARCHAR(8) DEFAULT 'USD',
+                subtotal_cents      BIGINT DEFAULT 0,
+                total_cents         BIGINT DEFAULT 0,
+                item_count          INTEGER DEFAULT 0,
+                status              VARCHAR(20) DEFAULT 'generated',
+                contract_pdf        BYTEA,
+                quote_pdf           BYTEA,
+                contract_filename   TEXT DEFAULT '',
+                quote_filename      TEXT DEFAULT '',
+                extracted_contract  JSONB,
+                extracted_quote     JSONB,
+                draft_json          JSONB NOT NULL,
+                rendered_docx       BYTEA,
+                warnings            JSONB DEFAULT '[]'::jsonb,
+                created_at          TIMESTAMPTZ DEFAULT NOW(),
+                generated_at        TIMESTAMPTZ DEFAULT NOW(),
+                UNIQUE (po_number, revision)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_pos_uuid ON pos(uuid);
+            CREATE INDEX IF NOT EXISTS idx_pos_tender ON pos(tender_id);
+            CREATE INDEX IF NOT EXISTS idx_pos_generated_at ON pos(generated_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_pos_po_number ON pos(po_number);
+        """)
         log.info("Database schema initialized")
 
 
@@ -394,3 +434,144 @@ async def migrate_from_json(json_path: str):
 
     log.info("Migrated %d/%d entries from JSON to PostgreSQL", migrated, len(data))
     return migrated
+
+
+# ── Purchase Order CRUD ──────────────────────────────────────────────────────
+
+async def insert_po(
+    *,
+    po_number: str,
+    draft: dict[str, Any],
+    extracted_contract: dict[str, Any],
+    extracted_quote: dict[str, Any],
+    contract_pdf: Optional[bytes],
+    quote_pdf: Optional[bytes],
+    contract_filename: str,
+    quote_filename: str,
+    rendered_docx: bytes,
+    warnings: list[str],
+    tender_id: Optional[int] = None,
+) -> dict:
+    """Insert a new PO record. Auto-bumps revision on po_number collision.
+
+    Returns a dict with at least: id, uuid, po_number, revision.
+    """
+    import json as _json
+
+    pool = await get_pool()
+    subtotal_cents = int(round(float(draft.get("subtotal", 0)) * 100))
+    total_cents = int(round(float(draft.get("total", 0)) * 100))
+    item_count = len(draft.get("items", []))
+    currency = draft.get("currency", "USD")
+    supplier_name = (draft.get("supplier") or {}).get("name", "") or ""
+    contract_no = draft.get("contract_no", "") or ""
+    quote_no = draft.get("quote_no", "") or ""
+
+    import uuid as _uuid
+    try:
+        import asyncpg as _asyncpg
+    except ImportError:  # pragma: no cover — pool can't exist without asyncpg
+        _asyncpg = None
+
+    # Revision assignment uses a single INSERT with a SELECT subquery for the
+    # revision number, plus a small retry loop on UniqueViolationError. The
+    # subquery + retry combination keeps us safe under concurrent writes even
+    # if we ever move off the single-threaded HTTP server.
+    new_uuid = _uuid.uuid4()
+    last_err = None
+    async with pool.acquire() as conn:
+        for attempt in range(3):
+            try:
+                row = await conn.fetchrow(
+                    """
+                    INSERT INTO pos (
+                        uuid, po_number, revision, tender_id,
+                        contract_no, supplier_name, quote_no,
+                        currency, subtotal_cents, total_cents, item_count,
+                        contract_pdf, quote_pdf, contract_filename, quote_filename,
+                        extracted_contract, extracted_quote, draft_json,
+                        rendered_docx, warnings
+                    ) VALUES (
+                        $1,
+                        $2,
+                        (SELECT COALESCE(MAX(revision), 0) + 1 FROM pos WHERE po_number = $2),
+                        $3,
+                        $4,$5,$6,
+                        $7,$8,$9,$10,
+                        $11,$12,$13,$14,
+                        $15::jsonb,$16::jsonb,$17::jsonb,
+                        $18,$19::jsonb
+                    )
+                    RETURNING id, uuid, po_number, revision, generated_at
+                    """,
+                    new_uuid,
+                    po_number, tender_id,
+                    contract_no, supplier_name, quote_no,
+                    currency, subtotal_cents, total_cents, item_count,
+                    contract_pdf, quote_pdf, contract_filename, quote_filename,
+                    _json.dumps(extracted_contract or {}),
+                    _json.dumps(extracted_quote or {}),
+                    _json.dumps(draft),
+                    rendered_docx,
+                    _json.dumps(warnings or []),
+                )
+                return dict(row)
+            except Exception as exc:
+                # Retry only on unique-violation collisions (po_number, revision)
+                is_unique_violation = (
+                    _asyncpg is not None
+                    and isinstance(exc, _asyncpg.UniqueViolationError)
+                )
+                if not is_unique_violation:
+                    raise
+                last_err = exc
+                log.warning(
+                    "po.insert.collision po_number=%r attempt=%d — retrying",
+                    po_number, attempt + 1,
+                )
+        # Exhausted retries — surface a clear error
+        raise RuntimeError(
+            f"Could not assign a unique revision for PO '{po_number}' after 3 attempts"
+        ) from last_err
+
+
+async def get_po_by_uuid(po_uuid: str) -> Optional[dict]:
+    """Fetch a single PO by its uuid. Returns row dict or None."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT * FROM pos WHERE uuid = $1::uuid", po_uuid)
+        return dict(row) if row else None
+
+
+async def list_pos(limit: int = 50, offset: int = 0) -> list[dict]:
+    """List POs, newest first. Excludes heavy BYTEA columns for performance."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT id, uuid, po_number, revision, tender_id,
+                   contract_no, supplier_name, quote_no,
+                   currency, subtotal_cents, total_cents, item_count,
+                   status, warnings, created_at, generated_at
+            FROM pos
+            ORDER BY generated_at DESC
+            LIMIT $1 OFFSET $2
+            """,
+            limit, offset,
+        )
+        return [dict(r) for r in rows]
+
+
+async def get_po_docx(po_uuid: str) -> Optional[tuple[str, bytes]]:
+    """Fetch rendered DOCX bytes + a filename-safe po_number for a given uuid."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT po_number, revision, rendered_docx FROM pos WHERE uuid = $1::uuid",
+            po_uuid,
+        )
+        if not row or row["rendered_docx"] is None:
+            return None
+        rev = row["revision"]
+        rev_suffix = f"-r{rev:02d}" if rev > 1 else ""
+        return (f"{row['po_number']}{rev_suffix}", bytes(row["rendered_docx"]))
