@@ -1,12 +1,18 @@
 {
-  "xp": 16,
-  "level": 2,
-  "level_title": "Rookie",
-  "total_processed": 16,
-  "total_runs": 1,
-  "current_streak": 1,
-  "best_streak": 1,
-  "achievements": [],
-  "last_run_at": "2026-05-26T15:27:22.763981+00:00",
+  "xp": 36,
+  "level": 3,
+  "level_title": "Field Agent",
+  "total_processed": 36,
+  "total_runs": 2,
+  "current_streak": 2,
+  "best_streak": 2,
+  "achievements": [
+    {
+      "id": "first_launch",
+      "name": "First Launch",
+      "earned_at": "2026-05-26T23:21:56.287685+00:00"
+    }
+  ],
+  "last_run_at": "2026-05-26T23:21:56.287592+00:00",
   "last_status": "success"
 }
