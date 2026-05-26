@@ -208,6 +208,13 @@ def record_run(summary: Any, data_dir: Path) -> None:
         "skipped_count": summary.skipped_count,
         "error_count": summary.error_count,
         "errors": summary.errors[:10],
+        # Full sol-no list (uncapped) — used by the dashboard to compute
+        # "Archived" count by diffing against live DB. new_tenders below
+        # stays capped at 20 for size, but only carries detail fields.
+        "new_solicitation_nos": [
+            t.get("solicitation_no", "") for t in summary.new_tenders
+            if t.get("solicitation_no")
+        ],
         "new_tenders": [
             {
                 "solicitation_no": t.get("solicitation_no", ""),
