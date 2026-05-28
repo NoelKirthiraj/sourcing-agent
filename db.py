@@ -103,7 +103,7 @@ async def init_schema():
             CREATE TABLE IF NOT EXISTS pos (
                 id                  SERIAL PRIMARY KEY,
                 uuid                UUID NOT NULL UNIQUE,
-                po_number           VARCHAR(60) NOT NULL,
+                po_number           TEXT NOT NULL,
                 revision            INTEGER NOT NULL DEFAULT 1,
                 tender_id           INTEGER REFERENCES tenders(id) ON DELETE SET NULL,
                 contract_no         TEXT DEFAULT '',
@@ -132,6 +132,15 @@ async def init_schema():
             CREATE INDEX IF NOT EXISTS idx_pos_tender ON pos(tender_id);
             CREATE INDEX IF NOT EXISTS idx_pos_generated_at ON pos(generated_at DESC);
             CREATE INDEX IF NOT EXISTS idx_pos_po_number ON pos(po_number);
+        """)
+
+        # Migration — widen po_number to TEXT if an earlier deploy created
+        # it as VARCHAR(60). The previous type caused asyncpg parameter
+        # inference errors ("text versus character varying") because the
+        # po_number is used both as an INSERT value and in a subquery
+        # comparison within the same statement.
+        await conn.execute("""
+            ALTER TABLE pos ALTER COLUMN po_number TYPE TEXT;
         """)
         log.info("Database schema initialized")
 
