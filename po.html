@@ -419,6 +419,232 @@ body.theme-fun .row-status.bad { background: rgba(255,59,92,0.12); }
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
+
+/* ──────────────────────────────────────────────────────────────
+   Processing panel — shown during extraction (15-30s wait)
+   ────────────────────────────────────────────────────────────── */
+.proc-panel {
+  margin-top: 22px;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background:
+    radial-gradient(1200px 200px at 50% -40%, rgba(var(--cyan-rgb), 0.05), transparent 60%),
+    var(--bg-surface);
+  position: relative;
+  overflow: hidden;
+}
+/* Subtle horizontal gradient sweep across the panel */
+.proc-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(var(--cyan-rgb), 0.04) 50%,
+    transparent 100%);
+  transform: translateX(-100%);
+  animation: procSweep 3.2s linear infinite;
+  pointer-events: none;
+}
+@keyframes procSweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.proc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+.proc-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+.proc-pulse {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 0 0 rgba(var(--cyan-rgb), 0.55);
+  animation: procPulse 1.6s ease-in-out infinite;
+}
+@keyframes procPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--cyan-rgb), 0.5); transform: scale(1); }
+  50%      { box-shadow: 0 0 0 12px rgba(var(--cyan-rgb), 0); transform: scale(1.15); }
+}
+.proc-elapsed {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+/* Two document scanner tiles */
+.proc-docs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+@media (max-width: 640px) { .proc-docs { grid-template-columns: 1fr; } }
+.proc-doc {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 14px 16px;
+  position: relative;
+}
+.proc-doc-label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+.proc-doc-page {
+  background: var(--bg-surface);
+  border-radius: 8px;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 132px;
+  position: relative;
+  overflow: hidden;
+}
+.proc-line {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg,
+    rgba(var(--cyan-rgb), 0.08),
+    rgba(var(--cyan-rgb), 0.22),
+    rgba(var(--cyan-rgb), 0.08));
+  background-size: 200% 100%;
+  animation: procShimmer 2s linear infinite;
+}
+.proc-line.w-50 { width: 50%; }
+.proc-line.w-55 { width: 55%; }
+.proc-line.w-60 { width: 60%; }
+.proc-line.w-65 { width: 65%; }
+.proc-line.w-70 { width: 70%; }
+.proc-line.w-75 { width: 75%; }
+.proc-line.w-80 { width: 80%; }
+.proc-line.w-85 { width: 85%; }
+.proc-line.w-90 { width: 90%; }
+@keyframes procShimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Scanning bar that sweeps top-to-bottom inside each doc */
+.proc-scan {
+  position: absolute;
+  left: 0; right: 0;
+  top: -4px;
+  height: 28px;
+  background: linear-gradient(180deg,
+    transparent,
+    rgba(var(--cyan-rgb), 0.22) 50%,
+    transparent);
+  border-top: 1px solid rgba(var(--cyan-rgb), 0.45);
+  border-bottom: 1px solid rgba(var(--cyan-rgb), 0.45);
+  filter: blur(0.3px);
+  animation: procScan 2.6s ease-in-out infinite;
+}
+.proc-scan-delay { animation-delay: 1.3s; }
+@keyframes procScan {
+  0%   { transform: translateY(-30px); opacity: 0; }
+  20%  { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: translateY(160px); opacity: 0; }
+}
+
+/* Stage checklist */
+.proc-stages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 22px;
+  row-gap: 8px;
+}
+@media (max-width: 640px) { .proc-stages { grid-template-columns: 1fr; } }
+.proc-stages li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 5px 0;
+  transition: color 0.25s;
+}
+.proc-stages li.active { color: var(--text-primary); }
+.proc-stages li.done   { color: var(--green); }
+.proc-bullet {
+  flex-shrink: 0;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  position: relative;
+  transition: all 0.25s;
+}
+.proc-stages li.active .proc-bullet {
+  border-color: var(--cyan);
+  background: var(--bg-card);
+}
+.proc-stages li.active .proc-bullet::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--cyan);
+  animation: procPulse 1.4s ease-in-out infinite;
+}
+.proc-stages li.done .proc-bullet {
+  border-color: var(--green);
+  background: var(--green);
+}
+.proc-stages li.done .proc-bullet::after {
+  content: "✓";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+}
+.proc-stages li.done {
+  animation: procStageEnter 0.35s ease-out;
+}
+@keyframes procStageEnter {
+  0%   { transform: translateX(-4px); opacity: 0.5; }
+  100% { transform: translateX(0);    opacity: 1; }
+}
+
+/* When the page is in the fun (dark) theme, swap surface tones */
+body.theme-fun .proc-panel {
+  background:
+    radial-gradient(1200px 200px at 50% -40%, rgba(var(--cyan-rgb), 0.08), transparent 60%),
+    var(--bg-surface);
+}
 .btn-primary .spinner {
   border-color: rgba(255,255,255,0.35);
   border-top-color: #FFFFFF;
@@ -491,6 +717,58 @@ body.theme-fun .row-status.bad { background: rgba(255,59,92,0.12); }
         <span id="extract-label">Extract fields</span>
       </button>
       <span class="muted" id="extract-status">Both files required to continue.</span>
+    </div>
+
+    <!-- Processing overlay — shown while extract is in flight -->
+    <div class="proc-panel" id="proc-panel" hidden>
+      <div class="proc-head">
+        <div class="proc-title">
+          <span class="proc-pulse"></span>
+          <span>Working on your documents</span>
+        </div>
+        <div class="proc-elapsed" id="proc-elapsed">0.0s</div>
+      </div>
+
+      <div class="proc-docs">
+        <div class="proc-doc" data-doc="contract">
+          <div class="proc-doc-label">Awarded Contract</div>
+          <div class="proc-doc-page">
+            <span class="proc-line w-90"></span>
+            <span class="proc-line w-70"></span>
+            <span class="proc-line w-80"></span>
+            <span class="proc-line w-60"></span>
+            <span class="proc-line w-85"></span>
+            <span class="proc-line w-75"></span>
+            <span class="proc-line w-50"></span>
+            <span class="proc-line w-80"></span>
+            <div class="proc-scan"></div>
+          </div>
+        </div>
+        <div class="proc-doc" data-doc="quote">
+          <div class="proc-doc-label">Supplier Quote</div>
+          <div class="proc-doc-page">
+            <span class="proc-line w-85"></span>
+            <span class="proc-line w-65"></span>
+            <span class="proc-line w-90"></span>
+            <span class="proc-line w-55"></span>
+            <span class="proc-line w-80"></span>
+            <span class="proc-line w-70"></span>
+            <span class="proc-line w-85"></span>
+            <span class="proc-line w-60"></span>
+            <div class="proc-scan proc-scan-delay"></div>
+          </div>
+        </div>
+      </div>
+
+      <ul class="proc-stages" id="proc-stages">
+        <li data-stage="upload"><span class="proc-bullet"></span><span>Uploading documents</span></li>
+        <li data-stage="validate"><span class="proc-bullet"></span><span>Validating PDFs</span></li>
+        <li data-stage="contract"><span class="proc-bullet"></span><span>Reading awarded contract</span></li>
+        <li data-stage="quote"><span class="proc-bullet"></span><span>Reading supplier quote</span></li>
+        <li data-stage="match"><span class="proc-bullet"></span><span>Matching line items</span></li>
+        <li data-stage="math"><span class="proc-bullet"></span><span>Verifying prices &amp; totals</span></li>
+        <li data-stage="draft"><span class="proc-bullet"></span><span>Preparing draft</span></li>
+      </ul>
     </div>
   </div>
 
@@ -704,17 +982,110 @@ function updateExtractButton() {
 }
 
 // ── Extraction ─────────────────────────────────────────────────────────────
+
+// Stage timing matches realistic Claude-vision-on-PDF latency.
+// We start advancing client-side, but we never let the UI claim the final
+// stage is done until the actual server response lands. If the response
+// comes back sooner than expected, we fast-forward; if it takes longer,
+// the last "active" stage just keeps pulsing.
+const EXTRACT_STAGES = [
+  { id: 'upload',   at: 0,    label: 'Uploading documents' },
+  { id: 'validate', at: 800,  label: 'Validating PDFs' },
+  { id: 'contract', at: 2000, label: 'Reading awarded contract' },
+  { id: 'quote',    at: 11000,label: 'Reading supplier quote' },
+  { id: 'match',    at: 18000,label: 'Matching line items' },
+  { id: 'math',     at: 21000,label: 'Verifying prices & totals' },
+  { id: 'draft',    at: 24000,label: 'Preparing draft' },
+];
+
+function startProcessing() {
+  const panel = document.getElementById('proc-panel');
+  const elapsedEl = document.getElementById('proc-elapsed');
+  panel.hidden = false;
+  // Reset all stage states
+  document.querySelectorAll('#proc-stages li').forEach(li => {
+    li.classList.remove('active', 'done');
+  });
+
+  const startedAt = performance.now();
+  const stageTimers = [];
+  let currentIdx = -1;
+
+  const activate = (idx) => {
+    if (idx <= currentIdx) return;
+    // Mark all prior stages done
+    EXTRACT_STAGES.slice(0, idx).forEach(s => {
+      const el = document.querySelector(`#proc-stages li[data-stage="${s.id}"]`);
+      if (el && !el.classList.contains('done')) {
+        el.classList.remove('active');
+        el.classList.add('done');
+      }
+    });
+    // Mark current stage active
+    const cur = document.querySelector(`#proc-stages li[data-stage="${EXTRACT_STAGES[idx].id}"]`);
+    if (cur) {
+      cur.classList.remove('done');
+      cur.classList.add('active');
+    }
+    currentIdx = idx;
+  };
+
+  // Schedule the next-N-1 stage transitions (we leave the last stage hanging
+  // until the network response actually arrives, so the UI never lies about
+  // being further along than the server is).
+  EXTRACT_STAGES.forEach((stage, idx) => {
+    if (idx === EXTRACT_STAGES.length - 1) return;
+    stageTimers.push(setTimeout(() => activate(idx), stage.at));
+  });
+  // Kick off stage 0 immediately so the user sees motion right away
+  activate(0);
+
+  // Elapsed counter (10 fps — fast enough to feel live, cheap enough to not jank)
+  const elapsedTimer = setInterval(() => {
+    const secs = (performance.now() - startedAt) / 1000;
+    elapsedEl.textContent = secs.toFixed(1) + 's';
+  }, 100);
+
+  return {
+    /* fast-forward to "Preparing draft" + small delay, then mark all done */
+    finish() {
+      stageTimers.forEach(clearTimeout);
+      activate(EXTRACT_STAGES.length - 1);
+      // Give the "Preparing draft" stage a brief moment to be visible,
+      // then mark everything done so the panel exits on a complete note.
+      setTimeout(() => {
+        document.querySelectorAll('#proc-stages li').forEach(li => {
+          li.classList.remove('active');
+          li.classList.add('done');
+        });
+      }, 350);
+      setTimeout(() => {
+        clearInterval(elapsedTimer);
+        panel.hidden = true;
+      }, 850);
+    },
+    /* on error: stop animations and hide panel immediately */
+    abort() {
+      stageTimers.forEach(clearTimeout);
+      clearInterval(elapsedTimer);
+      panel.hidden = true;
+    },
+  };
+}
+
 async function runExtract() {
   const btn = document.getElementById('btn-extract');
   const label = document.getElementById('extract-label');
   const status = document.getElementById('extract-status');
   btn.disabled = true;
-  label.innerHTML = '<span class="spinner"></span> Extracting…';
-  status.textContent = 'Reading contract + quote (~15–30s).';
+  label.innerHTML = '<span class="spinner"></span> Working…';
+  status.textContent = '';
 
   const fd = new FormData();
   fd.append('contract', state.contractFile);
   fd.append('quote', state.quoteFile);
+
+  const proc = startProcessing();
 
   try {
     const res = await fetch(API_BASE + '/api/po/extract', {
@@ -733,9 +1104,12 @@ async function runExtract() {
 
     fillForm(state.draft);
     renderWarnings(state.warnings);
-    setStep(2);
+    proc.finish();
+    // Step transition fires after the panel exit, so the success-tick is visible
+    setTimeout(() => setStep(2), 600);
     showToast('Extraction complete.', 'success');
   } catch (err) {
+    proc.abort();
     showToast(err.message || 'Extraction failed', 'error');
     status.textContent = (err.message || 'Failed') + ' — please try again or proceed manually.';
   } finally {
