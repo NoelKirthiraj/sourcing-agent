@@ -2759,6 +2759,19 @@ function loadPoTab() {
   frame.dataset.loaded = '1';
 }
 
+// Cross-frame scroll handler — the PO iframe posts this after a successful
+// generation so the parent page brings the success panel into view (the
+// iframe has no internal scrollbar; scrolling has to happen at the parent).
+window.addEventListener('message', (e) => {
+  if (!e?.data || e.data.type !== 'po:scrollToSuccess') return;
+  const frame = document.getElementById('po-frame');
+  if (!frame) return;
+  const iframeTop = frame.getBoundingClientRect().top + window.scrollY;
+  const innerOffset = Number(e.data.offsetY) || 0;
+  // 24px breathing room from the viewport top.
+  window.scrollTo({ top: Math.max(0, iframeTop + innerOffset - 24), behavior: 'smooth' });
+});
+
 async function reviewApi(path, opts = {}) {
   try {
     const res = await fetch(REVIEW_API + path, {
