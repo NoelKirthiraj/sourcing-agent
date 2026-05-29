@@ -111,13 +111,20 @@ class ReconcileResult:
 def _suggest_po_number(contract: dict[str, Any], tender_id: Optional[int]) -> str:
     """Derive a default PO number for the draft.
 
+    RAD's PO numbering convention is "PO-RAD-<tender>-<seq>" (e.g.
+    PO-RAD-7813-001). The trailing -001 is the sequence number for the
+    first PO cut against a tender; subsequent POs against the same tender
+    (split orders, additional suppliers) would increment to -002, -003.
+    We always emit -001 here since the reconciler doesn't track prior
+    POs; the operator can bump it manually before submit if needed.
+
     Heuristics in order of preference:
-      1. RAD-<tender_id>      (if we have a tender link)
-      2. PO-<contract-no>     (cleaned)
+      1. PO-RAD-<tender_id>-001    (preferred — RAD's house format)
+      2. PO-<contract-no>          (cleaned, fallback when no tender link)
       3. PO-DRAFT
     """
     if tender_id:
-        return f"PO-RAD-{tender_id}"
+        return f"PO-RAD-{tender_id}-001"
     cno = (contract.get("contract_no") or "").strip()
     if cno:
         # Strip spaces / slashes for a filename-safe number

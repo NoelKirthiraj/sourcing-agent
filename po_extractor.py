@@ -150,7 +150,7 @@ Schema:
     }
   ],
   "flow_down_clauses": [
-    "free-text strings of important clauses that must flow to the supplier PO — packaging, ISO 9001, shipping instructions, do-not-ship-before, etc."
+    "concise business-readable statements (max ~12 words each) covering only the contract terms that must flow to the supplier"
   ]
 }
 
@@ -161,6 +161,19 @@ Rules:
 - If multiple items exist, return them all.
 - Do not invent values. If unsure, leave blank.
 - NEVER use a schema example value as the output. Examples are only for shape; if the document does not contain the field, the field MUST be empty.
+
+Flow-down clause rules — IMPORTANT:
+- Return AT MOST 8 bullets. Pick only what materially affects supplier delivery / quality / shipping.
+- Each bullet MUST be a complete short sentence a supplier can read and act on. e.g.:
+  - "Delivery required on or before 31 March 2026"
+  - "Delivery FCA Tronair, Swanton OH USA"
+  - "Packaging per D-LM-008-036/SF-000"
+  - "ISO 9001:2015 quality requirements"
+  - "Do not ship prior to DND shipping instructions"
+  - "Commercial invoice and customs documents required"
+- DO NOT emit raw clause IDs alone (e.g. "B7500C (2006-06-16) Excess Goods.", "C2000C Taxes - Foreign-based Contractor"). Those belong in the contract, not on a supplier PO.
+- DO NOT emit administrative-only terms (insurance carriers, applicable-law clauses, generic payment-method codes) — those don't affect what the supplier ships.
+- If the contract has compliance specs the supplier must follow (D-LM-008-036/SF-000, D2000C, D2001C, D2025C), reference them by name in a single bullet — the renderer will expand them.
 """
 
 
@@ -170,7 +183,7 @@ Extract the structured data and return ONLY valid JSON, no markdown, no commenta
 
 Schema:
 {
-  "quote_no": "the quote number, e.g. 420291",
+  "quote_no": "the quote / proposal / reference number printed on the document. Empty string if the document does not have one. Do not invent.",
   "quote_date": "ISO date if shown, else empty string",
   "expires_on": "ISO expiry date if shown",
   "supplier": {
@@ -367,8 +380,33 @@ def _normalize_contract(raw: dict[str, Any]) -> dict[str, Any]:
         "technical_authority": raw.get("technical_authority") or {},
         "contractor_rep": raw.get("contractor_rep") or {},
         "items": items,
-        "flow_down_clauses": [str(c) for c in (raw.get("flow_down_clauses") or []) if c],
+        "flow_down_clauses": _curate_flow_down(raw.get("flow_down_clauses") or []),
     }
+
+
+# Pattern for an isolated DND clause identifier, e.g. "B7500C (2006-06-16)",
+# "C2000C (2007-11-30) Taxes - Foreign-based Contractor.", "D5540C". If the
+# string is mostly this with a token/two of description, it's a raw clause
+# dump that doesn't belong on a supplier PO.
+_CLAUSE_ID_RE = re.compile(r"^\s*[A-Z]\d{4}[A-Z]\b")
+
+
+def _curate_flow_down(items: list[Any]) -> list[str]:
+    """Belt-and-suspenders filter: drop entries that look like raw clause-ID
+    dumps even if the prompt told the LLM not to emit them. Cap the list at
+    8 bullets — past that, the supplier stops reading."""
+    out: list[str] = []
+    for c in items:
+        text = str(c or "").strip()
+        if not text:
+            continue
+        if _CLAUSE_ID_RE.match(text) and len(text) < 80:
+            # e.g. "B7500C (2006-06-16) Excess Goods." — raw clause, drop
+            continue
+        out.append(text)
+        if len(out) >= 8:
+            break
+    return out
 
 
 def _normalize_quote(raw: dict[str, Any]) -> dict[str, Any]:
