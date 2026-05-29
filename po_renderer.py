@@ -549,19 +549,28 @@ def _render_notes(doc, draft: dict[str, Any]):
 
 def _render_signature(doc, draft: dict[str, Any]):
     """Authorized-by block with a physical signature line above the printed
-    name, matching the client reference PO."""
-    doc.add_paragraph()  # spacer
+    name, matching the client reference PO.
+
+    All paragraphs in the block carry keep_with_next so the signature
+    line, printed name, and title can't be split across pages. If the
+    block doesn't fit at the bottom of the current page, Word migrates
+    the entire group to the next page as a unit."""
+    spacer = doc.add_paragraph()
+    spacer.paragraph_format.keep_with_next = True
     _add_horizontal_rule(doc, color=BRAND_BORDER)
 
     auth = draft.get("authorized_by") or {}
     p1 = doc.add_paragraph()
+    p1.paragraph_format.keep_with_next = True
     _add_styled_run(p1, "Authorized by:  ", size=10, color=BRAND_TEXT)
     # Underscore line for ink signature. Width tuned to roughly match the
     # client reference PO (~35 chars of "_" reads as a ~3.5" line at 10pt).
     _add_styled_run(p1, "_" * 35, size=10, color=BRAND_TEXT)
     p2 = doc.add_paragraph()
+    p2.paragraph_format.keep_with_next = True
     _add_styled_run(p2, auth.get("name", ""), bold=True, size=11, color=BRAND_TEXT)
     p3 = doc.add_paragraph()
+    # No keep_with_next on the last paragraph — it's the end of the block.
     _add_styled_run(p3, auth.get("title", ""), size=10, color=BRAND_MUTED)
 
 
