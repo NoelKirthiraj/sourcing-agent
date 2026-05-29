@@ -429,6 +429,75 @@ def _render_flow_down(doc, draft: dict[str, Any]):
         _add_styled_run(bullet, clause, size=9, color=BRAND_TEXT)
 
 
+# DND packaging spec expansions. When the flow-down clauses reference any of
+# these specs, render the expanded plain-English requirements as a separate
+# block so the supplier doesn't have to look up the underlying standards.
+# Matches the client reference PO's structure exactly.
+_PACKAGING_EXPANSIONS = {
+    "D-LM-008-036/SF-000": [
+        "All item numbers shall be prepared for delivery in accordance with the latest issue of Canadian Forces Packaging Specification D‑LM‑008‑036/SF‑000.",
+        "Each item shall be packaged in quantities of one (1) item per package.",
+        "Required markings shall comply with D2000C (Markings).",
+        "Required labels shall comply with D2001C (Labelling).",
+        "Wood packaging materials shall comply with D2025C requirements.",
+        "Packaging shall protect against handling, storage and transport damage and preserve product integrity throughout shipment.",
+    ],
+    "D2000C": [
+        "D2000C – Marking Requirements",
+        "Exterior shipping containers shall be clearly marked with part number, nomenclature, quantity, contract/PO number, and shipment identification.",
+        "Markings shall be durable, legible, and placed in visible locations on the package exterior.",
+        "Required handling and storage markings shall be applied where applicable.",
+    ],
+    "D2001C": [
+        "D2001C – Labelling Requirements",
+        "Labels shall be securely affixed and readable throughout handling and transportation.",
+        "Labels shall identify contents and any required logistics information.",
+        "Labels shall remain intact and resistant to normal shipping and storage conditions.",
+    ],
+    "D2025C": [
+        "D2025C – Wood Packaging Material Requirements",
+        "Any wood packaging material used shall comply with applicable international phytosanitary requirements.",
+        "Wood packaging shall be heat-treated or otherwise compliant where required.",
+        "Required certification or markings for treated wood packaging shall be visible and maintained.",
+    ],
+}
+
+
+def _render_packaging_expansion(doc, draft: dict[str, Any]):
+    """If the flow-down clauses reference DND packaging specs, append an
+    expanded plain-English explanation block — the supplier shouldn't need
+    to look up the underlying standards. Matches the client reference PO.
+
+    Each spec is expanded only once even if referenced multiple times.
+    Order is: top-level packaging spec first, then the sub-specs."""
+    clauses_blob = " ".join(draft.get("flow_down_clauses") or [])
+    if not clauses_blob:
+        return
+
+    matched: list[tuple[str, list[str]]] = []
+    for key in ("D-LM-008-036/SF-000", "D2000C", "D2001C", "D2025C"):
+        if key in clauses_blob:
+            matched.append((key, _PACKAGING_EXPANSIONS[key]))
+    if not matched:
+        return
+
+    title = doc.add_paragraph()
+    _add_styled_run(title, "Detailed Packaging Requirements",
+                    bold=True, size=10, color=BRAND_NAVY)
+
+    for key, lines in matched:
+        # First line is the section heading (e.g. "D2000C – Marking
+        # Requirements"); render bold. Remaining lines are bullets.
+        if not lines:
+            continue
+        head = doc.add_paragraph()
+        _add_styled_run(head, lines[0], bold=True, size=9, color=BRAND_TEXT)
+        for line in lines[1:]:
+            bullet = doc.add_paragraph()
+            _add_styled_run(bullet, "•  ", size=9, color=BRAND_MUTED)
+            _add_styled_run(bullet, line, size=9, color=BRAND_TEXT)
+
+
 def _render_notes(doc, draft: dict[str, Any]):
     notes = draft.get("notes", "")
     if not notes:
@@ -440,13 +509,17 @@ def _render_notes(doc, draft: dict[str, Any]):
 
 
 def _render_signature(doc, draft: dict[str, Any]):
-    """Authorized-by block."""
+    """Authorized-by block with a physical signature line above the printed
+    name, matching the client reference PO."""
     doc.add_paragraph()  # spacer
     _add_horizontal_rule(doc, color=BRAND_BORDER)
 
     auth = draft.get("authorized_by") or {}
     p1 = doc.add_paragraph()
-    _add_styled_run(p1, "Authorized by", size=8, color=BRAND_MUTED)
+    _add_styled_run(p1, "Authorized by:  ", size=10, color=BRAND_TEXT)
+    # Underscore line for ink signature. Width tuned to roughly match the
+    # client reference PO (~35 chars of "_" reads as a ~3.5" line at 10pt).
+    _add_styled_run(p1, "_" * 35, size=10, color=BRAND_TEXT)
     p2 = doc.add_paragraph()
     _add_styled_run(p2, auth.get("name", ""), bold=True, size=11, color=BRAND_TEXT)
     p3 = doc.add_paragraph()
@@ -490,6 +563,7 @@ def render(draft: dict[str, Any]) -> bytes:
     _render_terms_block(doc, draft)
     doc.add_paragraph()
     _render_flow_down(doc, draft)
+    _render_packaging_expansion(doc, draft)
     _render_notes(doc, draft)
     _render_signature(doc, draft)
 
