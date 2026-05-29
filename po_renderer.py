@@ -411,17 +411,26 @@ def _render_terms_block(doc, draft: dict[str, Any]):
 
 
 def _render_flow_down(doc, draft: dict[str, Any]):
-    """Contract flow-down clauses bullet list. Uses a literal "•" prefix
-    rather than the "List Bullet" paragraph style so rendering doesn't
-    depend on Word's built-in list styles being present (the stripped
-    letterhead template drops unused styles)."""
+    """Contract flow-down clauses bullet list. Always starts on a new page
+    so the supplier terms read as a distinct contractual section, separate
+    from the price/quantity/incoterm header on page 1. The packaging spec
+    expansion that follows can continue on the same page — just a spacer
+    between them (handled in _render_packaging_expansion).
+
+    Uses a literal "•" prefix rather than the "List Bullet" paragraph
+    style so rendering doesn't depend on Word's built-in list styles
+    being present (the stripped letterhead template drops unused styles)."""
+    from docx.shared import Pt
+
     clauses = draft.get("flow_down_clauses") or []
     if not clauses:
         return
 
     p = doc.add_paragraph()
+    p.paragraph_format.page_break_before = True
+    p.paragraph_format.keep_with_next = True  # heading stays with first bullet
     _add_styled_run(p, "FLOW-DOWN CONTRACT TERMS",
-                    bold=True, size=10, color=BRAND_NAVY)
+                    bold=True, size=12, color=BRAND_NAVY)
     for clause in clauses:
         bullet = doc.add_paragraph()
         bullet.paragraph_format.left_indent = bullet.paragraph_format.left_indent or None
@@ -471,15 +480,12 @@ def _render_packaging_expansion(doc, draft: dict[str, Any]):
     Each spec is expanded only once even if referenced multiple times.
     Order is: top-level packaging spec first, then the sub-specs.
 
-    Layout rules to avoid awkward splits across pages:
-      - The whole block always starts on a fresh page (page_break_before
-        on the title), so it never crowds the flow-down list above.
-      - Each subsection's heading uses keep_with_next so it can't get
-        orphaned at the bottom of a page with its bullets stranded on
-        the next.
-      - Inner bullets use keep_with_next too — the renderer only releases
-        the last bullet of a subsection so Word can break cleanly between
-        D2000C / D2001C / D2025C if the full block doesn't fit one page."""
+    Packaging continues on the same page as the flow-down terms (no
+    forced page break — that's on FLOW-DOWN itself). A visible spacer
+    before the title separates it from the flow-down bullets. Word can
+    flow the subsections naturally; keep_with_next on each subsection
+    heading prevents the heading from getting orphaned at the bottom
+    of a page if a natural break does land mid-block."""
     from docx.shared import Pt
 
     clauses_blob = " ".join(draft.get("flow_down_clauses") or [])
@@ -494,10 +500,9 @@ def _render_packaging_expansion(doc, draft: dict[str, Any]):
         return
 
     title = doc.add_paragraph()
-    # Always start the packaging block on a new page — keeps the
-    # flow-down terms and the packaging detail visually distinct and
-    # prevents Word from awkwardly splitting one of the subsections.
-    title.paragraph_format.page_break_before = True
+    # Vertical breathing room between the flow-down bullets above and
+    # this section header — no page break, just a clear visual gap.
+    title.paragraph_format.space_before = Pt(14)
     title.paragraph_format.space_after = Pt(6)
     title.paragraph_format.keep_with_next = True
     _add_styled_run(title, "Detailed Packaging Requirements",
