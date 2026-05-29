@@ -720,7 +720,7 @@ body.theme-fun .proc-panel {
     </div>
 
     <!-- Processing overlay — shown while extract is in flight -->
-    <div class="proc-panel" id="proc-panel" hidden>
+    <div class="proc-panel" id="proc-panel" role="status" aria-live="polite" hidden>
       <div class="proc-head">
         <div class="proc-title">
           <span class="proc-pulse"></span>
@@ -1046,27 +1046,42 @@ function startProcessing() {
     elapsedEl.textContent = secs.toFixed(1) + 's';
   }, 100);
 
+  // Exit-phase timer IDs (the two setTimeouts inside finish() that mark
+  // stages done and hide the panel). Stored on the controller so that
+  // abort() — or a fresh runExtract that starts before the exit
+  // animation completes — can cancel them and prevent a stale callback
+  // from clobbering the next run's panel state.
+  const finishTimers = [];
+
   return {
     /* fast-forward to "Preparing draft" + small delay, then mark all done */
     finish() {
+      // Clear scheduled stage transitions + the elapsed counter immediately
+      // — the elapsed value freezes at its final reading rather than
+      // continuing to tick for ~850ms past the real "done".
       stageTimers.forEach(clearTimeout);
+      clearInterval(elapsedTimer);
+      // Cancel any prior in-flight finish callbacks (e.g. if finish() is
+      // called twice; harmless no-op on the first call).
+      finishTimers.forEach(clearTimeout);
+      finishTimers.length = 0;
       activate(EXTRACT_STAGES.length - 1);
       // Give the "Preparing draft" stage a brief moment to be visible,
       // then mark everything done so the panel exits on a complete note.
-      setTimeout(() => {
+      finishTimers.push(setTimeout(() => {
         document.querySelectorAll('#proc-stages li').forEach(li => {
           li.classList.remove('active');
           li.classList.add('done');
         });
-      }, 350);
-      setTimeout(() => {
-        clearInterval(elapsedTimer);
+      }, 350));
+      finishTimers.push(setTimeout(() => {
         panel.hidden = true;
-      }, 850);
+      }, 850));
     },
-    /* on error: stop animations and hide panel immediately */
+    /* on error or before a fresh run: stop all animations + hide panel */
     abort() {
       stageTimers.forEach(clearTimeout);
+      finishTimers.forEach(clearTimeout);
       clearInterval(elapsedTimer);
       panel.hidden = true;
     },
