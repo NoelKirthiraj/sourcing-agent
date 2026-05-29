@@ -1,22 +1,27 @@
 """
 PO renderer — turns a PO draft dict into a polished .docx file.
 
-Uses python-docx directly (no template). Styling is hand-tuned for a clean,
-supplier-ready look that mirrors the sample PO's structure while looking
-visibly cleaner.
+Base document is templates/po-letterhead.docx — a stripped copy of the
+client's branded letterhead, providing the page header image, footer
+contact text, page size, margins, and theme/styles. Body content is
+appended programmatically by the _render_* functions.
 
-Branding is text-based for now (RAD GLOBAL PROCUREMENT INC.). When a real
-RAD letterhead asset is provided, replace `_render_header` with an image
-insert and the rest of the layout stays untouched.
+If the template file is missing, falls back to a blank Document and
+logs a warning — generation still works in dev/test environments but
+the output will be unbranded.
 """
 from __future__ import annotations
 
 import io
 import logging
+import os
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 log = logging.getLogger(__name__)
+
+_TEMPLATE_PATH = Path(__file__).parent / "templates" / "po-letterhead.docx"
 
 
 # Brand palette (kept aligned with DESIGN.md corporate theme so the PO looks
@@ -120,26 +125,17 @@ def _add_horizontal_rule(doc, color: str = BRAND_NAVY):
     tcPr.append(tcBorders)
 
 
-def _render_header(doc, draft: dict[str, Any]):
-    """Top branding band. Text-based placeholder; swap for image when a real
-    RAD letterhead asset is available."""
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
-
-    p = doc.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    _add_styled_run(p, "RAD GLOBAL PROCUREMENT INC.",
-                    bold=True, size=18, color=BRAND_NAVY)
-
-    sub = doc.add_paragraph()
-    sub.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    _add_styled_run(sub, "735 Provencher Blvd · Brossard, Quebec J4W 1Y5 · Canada",
-                    size=9, color=BRAND_MUTED)
-    sub2 = doc.add_paragraph()
-    sub2.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    _add_styled_run(sub2, "inq@rgpmail.com · +1 514 900 3899",
-                    size=9, color=BRAND_MUTED)
-
-    _add_horizontal_rule(doc, color=BRAND_NAVY)
+def _strip_leading_empty_paragraphs(doc) -> None:
+    """Remove blank paragraphs at the top of the body so rendered content
+    starts at the page top margin. Skips anything with runs/text/images —
+    only truly empty paragraphs are dropped. Stops at the first non-empty
+    element so any tables / styled content the template intends to keep
+    are preserved."""
+    while doc.paragraphs:
+        p = doc.paragraphs[0]
+        if p.text.strip() or p.runs:
+            break
+        p._element.getparent().remove(p._element)
 
 
 def _render_title_block(doc, draft: dict[str, Any]):
@@ -415,7 +411,10 @@ def _render_terms_block(doc, draft: dict[str, Any]):
 
 
 def _render_flow_down(doc, draft: dict[str, Any]):
-    """Contract flow-down clauses bullet list."""
+    """Contract flow-down clauses bullet list. Uses a literal "•" prefix
+    rather than the "List Bullet" paragraph style so rendering doesn't
+    depend on Word's built-in list styles being present (the stripped
+    letterhead template drops unused styles)."""
     clauses = draft.get("flow_down_clauses") or []
     if not clauses:
         return
@@ -424,7 +423,9 @@ def _render_flow_down(doc, draft: dict[str, Any]):
     _add_styled_run(p, "FLOW-DOWN CONTRACT TERMS",
                     bold=True, size=10, color=BRAND_NAVY)
     for clause in clauses:
-        bullet = doc.add_paragraph(style="List Bullet")
+        bullet = doc.add_paragraph()
+        bullet.paragraph_format.left_indent = bullet.paragraph_format.left_indent or None
+        _add_styled_run(bullet, "•  ", size=9, color=BRAND_MUTED)
         _add_styled_run(bullet, clause, size=9, color=BRAND_TEXT)
 
 
@@ -461,24 +462,23 @@ def render(draft: dict[str, Any]) -> bytes:
     """
     mods = _ensure_python_docx()
     Document = mods["Document"]
-    Pt = mods["Pt"]
-    Cm = mods["Cm"]
 
-    doc = Document()
+    # Load the branded letterhead as the base — header image, footer
+    # contact block, page size, margins, and theme all come along.
+    if _TEMPLATE_PATH.is_file():
+        doc = Document(str(_TEMPLATE_PATH))
+        # Template ships with a few empty paragraphs as breathing room.
+        # Drop them so our title block sits at the top margin; the page
+        # header (letterhead image) is rendered by Word regardless and
+        # is unaffected by body paragraphs.
+        _strip_leading_empty_paragraphs(doc)
+    else:
+        log.warning(
+            "PO letterhead template not found at %s — falling back to blank document",
+            _TEMPLATE_PATH,
+        )
+        doc = Document()
 
-    # Set tighter, more professional page margins
-    for section in doc.sections:
-        section.top_margin = Cm(1.8)
-        section.bottom_margin = Cm(1.8)
-        section.left_margin = Cm(1.8)
-        section.right_margin = Cm(1.8)
-
-    # Default font
-    style = doc.styles["Normal"]
-    style.font.name = "Calibri"
-    style.font.size = Pt(10)
-
-    _render_header(doc, draft)
     _render_title_block(doc, draft)
     doc.add_paragraph()
     _render_party_block(doc, draft)
