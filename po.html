@@ -1360,6 +1360,28 @@ async function runGenerate() {
     }
     showSuccess(data);
     setStep(3);
+    // Bring the success panel into view + focus the download link.
+    // po.html is loaded in an iframe with min-height:1600px and no
+    // internal scrollbar, so the parent page is what actually scrolls.
+    // 1) Try scrollIntoView inside the iframe (no-op when the iframe
+    //    isn't scrollable, useful when the page is opened standalone).
+    // 2) Notify the parent with our offset so it can scroll itself.
+    // 3) Focus the download link for keyboard / screen-reader users.
+    requestAnimationFrame(() => {
+      const panel = document.getElementById('step3');
+      if (panel) {
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        try {
+          const offsetY = panel.getBoundingClientRect().top + window.scrollY;
+          window.parent.postMessage(
+            { type: 'po:scrollToSuccess', offsetY },
+            '*',
+          );
+        } catch (_) { /* sandboxed/cross-origin: silently ignore */ }
+      }
+      const dl = document.querySelector('#success-card a[download]');
+      if (dl) dl.focus({ preventScroll: true });
+    });
     loadHistory();
     showToast('PO generated.', 'success');
   } catch (err) {
