@@ -107,7 +107,9 @@ def test_golden_rad7813_subtotal_and_total():
 
 def test_golden_po_number_uses_tender_id():
     result = R.reconcile(_contract(), _quote(), tender_id=7813)
-    assert result.draft["po_number"] == "PO-RAD-7813"
+    # RAD convention is PO-RAD-<tender>-<seq>; seq defaults to 001 for the
+    # first PO cut against a tender — see _suggest_po_number docstring.
+    assert result.draft["po_number"] == "PO-RAD-7813-001"
 
 
 def test_po_number_falls_back_to_contract_no_when_no_tender():
