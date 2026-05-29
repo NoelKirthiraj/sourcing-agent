@@ -66,6 +66,9 @@ class APIHandler(BaseHTTPRequestHandler):
         elif path.startswith("/api/tenders/") and path.endswith("/csv"):
             tender_id = path.split("/")[3]
             self._handle_csv_download(tender_id)
+        elif path == "/api/tenders/count":
+            counts = _run_async(db.count_tenders())
+            self._json_response(counts)
         elif path == "/api/po":
             po_routes.handle_list(self, _run_async)
         elif path.startswith("/api/po/") and path.endswith("/docx"):

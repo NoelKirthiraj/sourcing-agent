@@ -329,6 +329,23 @@ async def get_tender(tender_id: int) -> Optional[dict]:
         return dict(row) if row else None
 
 
+async def count_tenders() -> dict[str, int]:
+    """Return live tender counts grouped by status.
+
+    Used by the dashboard so the "Total Captured" metric and the Tender
+    Review tab agree even if run_history.json drifts (e.g. a scrape that
+    didn't checkpoint cleanly).
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT status, COUNT(*) AS n FROM tenders GROUP BY status"
+        )
+    counts = {r["status"]: r["n"] for r in rows}
+    counts["total"] = sum(counts.values())
+    return counts
+
+
 async def list_tenders(
     status: str = "",
     associate: str = "",
