@@ -400,12 +400,19 @@ body.theme-fun .row-status.bad { background: rgba(255,59,92,0.12); }
 /* History */
 .po-row {
   display: grid;
-  grid-template-columns: 1fr auto auto auto;
+  /* 5 columns: info | amount | date | download | delete
+     Download and delete are paired with a tighter gap (8px override
+     below) so they read as a single action group rather than two
+     unrelated cells. */
+  grid-template-columns: 1fr auto auto auto auto;
   gap: 16px;
   align-items: center;
   padding: 12px 14px;
   border-bottom: 1px solid var(--border);
 }
+/* Tighten the gap between download (⬇) and delete (🗑) so they
+   visually pair as one action group. */
+.po-row .btn-secondary + .btn-danger { margin-left: -8px; }
 .po-row:last-child { border-bottom: none; }
 .po-row .po-id {
   font-family: 'JetBrains Mono', monospace;
