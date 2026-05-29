@@ -1733,6 +1733,9 @@ const LEVEL_THRESHOLDS = [
 
 let runHistory = [];
 let agentProfile = {};
+// Live solicitation_no set for the Mission Log "Archived" count. null = not loaded
+// (e.g. API offline) → renderer hides the column rather than reporting false zeros.
+let liveSolNos = null;
 
 async function loadData() {
   try {
@@ -1745,6 +1748,14 @@ async function loadData() {
     if (profRes.ok) agentProfile = await profRes.json();
   } catch (e) {
     console.log('Data fetch failed — using empty state');
+  }
+  try {
+    const tenders = await reviewApi('/api/tenders?limit=500');
+    if (Array.isArray(tenders)) {
+      liveSolNos = new Set(tenders.map(t => t.solicitation_no).filter(Boolean));
+    }
+  } catch (e) {
+    console.log('Live tender fetch failed — Archived count hidden');
   }
   render();
 }
@@ -1871,6 +1882,18 @@ function renderMissionLog() {
     const errors = (run.errors || []).map(e =>
       `<div class="log-error">${escapeHtml(e)}</div>`
     ).join('');
+    // Archived = sol_nos captured by this run that no longer exist in the live DB
+    // (deleted post-run). Falls back to new_tenders[] if older records lack
+    // new_solicitation_nos. Hidden when liveSolNos failed to load.
+    let archivedSpan = '';
+    if (liveSolNos) {
+      const captured = run.new_solicitation_nos
+        || (run.new_tenders || []).map(t => t.solicitation_no).filter(Boolean);
+      const archived = captured.filter(s => !liveSolNos.has(s)).length;
+      if (archived > 0) {
+        archivedSpan = `<span style="color:var(--text-muted)">Archived: <span class="count">${archived}</span></span>`;
+      }
+    }
     return `
       <div class="log-entry ${hasErrors ? 'has-errors' : ''}" onclick="this.classList.toggle('expanded')">
         <div class="log-header">
@@ -1881,6 +1904,7 @@ function renderMissionLog() {
           <span>Found: <span class="count">${run.total_found}</span></span>
           <span>New: <span class="count">${run.new_count}</span></span>
           <span>Skipped: <span class="count">${run.skipped_count}</span></span>
+          ${archivedSpan}
           ${hasErrors ? `<span style="color:var(--red)">Errors: <span class="count">${run.error_count}</span></span>` : ''}
           <span>${formatDuration(run.duration_seconds)}</span>
         </div>
