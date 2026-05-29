@@ -1399,6 +1399,9 @@ async function loadHistory() {
         <button class="btn btn-danger" onclick="deletePo('${escapeHtml(r.uuid)}', '${escapeHtml(r.po_number)}', ${r.revision || 1})" title="Delete this PO">🗑</button>
       </div>
     `).join('');
+  } catch (err) {
+    target.innerHTML = '<div class="empty">Could not load history.</div>';
+  }
 }
 
 async function deletePo(uuid, poNumber, revision) {
@@ -1429,9 +1432,6 @@ async function deletePo(uuid, poNumber, revision) {
     showToast(data.error || `Delete failed (HTTP ${res.status})`, 'error');
   } catch (err) {
     showToast(err.message || 'Delete failed', 'error');
-  }
-  } catch (err) {
-    target.innerHTML = '<div class="empty">Could not load history.</div>';
   }
 }
 
