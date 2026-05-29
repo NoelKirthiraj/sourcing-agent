@@ -213,6 +213,21 @@ body.theme-fun .btn-primary {
   color: var(--text-secondary);
   border: 1px solid var(--border);
 }
+.btn-danger {
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+.btn-danger:hover {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+body.theme-fun .btn-danger:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.5);
+}
 
 /* Warnings */
 .warnings {
@@ -1373,16 +1388,48 @@ async function loadHistory() {
       return;
     }
     target.innerHTML = rows.map(r => `
-      <div class="po-row">
+      <div class="po-row" data-uuid="${escapeHtml(r.uuid)}">
         <div>
           <div class="po-id">${escapeHtml(r.po_number)}${r.revision > 1 ? ` <span class="muted">rev ${r.revision}</span>` : ''}</div>
           <div class="supplier">${escapeHtml(r.supplier_name || '—')} · ${escapeHtml(r.contract_no || '—')}</div>
         </div>
         <div class="amount">${r.currency} ${(r.total || 0).toFixed(2)}</div>
         <div class="date">${(r.generated_at || '').slice(0,10)}</div>
-        <a class="btn btn-secondary" href="${API_BASE}${r.download_url}" download>⬇</a>
+        <a class="btn btn-secondary" href="${API_BASE}${r.download_url}" download title="Download .docx">⬇</a>
+        <button class="btn btn-danger" onclick="deletePo('${escapeHtml(r.uuid)}', '${escapeHtml(r.po_number)}', ${r.revision || 1})" title="Delete this PO">🗑</button>
       </div>
     `).join('');
+}
+
+async function deletePo(uuid, poNumber, revision) {
+  const label = revision > 1 ? `${poNumber} (rev ${revision})` : poNumber;
+  if (!confirm(`Delete ${label}?\n\nThis purges the PO from the database — the DOCX, contract PDF, quote PDF, and audit lineage will be removed. This cannot be undone.`)) {
+    return;
+  }
+  try {
+    const res = await fetch(`${API_BASE}/api/po/${encodeURIComponent(uuid)}`, { method: 'DELETE' });
+    if (res.status === 204) {
+      // Remove the row from the DOM optimistically.
+      const row = document.querySelector(`.po-row[data-uuid="${CSS.escape(uuid)}"]`);
+      if (row) row.remove();
+      showToast(`Deleted ${label}`, 'success');
+      // If the list is now empty, restore the empty-state.
+      const target = document.getElementById('po-history');
+      if (target && !target.querySelector('.po-row')) {
+        target.innerHTML = '<div class="empty">No POs generated yet.</div>';
+      }
+      return;
+    }
+    if (res.status === 404) {
+      showToast('PO already gone — refreshing list', 'error');
+      loadHistory();
+      return;
+    }
+    const data = await res.json().catch(() => ({}));
+    showToast(data.error || `Delete failed (HTTP ${res.status})`, 'error');
+  } catch (err) {
+    showToast(err.message || 'Delete failed', 'error');
+  }
   } catch (err) {
     target.innerHTML = '<div class="empty">Could not load history.</div>';
   }

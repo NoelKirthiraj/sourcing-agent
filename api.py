@@ -145,6 +145,20 @@ class APIHandler(BaseHTTPRequestHandler):
         except (ValueError, TypeError, IndexError):
             self._json_response({"error": "invalid request"}, 400)
 
+    def do_DELETE(self):
+        """Handle DELETE requests. Currently only /api/po/<uuid> is supported."""
+        parsed = urlparse(self.path)
+        path = parsed.path
+
+        if path.startswith("/api/po/"):
+            parts = path.split("/")
+            # /api/po/<uuid> — exactly 4 segments (empty, api, po, uuid)
+            if len(parts) == 4 and parts[3]:
+                po_routes.handle_delete(self, _run_async, parts[3])
+                return
+
+        self._json_response({"error": "not found"}, 404)
+
     def do_OPTIONS(self):
         """Handle CORS preflight."""
         self.send_response(200)
@@ -300,7 +314,7 @@ class APIHandler(BaseHTTPRequestHandler):
 
     def _cors_headers(self):
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
 
     def log_message(self, format, *args):
