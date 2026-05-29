@@ -115,7 +115,7 @@ Schema:
 {
   "contract_no": "the contract / invitation number, e.g. W8485-258676.002",
   "contract_date": "ISO date of contract award, e.g. 2025-09-16, or empty string if missing",
-  "client_reference": "client reference number if present, else empty string",
+  "client_reference": "any internal/customer reference number shown on the contract — e.g. 'RAD-7813', 'Vendor Ref: RAD-7813', 'Your File No: 12345', 'Supplier Reference: ...'. Returns the raw reference string as-is. Empty string if not present.",
   "title": "short contract title, e.g. '20 ton Jack Parts'",
   "currency": "USD or CAD — match what the contract states",
   "delivery_date": "the final delivery date as it appears in the contract (e.g. '31 March 2026')",

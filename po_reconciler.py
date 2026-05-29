@@ -120,6 +120,33 @@ def _extract_rad_tender_from_text(text: str) -> Optional[str]:
     return m.group(1) if m else None
 
 
+def _scan_contract_for_rad(contract: dict[str, Any]) -> Optional[str]:
+    """Walk every string value (including nested dicts/lists) in the extracted
+    contract dict, looking for a RAD-NNNN reference. Returns the bare numeric
+    tender id as a string, or None.
+
+    We don't trust the LLM to consistently put RAD-7813 in any one field
+    (it might land in client_reference, contract_no like "W8485 / RAD-7813",
+    a flow-down clause, the title, etc.). So sweep the lot."""
+    def _walk(value: Any) -> Optional[str]:
+        if isinstance(value, str):
+            return _extract_rad_tender_from_text(value)
+        if isinstance(value, dict):
+            for v in value.values():
+                found = _walk(v)
+                if found:
+                    return found
+            return None
+        if isinstance(value, (list, tuple)):
+            for v in value:
+                found = _walk(v)
+                if found:
+                    return found
+            return None
+        return None
+    return _walk(contract)
+
+
 def _suggest_po_number(contract: dict[str, Any], tender_id: Optional[int]) -> str:
     """Derive a default PO number for the draft.
 
@@ -132,24 +159,19 @@ def _suggest_po_number(contract: dict[str, Any], tender_id: Optional[int]) -> st
 
     Heuristics in order of preference:
       1. PO-RAD-<tender_id>-001              (explicit tender link)
-      2. PO-RAD-<from client_reference>-001  (DND contracts carry "RAD-NNNN"
-                                              in their client_reference field;
-                                              recognise it so the right
-                                              format gets emitted even when
-                                              the PO uploader UI doesn't
-                                              currently pass tender_id)
+      2. PO-RAD-<RAD-NNNN found anywhere>-001
+                                              (sweep the full contract dict
+                                              for a "RAD-7813" style ref;
+                                              the LLM might put it in
+                                              client_reference, contract_no,
+                                              title, a flow-down clause,
+                                              etc. — we don't trust which.)
       3. PO-<contract-no>                    (cleaned, last-resort fallback)
       4. PO-DRAFT
     """
     if tender_id:
         return f"PO-RAD-{tender_id}-001"
-    # Try the contract's client_reference field — DND contracts include
-    # the RAD internal tender number there (e.g. "RAD-7813").
-    rad_num = _extract_rad_tender_from_text(contract.get("client_reference") or "")
-    # Belt-and-suspenders: also scan the contract title in case the
-    # reference was captured into a different field.
-    if not rad_num:
-        rad_num = _extract_rad_tender_from_text(contract.get("title") or "")
+    rad_num = _scan_contract_for_rad(contract)
     if rad_num:
         return f"PO-RAD-{rad_num}-001"
     cno = (contract.get("contract_no") or "").strip()
