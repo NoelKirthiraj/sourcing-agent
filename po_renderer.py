@@ -469,7 +469,19 @@ def _render_packaging_expansion(doc, draft: dict[str, Any]):
     to look up the underlying standards. Matches the client reference PO.
 
     Each spec is expanded only once even if referenced multiple times.
-    Order is: top-level packaging spec first, then the sub-specs."""
+    Order is: top-level packaging spec first, then the sub-specs.
+
+    Layout rules to avoid awkward splits across pages:
+      - The whole block always starts on a fresh page (page_break_before
+        on the title), so it never crowds the flow-down list above.
+      - Each subsection's heading uses keep_with_next so it can't get
+        orphaned at the bottom of a page with its bullets stranded on
+        the next.
+      - Inner bullets use keep_with_next too — the renderer only releases
+        the last bullet of a subsection so Word can break cleanly between
+        D2000C / D2001C / D2025C if the full block doesn't fit one page."""
+    from docx.shared import Pt
+
     clauses_blob = " ".join(draft.get("flow_down_clauses") or [])
     if not clauses_blob:
         return
@@ -482,8 +494,14 @@ def _render_packaging_expansion(doc, draft: dict[str, Any]):
         return
 
     title = doc.add_paragraph()
+    # Always start the packaging block on a new page — keeps the
+    # flow-down terms and the packaging detail visually distinct and
+    # prevents Word from awkwardly splitting one of the subsections.
+    title.paragraph_format.page_break_before = True
+    title.paragraph_format.space_after = Pt(6)
+    title.paragraph_format.keep_with_next = True
     _add_styled_run(title, "Detailed Packaging Requirements",
-                    bold=True, size=10, color=BRAND_NAVY)
+                    bold=True, size=12, color=BRAND_NAVY)
 
     for key, lines in matched:
         # First line is the section heading (e.g. "D2000C – Marking
@@ -491,9 +509,17 @@ def _render_packaging_expansion(doc, draft: dict[str, Any]):
         if not lines:
             continue
         head = doc.add_paragraph()
+        head.paragraph_format.space_before = Pt(4)
+        head.paragraph_format.keep_with_next = True  # don't orphan heading
         _add_styled_run(head, lines[0], bold=True, size=9, color=BRAND_TEXT)
-        for line in lines[1:]:
+        for i, line in enumerate(lines[1:]):
             bullet = doc.add_paragraph()
+            # Tie every bullet except the last one to the next paragraph,
+            # so a subsection won't split mid-list. The last bullet is
+            # released so Word can break cleanly between subsections.
+            is_last_in_subsection = (i == len(lines) - 2)
+            if not is_last_in_subsection:
+                bullet.paragraph_format.keep_with_next = True
             _add_styled_run(bullet, "•  ", size=9, color=BRAND_MUTED)
             _add_styled_run(bullet, line, size=9, color=BRAND_TEXT)
 
