@@ -592,7 +592,10 @@ def render(draft: dict[str, Any]) -> bytes:
     _render_items_table(doc, draft)
     doc.add_paragraph()
     _render_terms_block(doc, draft)
-    doc.add_paragraph()
+    # No spacer paragraph here — _render_flow_down's title uses
+    # page_break_before to start on a fresh page. A trailing empty
+    # paragraph at the end of page 1 was getting pushed onto page 2
+    # by the page break, producing a near-blank middle page.
     _render_flow_down(doc, draft)
     _render_packaging_expansion(doc, draft)
     _render_notes(doc, draft)
