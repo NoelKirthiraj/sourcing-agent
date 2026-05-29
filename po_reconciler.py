@@ -108,6 +108,18 @@ class ReconcileResult:
     warnings: list[str]
 
 
+_RAD_REF_RE = re.compile(r"\bRAD[-\s]?(\d{3,6})\b", re.IGNORECASE)
+
+
+def _extract_rad_tender_from_text(text: str) -> Optional[str]:
+    """Pull a RAD tender number (e.g. "RAD-7813", "RAD 7813", "rad7813")
+    out of free text. Returns the numeric tender id as a string, or None."""
+    if not text:
+        return None
+    m = _RAD_REF_RE.search(text)
+    return m.group(1) if m else None
+
+
 def _suggest_po_number(contract: dict[str, Any], tender_id: Optional[int]) -> str:
     """Derive a default PO number for the draft.
 
@@ -119,12 +131,27 @@ def _suggest_po_number(contract: dict[str, Any], tender_id: Optional[int]) -> st
     POs; the operator can bump it manually before submit if needed.
 
     Heuristics in order of preference:
-      1. PO-RAD-<tender_id>-001    (preferred — RAD's house format)
-      2. PO-<contract-no>          (cleaned, fallback when no tender link)
-      3. PO-DRAFT
+      1. PO-RAD-<tender_id>-001              (explicit tender link)
+      2. PO-RAD-<from client_reference>-001  (DND contracts carry "RAD-NNNN"
+                                              in their client_reference field;
+                                              recognise it so the right
+                                              format gets emitted even when
+                                              the PO uploader UI doesn't
+                                              currently pass tender_id)
+      3. PO-<contract-no>                    (cleaned, last-resort fallback)
+      4. PO-DRAFT
     """
     if tender_id:
         return f"PO-RAD-{tender_id}-001"
+    # Try the contract's client_reference field — DND contracts include
+    # the RAD internal tender number there (e.g. "RAD-7813").
+    rad_num = _extract_rad_tender_from_text(contract.get("client_reference") or "")
+    # Belt-and-suspenders: also scan the contract title in case the
+    # reference was captured into a different field.
+    if not rad_num:
+        rad_num = _extract_rad_tender_from_text(contract.get("title") or "")
+    if rad_num:
+        return f"PO-RAD-{rad_num}-001"
     cno = (contract.get("contract_no") or "").strip()
     if cno:
         # Strip spaces / slashes for a filename-safe number
