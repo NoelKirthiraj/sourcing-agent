@@ -11,6 +11,7 @@ Endpoints:
                                 → 201 {id, uuid, po_number, revision, download_url}
   GET    /api/po                → 200 [list of POs]
   GET    /api/po/<uuid>/docx    → 200 DOCX bytes with Content-Disposition
+  DELETE /api/po/<uuid>         → 204 (removed) or 404 (not found)
 """
 from __future__ import annotations
 
@@ -323,6 +324,26 @@ def handle_download(handler, _run_async, po_uuid: str) -> None:
     handler._cors_headers()
     handler.end_headers()
     handler.wfile.write(docx_bytes)
+
+
+def handle_delete(handler, _run_async, po_uuid: str) -> None:
+    """DELETE /api/po/<uuid> — hard-delete a PO. Returns 204 on success,
+    404 if the UUID didn't match a row, 400 if the UUID is malformed."""
+    try:
+        removed = _run_async(db.delete_po(po_uuid))
+    except Exception as exc:  # asyncpg InvalidTextRepresentation, etc.
+        log.warning("po.delete.error: %s", exc)
+        handler._json_response({"error": "invalid UUID"}, 400)
+        return
+
+    if not removed:
+        handler._json_response({"error": "PO not found"}, 404)
+        return
+
+    log.info("po.delete.ok uuid=%s", po_uuid)
+    handler.send_response(204)
+    handler._cors_headers()
+    handler.end_headers()
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

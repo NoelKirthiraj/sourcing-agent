@@ -601,3 +601,20 @@ async def get_po_docx(po_uuid: str) -> Optional[tuple[str, bytes]]:
         rev = row["revision"]
         rev_suffix = f"-r{rev:02d}" if rev > 1 else ""
         return (f"{row['po_number']}{rev_suffix}", bytes(row["rendered_docx"]))
+
+
+async def delete_po(po_uuid: str) -> bool:
+    """Hard-delete a PO row by UUID. Returns True if a row was removed.
+
+    Purges all blobs (rendered_docx, contract_pdf, quote_pdf) and the
+    extracted JSON. The tender row referenced by tender_id is left
+    untouched (the FK is ON DELETE SET NULL, but we're deleting the PO,
+    not the tender)."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            "DELETE FROM pos WHERE uuid = $1::uuid",
+            po_uuid,
+        )
+        # asyncpg returns command tag like "DELETE 1" or "DELETE 0"
+        return result.endswith(" 1")
