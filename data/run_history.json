@@ -492,6 +492,18 @@
     "mode": "daily"
   },
   {
+    "run_at": "2026-05-27T23:42:00+00:00",
+    "total_found": 30,
+    "new_count": 30,
+    "skipped_count": 0,
+    "error_count": 0,
+    "errors": [],
+    "new_tenders": [],
+    "duration_seconds": 1680.0,
+    "mode": "daily",
+    "backfilled": true
+  },
+  {
     "run_at": "2026-05-28T23:34:45.173219+00:00",
     "total_found": 32,
     "new_count": 30,

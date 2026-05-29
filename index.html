@@ -1866,6 +1866,27 @@ function renderMetrics() {
   document.getElementById('metric-streak').dataset.target = streak;
   document.getElementById('metric-new').dataset.target = lastNew;
   document.getElementById('metric-errors').dataset.target = errorRate;
+
+  // Overlay "Total Captured" with the live DB count when the API responds.
+  // If run_history.json drifts (e.g. a scrape that didn't checkpoint cleanly),
+  // the top metric and the Tender Review tab still agree because both
+  // ultimately read from the same DB. Falls back silently to the JSON value
+  // on any error.
+  fetch(REVIEW_API + '/api/tenders/count')
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (data && typeof data.total === 'number' && data.total !== processed) {
+        const el = document.getElementById('metric-processed');
+        el.dataset.target = data.total;
+        // If the counter has already animated to the stale value, snap to
+        // the truth; otherwise the IntersectionObserver-driven roll-up
+        // picks up the new target on its next tick.
+        if (el.textContent && el.textContent !== '0') {
+          el.textContent = String(data.total);
+        }
+      }
+    })
+    .catch(() => { /* keep JSON-sourced value */ });
 }
 
 function renderMissionLog() {
