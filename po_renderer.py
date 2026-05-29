@@ -181,15 +181,29 @@ def _render_title_block(doc, draft: dict[str, Any]):
 
 
 def _render_party_block(doc, draft: dict[str, Any]):
-    """Two-column SUPPLIER | SHIP TO block."""
-    table = doc.add_table(rows=1, cols=2)
-    table.autofit = True
-    sup_cell, ship_cell = table.rows[0].cells
+    """SUPPLIER block, plus SHIP TO when the incoterm makes a buyer-side
+    delivery address meaningful. Under seller-side terms (FCA/FOB/EXW/FAS)
+    the reconciler clears ship_to and we drop the column entirely — a
+    PO that promises FCA at the supplier's dock and also lists a buyer
+    SHIP TO is internally contradictory."""
+    ship_to = draft.get("ship_to") or {}
+    has_ship_to = bool(ship_to.get("name") or (ship_to.get("lines") or []))
 
-    for cell, title, party in (
-        (sup_cell, "SUPPLIER", draft.get("supplier") or {}),
-        (ship_cell, "SHIP TO", draft.get("ship_to") or {}),
-    ):
+    if has_ship_to:
+        table = doc.add_table(rows=1, cols=2)
+        table.autofit = True
+        sup_cell, ship_cell = table.rows[0].cells
+        rows = [
+            (sup_cell, "SUPPLIER", draft.get("supplier") or {}),
+            (ship_cell, "SHIP TO", ship_to),
+        ]
+    else:
+        table = doc.add_table(rows=1, cols=1)
+        table.autofit = True
+        sup_cell = table.rows[0].cells[0]
+        rows = [(sup_cell, "SUPPLIER", draft.get("supplier") or {})]
+
+    for cell, title, party in rows:
         _set_cell_borders(cell)
         # Reset the auto-empty paragraph
         cell.text = ""
@@ -376,23 +390,28 @@ def _render_items_table(doc, draft: dict[str, Any]):
 
 
 def _render_terms_block(doc, draft: dict[str, Any]):
-    """Delivery, payment, incoterms in a single compact row."""
-    table = doc.add_table(rows=1, cols=3)
-    table.autofit = True
-    delivery_cell, incoterms_cell, payment_cell = table.rows[0].cells
+    """Delivery / incoterms / payment-terms row. Cells with no value are
+    omitted entirely — emitting a header like `INCOTERMS` with a `—`
+    placeholder is misleading on a binding PO."""
+    fields = [
+        ("DELIVERY BY", (draft.get("delivery_date") or "").strip()),
+        ("INCOTERMS", (draft.get("incoterms") or "").strip()),
+        ("PAYMENT TERMS", (draft.get("payment_terms") or "").strip()),
+    ]
+    populated = [(label, value) for label, value in fields if value]
+    if not populated:
+        return
 
-    for cell, label, value in (
-        (delivery_cell, "DELIVERY BY", draft.get("delivery_date", "")),
-        (incoterms_cell, "INCOTERMS", draft.get("incoterms", "")),
-        (payment_cell, "PAYMENT TERMS", draft.get("payment_terms", "")),
-    ):
+    table = doc.add_table(rows=1, cols=len(populated))
+    table.autofit = True
+    for cell, (label, value) in zip(table.rows[0].cells, populated):
         _set_cell_borders(cell)
         _set_cell_shading(cell, "F8F9FA")
         cell.text = ""
         p_lbl = cell.paragraphs[0]
         _add_styled_run(p_lbl, label, bold=True, size=8, color=BRAND_MUTED)
         p_val = cell.add_paragraph()
-        _add_styled_run(p_val, value or "—", size=10, color=BRAND_TEXT)
+        _add_styled_run(p_val, value, size=10, color=BRAND_TEXT)
 
 
 def _render_flow_down(doc, draft: dict[str, Any]):

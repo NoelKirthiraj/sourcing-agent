@@ -123,6 +123,8 @@ Schema:
     "name": "destination facility name",
     "lines": ["street", "city, province/state", "postal/zip", "country"]
   },
+  "incoterms": "the Incoterms 2020 code exactly as stated in the contract (FCA / FOB / EXW / DAP / DDP / CIF / etc.) with the named place. Empty string if the contract does not state one. Do not infer.",
+  "payment_terms": "the payment terms exactly as stated in the contract. Empty string if not stated. Do not infer.",
   "contracting_authority": {
     "name": "", "title": "", "email": "", "phone": ""
   },
@@ -158,6 +160,7 @@ Rules:
 - For the items array, include only line items that have explicit unit pricing on the contract.
 - If multiple items exist, return them all.
 - Do not invent values. If unsure, leave blank.
+- NEVER use a schema example value as the output. Examples are only for shape; if the document does not contain the field, the field MUST be empty.
 """
 
 
@@ -182,8 +185,8 @@ Schema:
   "sales_rep": "name of the sales rep or contact",
   "sales_email": "",
   "currency": "USD or CAD",
-  "payment_terms": "e.g. 'CASH IN ADVANCE'",
-  "incoterms": "e.g. 'FOB FACTORY, SWANTON, OH' or 'EXWORKS'",
+  "payment_terms": "the payment terms exactly as stated on the quote. Empty string if not stated. Do not infer or use the example above.",
+  "incoterms": "the Incoterms code exactly as stated on the quote, with the named place. Empty string if the quote does not state one. Do not infer or use the example above.",
   "items": [
     {
       "line": 1,
@@ -207,6 +210,7 @@ Rules:
 - Include ALL line items from the quote — even if the customer only ended up ordering some of them. The reconciler will match later.
 - If a field is missing, return an empty string, empty object, or empty list.
 - Do not invent values.
+- NEVER use a schema example value as the output. Examples are only for shape; if the document does not contain the field, the field MUST be empty.
 """
 
 
@@ -357,6 +361,8 @@ def _normalize_contract(raw: dict[str, Any]) -> dict[str, Any]:
         "currency": (str(raw.get("currency", "USD") or "USD")).upper(),
         "delivery_date": str(raw.get("delivery_date", "") or ""),
         "delivery_address": raw.get("delivery_address") or {"name": "", "lines": []},
+        "incoterms": str(raw.get("incoterms", "") or "").strip(),
+        "payment_terms": str(raw.get("payment_terms", "") or "").strip(),
         "contracting_authority": raw.get("contracting_authority") or {},
         "technical_authority": raw.get("technical_authority") or {},
         "contractor_rep": raw.get("contractor_rep") or {},

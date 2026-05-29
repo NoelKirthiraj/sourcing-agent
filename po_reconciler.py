@@ -21,6 +21,22 @@ log = logging.getLogger(__name__)
 
 CENT = 0.011  # tolerance for math checks — rounding slack
 
+# Incoterms 2020 codes where the supplier hands off goods at their own facility
+# or origin point — the buyer's PO should not carry a SHIP TO address under
+# these terms, because the buyer's carrier collects from the supplier.
+# Buyer-side terms (DAP, DPU, DDP, CIP, CPT, CIF, CFR) — supplier delivers
+# to the buyer's destination, SHIP TO is meaningful.
+_SELLER_SIDE_INCOTERMS = {"EXW", "EXWORKS", "FCA", "FAS", "FOB"}
+
+
+def _is_seller_side_incoterm(incoterms: str) -> bool:
+    """True when the incoterm leaves the goods at the supplier's facility/origin."""
+    if not incoterms:
+        return False
+    # Match the first token of the incoterm; ignore the named place that follows.
+    head = re.split(r"[\s,/]+", incoterms.strip().upper(), maxsplit=1)[0]
+    return head in _SELLER_SIDE_INCOTERMS
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -242,13 +258,26 @@ def reconcile(
             "email": "inq@rgpmail.com",
             "phone": "+1 514 900 3899",
         },
-        "ship_to": {
-            "name": (contract.get("delivery_address") or {}).get("name", ""),
-            "lines": (contract.get("delivery_address") or {}).get("lines", []),
-        },
+        # Incoterms and payment terms are contract terms — the contract wins,
+        # the quote is fallback only. Avoids the prior bug where the LLM
+        # quote-extractor echoed schema example values into real outputs.
+        "incoterms": (contract.get("incoterms") or quote.get("incoterms") or "").strip(),
+        "payment_terms": (contract.get("payment_terms") or quote.get("payment_terms") or "").strip(),
         "delivery_date": contract.get("delivery_date", ""),
-        "incoterms": quote.get("incoterms", ""),
-        "payment_terms": quote.get("payment_terms", ""),
+        # SHIP TO is meaningful only when delivery is buyer-side (DAP/DDP/CIP/CPT).
+        # Under FCA/FOB/EXW/FAS the supplier hands off at their own facility, so
+        # populating SHIP TO contradicts the incoterm. The renderer suppresses
+        # the block when ship_to.lines is empty.
+        "ship_to": (
+            {
+                "name": (contract.get("delivery_address") or {}).get("name", ""),
+                "lines": (contract.get("delivery_address") or {}).get("lines", []),
+            }
+            if not _is_seller_side_incoterm(
+                (contract.get("incoterms") or quote.get("incoterms") or "")
+            )
+            else {"name": "", "lines": []}
+        ),
         "items": po_lines,
         "subtotal": subtotal,
         "total": total,
