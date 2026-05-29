@@ -411,11 +411,19 @@ def _render_terms_block(doc, draft: dict[str, Any]):
 
 
 def _render_flow_down(doc, draft: dict[str, Any]):
-    """Contract flow-down clauses bullet list. Always starts on a new page
-    so the supplier terms read as a distinct contractual section, separate
-    from the price/quantity/incoterm header on page 1. The packaging spec
-    expansion that follows can continue on the same page — just a spacer
-    between them (handled in _render_packaging_expansion).
+    """Contract flow-down clauses bullet list.
+
+    Flows naturally — no forced page break. The earlier version forced
+    a break before this section to keep it visually distinct, but on a
+    typical PO that left ~3" of whitespace at the bottom of page 1.
+    With the natural flow, the flow-down sits directly under the terms
+    block on page 1 if it fits; otherwise Word migrates the whole
+    keep_with_next-tied block to page 2 cleanly.
+
+    Spacing: a noticeable space_before separates the section from the
+    terms table above. keep_with_next on the heading prevents an
+    orphaned title at the bottom of a page with its bullets stranded
+    on the next.
 
     Uses a literal "•" prefix rather than the "List Bullet" paragraph
     style so rendering doesn't depend on Word's built-in list styles
@@ -427,7 +435,7 @@ def _render_flow_down(doc, draft: dict[str, Any]):
         return
 
     p = doc.add_paragraph()
-    p.paragraph_format.page_break_before = True
+    p.paragraph_format.space_before = Pt(14)
     p.paragraph_format.keep_with_next = True  # heading stays with first bullet
     _add_styled_run(p, "FLOW-DOWN CONTRACT TERMS",
                     bold=True, size=12, color=BRAND_NAVY)
@@ -592,10 +600,9 @@ def render(draft: dict[str, Any]) -> bytes:
     _render_items_table(doc, draft)
     doc.add_paragraph()
     _render_terms_block(doc, draft)
-    # No spacer paragraph here — _render_flow_down's title uses
-    # page_break_before to start on a fresh page. A trailing empty
-    # paragraph at the end of page 1 was getting pushed onto page 2
-    # by the page break, producing a near-blank middle page.
+    # _render_flow_down carries its own space_before — no spacer
+    # paragraph needed. (We deliberately don't force a page break
+    # before flow-down anymore; let Word decide based on content.)
     _render_flow_down(doc, draft)
     _render_packaging_expansion(doc, draft)
     _render_notes(doc, draft)
