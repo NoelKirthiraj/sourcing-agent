@@ -68,6 +68,20 @@ def _set_cell_shading(cell, hex_color: str):
     cell._tc.get_or_add_tcPr().append(shd)
 
 
+def _mark_row_cantsplit(row) -> None:
+    """Mark a table row as `cantSplit` so Word treats it as atomic across
+    page boundaries. Without this, Word can split cells of a single row
+    mid-content — short cells end on one page while longer cells in the
+    same row wrap to the next, leaving empty headers stranded above the
+    break."""
+    from docx.oxml.ns import qn
+    from docx.oxml import OxmlElement
+    trPr = row._tr.get_or_add_trPr()
+    # Don't add a duplicate if it's already present.
+    if trPr.find(qn("w:cantSplit")) is None:
+        trPr.append(OxmlElement("w:cantSplit"))
+
+
 def _set_cell_borders(cell, color: str = BRAND_BORDER, size: str = "4"):
     """Apply a uniform thin border to a cell. size is in 1/8 pt — 4 ≈ 0.5pt."""
     from docx.oxml.ns import qn
@@ -144,6 +158,7 @@ def _render_title_block(doc, draft: dict[str, Any]):
 
     table = doc.add_table(rows=1, cols=2)
     table.autofit = True
+    _mark_row_cantsplit(table.rows[0])
     left, right = table.rows[0].cells
 
     # Left: title
@@ -188,6 +203,7 @@ def _render_party_block(doc, draft: dict[str, Any]):
     if has_ship_to:
         table = doc.add_table(rows=1, cols=2)
         table.autofit = True
+        _mark_row_cantsplit(table.rows[0])
         sup_cell, ship_cell = table.rows[0].cells
         rows = [
             (sup_cell, "SUPPLIER", draft.get("supplier") or {}),
@@ -196,6 +212,7 @@ def _render_party_block(doc, draft: dict[str, Any]):
     else:
         table = doc.add_table(rows=1, cols=1)
         table.autofit = True
+        _mark_row_cantsplit(table.rows[0])
         sup_cell = table.rows[0].cells[0]
         rows = [(sup_cell, "SUPPLIER", draft.get("supplier") or {})]
 
@@ -234,6 +251,7 @@ def _render_references(doc, draft: dict[str, Any]):
     """Compact references panel."""
     table = doc.add_table(rows=1, cols=1)
     table.autofit = True
+    _mark_row_cantsplit(table.rows[0])
     cell = table.rows[0].cells[0]
     _set_cell_borders(cell)
     _set_cell_shading(cell, "F8F9FA")
@@ -388,7 +406,14 @@ def _render_items_table(doc, draft: dict[str, Any]):
 def _render_terms_block(doc, draft: dict[str, Any]):
     """Delivery / incoterms / payment-terms row. Cells with no value are
     omitted entirely — emitting a header like `INCOTERMS` with a `—`
-    placeholder is misleading on a binding PO."""
+    placeholder is misleading on a binding PO.
+
+    The single row is marked `cantSplit` so Word treats it as atomic —
+    when there isn't enough room at the bottom of a page, the whole row
+    migrates to the next page. Without this Word will split the cells
+    mid-content: short cells like DELIVERY BY land on page 1 while
+    longer cells like INCOTERMS / PAYMENT TERMS wrap to page 2,
+    leaving an empty header at the bottom of page 1."""
     fields = [
         ("DELIVERY BY", (draft.get("delivery_date") or "").strip()),
         ("INCOTERMS", (draft.get("incoterms") or "").strip()),
@@ -400,7 +425,12 @@ def _render_terms_block(doc, draft: dict[str, Any]):
 
     table = doc.add_table(rows=1, cols=len(populated))
     table.autofit = True
-    for cell, (label, value) in zip(table.rows[0].cells, populated):
+
+    # Don't let Word split this row's cells across a page boundary.
+    row = table.rows[0]
+    _mark_row_cantsplit(row)
+
+    for cell, (label, value) in zip(row.cells, populated):
         _set_cell_borders(cell)
         _set_cell_shading(cell, "F8F9FA")
         cell.text = ""
