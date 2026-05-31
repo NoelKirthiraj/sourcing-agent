@@ -1855,7 +1855,21 @@ function renderHeroInfo() {
 
 function renderMetrics() {
   const processed = agentProfile.total_processed || 0;
-  const streak = agentProfile.current_streak || 0;
+  // Compute streak (consecutive trailing error-free runs) from run history
+  // rather than from agent_profile.current_streak. That stored value can
+  // drift if a backfill or out-of-band run-history edit happens without
+  // also bumping the profile — same problem we fixed for Total Captured.
+  // If runHistory is empty, fall back to the profile's stored streak.
+  let streak;
+  if (runHistory.length) {
+    streak = 0;
+    for (let i = runHistory.length - 1; i >= 0; i--) {
+      if ((runHistory[i].error_count || 0) === 0) streak++;
+      else break;
+    }
+  } else {
+    streak = agentProfile.current_streak || 0;
+  }
   const lastNew = runHistory.length ? runHistory[runHistory.length - 1].new_count : 0;
   const last30 = runHistory.slice(-30);
   const totalErrors = last30.reduce((s, r) => s + (r.error_count || 0), 0);
