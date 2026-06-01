@@ -1,18 +1,23 @@
 {
-  "xp": 66,
-  "level": 3,
-  "level_title": "Field Agent",
-  "total_processed": 96,
-  "total_runs": 3,
-  "current_streak": 4,
-  "best_streak": 3,
+  "xp": 123,
+  "level": 5,
+  "level_title": "Senior Operative",
+  "total_processed": 123,
+  "total_runs": 5,
+  "current_streak": 5,
+  "best_streak": 5,
   "achievements": [
     {
       "id": "first_launch",
       "name": "First Launch",
       "earned_at": "2026-05-26T23:21:56.287685+00:00"
+    },
+    {
+      "id": "century",
+      "name": "Century",
+      "earned_at": "2026-06-01T23:46:28.803044+00:00"
     }
   ],
-  "last_run_at": "2026-05-28T23:34:45.173219+00:00",
+  "last_run_at": "2026-06-01T23:46:28.802904+00:00",
   "last_status": "success"
 }
