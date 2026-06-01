@@ -774,5 +774,29 @@
     ],
     "duration_seconds": 1371.7,
     "mode": "daily"
+  },
+  {
+    "run_at": "2026-05-29T23:38:00+00:00",
+    "total_found": 30,
+    "new_count": 30,
+    "skipped_count": 0,
+    "error_count": 0,
+    "errors": [],
+    "new_tenders": [],
+    "duration_seconds": 1800.0,
+    "mode": "daily",
+    "backfilled": true
+  },
+  {
+    "run_at": "2026-05-30T23:22:00+00:00",
+    "total_found": 14,
+    "new_count": 14,
+    "skipped_count": 0,
+    "error_count": 0,
+    "errors": [],
+    "new_tenders": [],
+    "duration_seconds": 1800.0,
+    "mode": "weekly",
+    "backfilled": true
   }
 ]

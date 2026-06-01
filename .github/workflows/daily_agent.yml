@@ -23,7 +23,13 @@ permissions:
 jobs:
   run-agent:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Bumped from 30 to 60 — 3 of the last 6 scheduled runs hit the
+    # 30-min ceiling and were killed mid-flight, leaving tenders in
+    # the DB without corresponding run_history checkpoints. Successful
+    # runs have stayed under 28 minutes, so 60 leaves comfortable
+    # headroom while still acting as a kill switch on a genuinely
+    # stuck run.
+    timeout-minutes: 60
 
     steps:
       - name: Record start time
