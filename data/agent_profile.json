@@ -1,11 +1,11 @@
 {
-  "xp": 219,
+  "xp": 252,
   "level": 6,
   "level_title": "Senior Operative",
-  "total_processed": 219,
-  "total_runs": 9,
-  "current_streak": 9,
-  "best_streak": 9,
+  "total_processed": 252,
+  "total_runs": 10,
+  "current_streak": 10,
+  "best_streak": 10,
   "achievements": [
     {
       "id": "first_launch",
@@ -21,8 +21,13 @@
       "id": "night_owl",
       "name": "Night Owl",
       "earned_at": "2026-06-03T00:11:43.369334+00:00"
+    },
+    {
+      "id": "sharpshooter",
+      "name": "Sharpshooter",
+      "earned_at": "2026-06-04T23:27:25.258440+00:00"
     }
   ],
-  "last_run_at": "2026-06-03T23:55:14.979369+00:00",
+  "last_run_at": "2026-06-04T23:27:25.258237+00:00",
   "last_status": "success"
 }
