@@ -2272,5 +2272,131 @@
     ],
     "duration_seconds": 874.8,
     "mode": "daily"
+  },
+  {
+    "run_at": "2026-06-06T23:28:32.096416+00:00",
+    "total_found": 302,
+    "new_count": 8,
+    "skipped_count": 294,
+    "error_count": 0,
+    "errors": [],
+    "new_solicitation_nos": [
+      "BPM025473/34058",
+      "BPM026073/34051",
+      "WS5457487441",
+      "WS5722148892",
+      "WS5557891042",
+      "BPM026063/34032",
+      "WS5594207026",
+      "BPM026057/34024"
+    ],
+    "new_tenders": [
+      {
+        "solicitation_no": "BPM025473/34058",
+        "solicitation_title": "Government of Canada Managed Back Up and Recovery Software - What We\u2026",
+        "gsin_description": "As part of the Agile Procurement Process 3.0, Shared Services Canada (SSC) is dedicated to collaborating with stakeholders and industry partners. The goal is to gather feedback throughout the procurement process and make prompt adjustments to the solicitation as needed. SSC is committed to listening with an open mind and sharing its findings transparently. This What We Heard report is a key component of this process, following a Request for Information for Government of Canada Managed Back Up and Recovery Software posted on Canada Buys which closed on April 07, 2026 . Within the \"Government of Canada Managed Back up and Recovery Software - What We Heard Report\", you will find SSC\u2019s findings and related remarks. SSC Government of Canada Managed Back Up and Recovery Software - What We Heard Report- Amendment 000",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/ssc-26-00034058t",
+        "closing_date": "2026/07/06",
+        "time_and_zone": "EDT",
+        "notifications": "",
+        "client": "Shared Services Canada",
+        "contact_name": "Javier,Ventura",
+        "contact_email": "",
+        "contact_phone": "(343) 576-9329"
+      },
+      {
+        "solicitation_no": "BPM026073/34051",
+        "solicitation_title": "SYNOLOGY 12-BAY RACKMOUNT",
+        "gsin_description": "SYNOLOGY 12-BAY RACKMOUNT SSC SYNOLOGY 12-BAY RACKMOUNT - Amendment 001",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/ssc-26-00034051t",
+        "closing_date": "2026/06/12",
+        "time_and_zone": "EDT",
+        "notifications": "2026/06/05",
+        "client": "Shared Services Canada",
+        "contact_name": "Gary ,Presley",
+        "contact_email": "",
+        "contact_phone": "613-617-0580"
+      },
+      {
+        "solicitation_no": "WS5457487441",
+        "solicitation_title": "23429-260696-B RFP - Automatic Lifting Barrier System",
+        "gsin_description": "Please note that late submissions will not be considered or accepted. This solicitation of offers cancels and supersedes previous solicitation of offers number 23429-260696-A REQUIREMENT: This Natural Resources Canada requirement is for the supply of two Automatic Lifting Vehicle Barriers with delivery and installation in accordance with Annex Statement of Requirement. This procurement is subject to the Gwich\u2019in Comprehensive Land Claim Agreement, and the Inuvialuit Final Agreement, for deliveries to *Inuvik, NT Public Works and Government Services Canada (PWGSC) is committed to promoting the procurement of environmentally preferable plastic products and the reduction of plastic packaging waste as per the Greening Government Strategy: A Government of Canada Directive, the Government of Canada actions on plastic waste in federal operations, and the Ocean Plastics Charter. Offerors are encouraged to use environmentally preferable packaging for all packaged goods to be delivered to the end user as part of this procurement This solicitation of offers is open only to Canadian suppliers and to Suppliers of an Applicable Trading Partner.",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/ws5457487441-doc5721865485",
+        "closing_date": "2026/06/22",
+        "time_and_zone": "EDT",
+        "notifications": "2026/06/04",
+        "client": "Department of Public Works and Government Services (PSPC)",
+        "contact_name": "O'Neill, Erin (SPAC/PSPC) (elle-la / she-her)",
+        "contact_email": "erin.oneill@tpsgc-pwgsc.gc.ca",
+        "contact_phone": ""
+      },
+      {
+        "solicitation_no": "WS5722148892",
+        "solicitation_title": "RFI W6369-27A033 - Role 2 Basic Highly Mobile Infrastructure",
+        "gsin_description": "This procurement is subject to a National Security Exception and is, therefore, excluded from all of the obligations of the trade agreements. Public Services and Procurement Canada launched this RFI to engage industry for the Department of National Defence\u2019s Role 2 Basic Highly Mobile Infrastructure Project. The requirement is for the supply and delivery of non-expandable ISO containers, security components, and to provide limited services. Suppliers will be requested to provide responses to questions within the RFI and to participate in One-on-one Sessions. Registration, response submission dates and all other details are outlined in the RFI. Responses to questions, including costing are requested by June 13, 2026. Participation is limited to suppliers headquartered in NATO or Five Eyes (FVEY) countries. To participate in the RFI, Suppliers must complete the Certification of Corporate Headquarters Location including Confidentiality Agreements. The Certification is available upon request from the Contracting Authority at ian.arboleda@tpsgc-pwgsc.gc.ca, until 1400 hours EDT, June 29, 2026. Any request beyond this date may not be considered.",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/ws5722148892-doc5722130896",
+        "closing_date": "2026/07/03",
+        "time_and_zone": "EDT",
+        "notifications": "2026/06/04",
+        "client": "Department of Public Works and Government Services (PSPC)",
+        "contact_name": "Arboleda, Ian (SPAC/PSPC)",
+        "contact_email": "ian.arboleda@tpsgc-pwgsc.gc.ca",
+        "contact_phone": ""
+      },
+      {
+        "solicitation_no": "WS5557891042",
+        "solicitation_title": "RFP 01633-260865 Self-Propelled Plot Combine",
+        "gsin_description": "AMENDMENT TO CLOSING TIME: Please disregard the Ariba Discovery posting response deadline closing time and CanadaBuys posting closing time. All required supporting documentation and bid submission must be submitted by July 10, 2026 at 14:00 EDT. All bids submitted after 14:00 EDT will result in the bid being declared non-responsive. Agriculture and Agri-Food Canada (AAFC) required the supply, delivery and training on the use of one (1) self-propelled plot combine with cab and weighing system for their facility located in Brandon, MB. Delivery of the combine is required no later than March 31, 2026. Training is required to be completed within six (6) months of combine delivery.",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/ws5557891042-doc5725963271",
+        "closing_date": "2026/07/10",
+        "time_and_zone": "EDT",
+        "notifications": "2026/06/03",
+        "client": "Department of Public Works and Government Services (PSPC)",
+        "contact_name": "Hemy, Andrew (SPAC/PSPC)",
+        "contact_email": "andrew.hemy@tpsgc-pwgsc.gc.ca",
+        "contact_phone": ""
+      },
+      {
+        "solicitation_no": "BPM026063/34032",
+        "solicitation_title": "Logiciel Red Hat OpenShift Platform Plus",
+        "gsin_description": "NOTICE OF PROPOSED PROCUREMENT (NPP) Requirement Description Canada Border Services Agency has a requirement for the procurement of Red Hat Software. This Request for Quote is issued pursuant to Software Licensing Supply Arrangement (SLSA) # EN578-232335/078/SMS. Tendering Procedure: Selective tendering The following Supply Arrangement Holders and Class-1 Resellers have been invited to submit a proposal: Carahsoft Canada Inc. Advanced Chippewa Technologies Inc., operating as ACT Inc. Arctiq CDW Canada Corp. Computacenter Canada Inc. Decisive Group Inc. Minose Solution LTD Mobia Technology Innovations Northern Micro Inc, a Pellera Company OnX Enterprise Solutions Ltd PureLogic IT Solutions Inc. R2i Inc. Softchoice Corporation Stoneworks Technologies, Inc Sub-Rosa Solutions Corp. The KTL Group, Inc. Unilogik Systems Inc. Zones Canada, Inc. Only suppliers who are pre-qualified and have been issued a supply arrangement are eligible to bid. Non-SA holders cannot be awarded a contract unless and until the Supply Arrangement Authority (SAA) has issued a Supply Arrangement to that supplier for the products and/or services contained in the bid. The process to qualify for a Supply Arrangement is detailed in the Request for Supply Arrangement (RFSA). Canada is not required to delay the award of a resulting contract pending the evaluation of an arrangement and issuance of a Supply Arrangement by the Supply Arrangement Authority. Requirement Details : Product: Red Hat OpenShift Platform Plus License type: Subscription Quantity: 24",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/ssc-26-00034032t",
+        "closing_date": "2026/06/15",
+        "time_and_zone": "EDT",
+        "notifications": "",
+        "client": "Shared Services Canada",
+        "contact_name": "John Ford,Robert",
+        "contact_email": "",
+        "contact_phone": "613-327-5637"
+      },
+      {
+        "solicitation_no": "WS5594207026",
+        "solicitation_title": "Training Facility RFSO prior Agreements",
+        "gsin_description": "AMENDMENT TO CLOSING TIME: Please disregard the Ariba Discovery posting response deadline closing time and CanadaBuys posting closing time. All required supporting documentation and bid submission must be submitted by 16 June 2026 at 14:00 EDT. All bids submitted after 14:00 EDT will result in the bid being declared non-responsive. Canada has a requirement for a training facility and accommodations for the provision of tactical and collective mobility training services, on an \u201cas and when requested\u201d basis for the Department of National Defence. To access the Request for Standing Offer (RFSO) documents, it is mandatory that both the Confidentiality Agreement and the Non-Disclosure Agreement be duly signed. Upon receipt of the executed agreements, you will be invited to participate in the RFSO solicitation process. At that time, you will be granted access to the relevant documentation and will be eligible to submit your offer.",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/ws5594207026-doc5654601424",
+        "closing_date": "2026/06/16",
+        "time_and_zone": "EDT",
+        "notifications": "2026/06/01",
+        "client": "Department of Public Works and Government Services (PSPC)",
+        "contact_name": "Keenan, Darlene (SPAC/PSPC) (elle-la / she-her)",
+        "contact_email": "darlene.keenan@tpsgc-pwgsc.gc.ca",
+        "contact_phone": ""
+      },
+      {
+        "solicitation_no": "BPM026057/34024",
+        "solicitation_title": "Adobe Licensing Renewal for Elections Canada (EC)",
+        "gsin_description": "Notice of Proposed Procurement 2BS-6-210243 - REQ210243 - RFQ for ADOBE Licensing Renewal for Elections Canada (EC) PRODUCT DESCRIPTION -ADOBE Licenses Renewal SECURITY REQUIREMENT -There is no security associated to this requirement. BID SUBMISSION -All bidders must submit their bids through either Email or the P2P portal. LANGUAGE -Documents may be submitted in either official language of Canada. NEGOTIATIONS -SSC retains the right to negotiate with suppliers on any procurement. ENQUIRIES -Responders who wish to be certain of receiving a reply must submit all questions through to the Contracting Authority. ESTIMATED QUANTITY -Refer to Annex A \u2013 Basis of Payment. DURATION OF CONTRACT From contract award up to an including one year later; and 2 x 1 year option periods. -Initial Contract year: June 26, 2026 up to and including June 25, 2027 -Option Year 1: June 26, 2027 up to and including June 25, 2028 -Option Year 2: June 26, 2028 up to and including June 25, 2029 TIME FRAME OF DELIVERY -June 26, 2026 CONDITIONS FOR PARTICIPATION OF SUPPLIERS NOT SPECIFIED IN SOLICITATION DOCUMENTATION n/a SSC Adobe Licensing Renewal for Elections Canada (EC)- Amendment 000",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/ssc-26-00034024t",
+        "closing_date": "2026/06/12",
+        "time_and_zone": "EDT",
+        "notifications": "",
+        "client": "Shared Services Canada",
+        "contact_name": "Adam,Fox",
+        "contact_email": "",
+        "contact_phone": "343-596-0964"
+      }
+    ],
+    "duration_seconds": 1864.6,
+    "mode": "weekly"
   }
 ]
