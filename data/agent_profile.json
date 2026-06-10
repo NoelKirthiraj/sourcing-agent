@@ -1,11 +1,11 @@
 {
-  "xp": 342,
-  "level": 6,
-  "level_title": "Senior Operative",
-  "total_processed": 342,
-  "total_runs": 14,
-  "current_streak": 14,
-  "best_streak": 14,
+  "xp": 375,
+  "level": 7,
+  "level_title": "Commander",
+  "total_processed": 375,
+  "total_runs": 15,
+  "current_streak": 15,
+  "best_streak": 15,
   "achievements": [
     {
       "id": "first_launch",
@@ -28,6 +28,6 @@
       "earned_at": "2026-06-04T23:27:25.258440+00:00"
     }
   ],
-  "last_run_at": "2026-06-09T23:44:05.735879+00:00",
+  "last_run_at": "2026-06-10T23:49:57.096757+00:00",
   "last_status": "success"
 }
