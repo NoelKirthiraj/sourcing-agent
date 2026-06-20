@@ -5362,5 +5362,89 @@
     ],
     "duration_seconds": 912.0,
     "mode": "daily"
+  },
+  {
+    "run_at": "2026-06-20T23:25:57.698890+00:00",
+    "total_found": 316,
+    "new_count": 5,
+    "skipped_count": 311,
+    "error_count": 0,
+    "errors": [],
+    "new_solicitation_nos": [
+      "WS5387340009",
+      "BPM026130/34130",
+      "WS5754304081",
+      "BPM026114/34111",
+      "W3915-26-0151/A"
+    ],
+    "new_tenders": [
+      {
+        "solicitation_no": "WS5387340009",
+        "solicitation_title": "W0127-25P009-B - Fitness Equipment",
+        "gsin_description": "Please note that late submissions will not be considered or accepted. The Department of National Defence (DND) CFB Edmonton has a requirement for the supply and delivery of various new pieces of fitness and sports equipment.",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/ws5387340009-doc5639839959",
+        "closing_date": "2026/07/10",
+        "time_and_zone": "EDT",
+        "notifications": "2026/06/19",
+        "client": "Department of Public Works and Government Services (PSPC)",
+        "contact_name": "Rachinski, Douglas (SPAC/PSPC)",
+        "contact_email": "douglas.rachinski@tpsgc-pwgsc.gc.ca",
+        "contact_phone": ""
+      },
+      {
+        "solicitation_no": "BPM026130/34130",
+        "solicitation_title": "ADV - What We Heard Report",
+        "gsin_description": "notification purposes only no bids or submissions will be accepted or evaluated SSC ADV - What We Heard Report- Amendment 000",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/ssc-26-00034130t",
+        "closing_date": "2026/06/30",
+        "time_and_zone": "EDT",
+        "notifications": "",
+        "client": "Shared Services Canada",
+        "contact_name": "Gary ,Presley",
+        "contact_email": "",
+        "contact_phone": "613-617-0580"
+      },
+      {
+        "solicitation_no": "WS5754304081",
+        "solicitation_title": "W355B-279331 Pallet Racking",
+        "gsin_description": "Contract duration Refer to the description above for full details.",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/ws5754304081-doc5754304143",
+        "closing_date": "2026/07/06",
+        "time_and_zone": "EDT",
+        "notifications": "",
+        "client": "Department of Public Works and Government Services (PSPC)",
+        "contact_name": "White, Brodie (SPAC/PSPC)",
+        "contact_email": "brodie.white@tpsgc-pwgsc.gc.ca",
+        "contact_phone": ""
+      },
+      {
+        "solicitation_no": "BPM026114/34111",
+        "solicitation_title": "Shared Services Canada - Red Hat Minor Contract",
+        "gsin_description": "NOTICE OF PROPOSED PROCUREMENT (NPP) Solicitation Number: BPM026114 Organization Name: Shared Services Canada Solicitation Date: 2026-06-17 Closing Date: 2026-06-29 at 14:00 Eastern Time (EST) Requirement Description Shared Services Canada has a requirement for the procurement of the Red Hat Software. This Request for Quote is issued pursuant to Software Licensing Supply Arrangement (SLSA) # EN578-232335/078/SMS. Tendering Procedure: Selective tendering The following Supply Arrangement Holders and Class-1 Resellers have been invited to submit a proposal: ACT Inc. Arctiq CDW Canada Corp Computacenter Canada Inc. Decisive Group Inc. Mobia Technology Innovations Northern Micro Inc, a Pellera Company OnX Enterprise Solutions Ltd PureLogic IT Solutions Inc. R2i Inc. Softchoice Corporation Stoneworks Technologies, Inc The KTL Group, Inc. Unilogik Systems Inc. Minose Solution LTD Sub-Rosa Solutions Corp. Zones Canada, Inc. Only suppliers who are pre-qualified and have been issued a supply arrangement are eligible to bid. Non-SA holders cannot be awarded a contract unless and until the Supply Arrangement Authority (SAA) has issued a Supply Arrangement to that supplier for the products and/or services contained in the bid. The process to qualify for a Supply Arrangement is detailed in the Request for Supply Arrangement (RFSA). Canada is not required to delay the award of a resulting contract pending the evaluation of an arrangement and issuance of a Supply Arrangement by the Supply Arrangement Authority. Requirement Details : Product: Red Hat Software License type: Subscription Quantity: 32",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/ssc-26-00034111t",
+        "closing_date": "2026/06/29",
+        "time_and_zone": "EDT",
+        "notifications": "",
+        "client": "Shared Services Canada",
+        "contact_name": "Jayden,Henry-Moreau",
+        "contact_email": "",
+        "contact_phone": "343-542-0643"
+      },
+      {
+        "solicitation_no": "W3915-26-0151/A",
+        "solicitation_title": "Rotary Chairs",
+        "gsin_description": "Notice of Proposed Procurement SA E60PQ-120001/H sub-category - rotary chairs Solicited amongst PSIB suppliers (SA holders) DND requires a number of chairs for a conference room for delivery to Kingston Ontario",
+        "inquiry_link": "https://canadabuys.canada.ca/en/tender-opportunities/tender-notice/cb-636-75631145",
+        "closing_date": "2026/06/25",
+        "time_and_zone": "EDT",
+        "notifications": "",
+        "client": "Department of National Defence (DND)",
+        "contact_name": "Cole Horsman",
+        "contact_email": "Cole.Horsman@forces.gc.ca",
+        "contact_phone": "(613) 541-5010"
+      }
+    ],
+    "duration_seconds": 1525.1,
+    "mode": "weekly"
   }
 ]
