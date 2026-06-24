@@ -142,6 +142,64 @@ async def init_schema():
         await conn.execute("""
             ALTER TABLE pos ALTER COLUMN po_number TYPE TEXT;
         """)
+
+        # Vendor Management — feature added in PR for procurement workflow.
+        # `vendors` mirrors the historical xlsx (email-log aggregation) with
+        # TEXT[] for the formerly semicolon-separated list columns so each
+        # item is independently addressable (filter by, chip-style edit).
+        # `rfp_categories` is a thin metadata table populated from the same
+        # xlsx; `products_by_vendor` is the explicit per-product catalog.
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS vendors (
+                id                     SERIAL PRIMARY KEY,
+                uuid                   UUID NOT NULL UNIQUE,
+                company                TEXT NOT NULL UNIQUE,
+                domain                 TEXT DEFAULT '',
+                primary_contacts       TEXT[] NOT NULL DEFAULT '{}',
+                emails                 TEXT[] NOT NULL DEFAULT '{}',
+                phones                 TEXT[] NOT NULL DEFAULT '{}',
+                websites               TEXT[] NOT NULL DEFAULT '{}',
+                inquiry_count          INTEGER DEFAULT 0,
+                last_contact           DATE,
+                rfp_categories         TEXT[] NOT NULL DEFAULT '{}',
+                products_quoted        TEXT[] NOT NULL DEFAULT '{}',
+                bid_count              INTEGER DEFAULT 0,
+                bid_history            TEXT DEFAULT '',
+                rfps_won               TEXT DEFAULT '',
+                source                 VARCHAR(20) DEFAULT 'upload',
+                notes                  TEXT DEFAULT '',
+                created_at             TIMESTAMPTZ DEFAULT NOW(),
+                updated_at             TIMESTAMPTZ DEFAULT NOW()
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_vendors_uuid          ON vendors(uuid);
+            CREATE INDEX IF NOT EXISTS idx_vendors_company_lower ON vendors(LOWER(company));
+            CREATE INDEX IF NOT EXISTS idx_vendors_categories    ON vendors USING GIN (rfp_categories);
+            CREATE INDEX IF NOT EXISTS idx_vendors_search        ON vendors
+                USING GIN (to_tsvector('simple', company || ' ' || domain));
+
+            CREATE TABLE IF NOT EXISTS rfp_categories (
+                id                       SERIAL PRIMARY KEY,
+                category                 TEXT NOT NULL UNIQUE,
+                keywords                 TEXT[] NOT NULL DEFAULT '{}',
+                vendors_tagged_count     INTEGER DEFAULT 0,
+                needs_enrichment_count   INTEGER DEFAULT 0,
+                updated_at               TIMESTAMPTZ DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS products_by_vendor (
+                id                  SERIAL PRIMARY KEY,
+                vendor_id           INTEGER REFERENCES vendors(id) ON DELETE CASCADE,
+                vendor_company      TEXT NOT NULL,
+                domain_sender_key   TEXT DEFAULT '',
+                product             TEXT NOT NULL,
+                rfp_code            TEXT DEFAULT '',
+                source_tab          TEXT DEFAULT ''
+            );
+            CREATE INDEX IF NOT EXISTS idx_pbv_vendor ON products_by_vendor(vendor_id);
+            CREATE INDEX IF NOT EXISTS idx_pbv_rfp    ON products_by_vendor(rfp_code);
+        """)
+
         log.info("Database schema initialized")
 
 
@@ -618,3 +676,397 @@ async def delete_po(po_uuid: str) -> bool:
         )
         # asyncpg returns command tag like "DELETE 1" or "DELETE 0"
         return result.endswith(" 1")
+
+
+# ── Vendor Management CRUD ───────────────────────────────────────────────────
+
+# Fields that originate from the email-log pipeline and are display-only in
+# the portal UI. Editing them in the portal would drift from reality on the
+# next xlsx re-import, so update_vendor() strips them from incoming payloads.
+_VENDOR_DISPLAY_ONLY_FIELDS = frozenset({
+    "inquiry_count", "bid_count", "bid_history", "last_contact",
+})
+
+# Columns the xlsx upload is authoritative over. On merge, these are the
+# fields whose values are overwritten from the spreadsheet. `source` and
+# `notes` (portal-only scratch fields) are intentionally not in this list
+# so a manually-added vendor's metadata is preserved across re-imports.
+_VENDOR_XLSX_FIELDS = (
+    "domain", "primary_contacts", "emails", "phones", "websites",
+    "inquiry_count", "last_contact", "rfp_categories", "products_quoted",
+    "bid_count", "bid_history", "rfps_won",
+)
+
+
+def _vendor_row_to_dict(row) -> dict:
+    """Convert an asyncpg row to a JSON-safe dict (UUID + DATE -> str)."""
+    if row is None:
+        return None
+    d = dict(row)
+    if d.get("uuid") is not None:
+        d["uuid"] = str(d["uuid"])
+    for k in ("created_at", "updated_at", "last_contact"):
+        v = d.get(k)
+        if v is not None and hasattr(v, "isoformat"):
+            d[k] = v.isoformat()
+    return d
+
+
+async def list_vendors(
+    *,
+    q: str = "",
+    category: str = "",
+    limit: int = 200,
+    offset: int = 0,
+) -> list[dict]:
+    """List vendors with optional filters.
+
+    `q` is an ILIKE substring search over company + domain.
+    `category` filters to vendors whose `rfp_categories` array contains it.
+    Returns dicts with UUID + DATE serialized to ISO strings.
+    """
+    pool = await get_pool()
+    conditions: list[str] = []
+    params: list = []
+    idx = 1
+
+    if q:
+        conditions.append(f"(company ILIKE ${idx} OR domain ILIKE ${idx})")
+        params.append(f"%{q}%")
+        idx += 1
+    if category:
+        conditions.append(f"${idx} = ANY(rfp_categories)")
+        params.append(category)
+        idx += 1
+
+    where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+    params.extend([limit, offset])
+
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            f"""SELECT * FROM vendors {where}
+                ORDER BY LOWER(company) ASC
+                LIMIT ${idx} OFFSET ${idx + 1}""",
+            *params,
+        )
+        return [_vendor_row_to_dict(r) for r in rows]
+
+
+async def get_vendor_by_uuid(vendor_uuid: str) -> Optional[dict]:
+    """Fetch one vendor with embedded products list. Returns None if not found."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT * FROM vendors WHERE uuid = $1::uuid",
+            vendor_uuid,
+        )
+        if not row:
+            return None
+        vendor = _vendor_row_to_dict(row)
+        # Embed products
+        prods = await conn.fetch(
+            """SELECT product, rfp_code, source_tab, domain_sender_key
+               FROM products_by_vendor
+               WHERE vendor_id = $1
+               ORDER BY product""",
+            row["id"],
+        )
+        vendor["products"] = [dict(p) for p in prods]
+        return vendor
+
+
+async def insert_vendor(payload: dict, *, source: str = "manual") -> dict:
+    """Insert a new vendor. Raises asyncpg.UniqueViolationError on duplicate company."""
+    import uuid as _uuid
+    pool = await get_pool()
+    new_uuid = _uuid.uuid4()
+
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            INSERT INTO vendors (
+                uuid, company, domain,
+                primary_contacts, emails, phones, websites,
+                inquiry_count, last_contact,
+                rfp_categories, products_quoted,
+                bid_count, bid_history, rfps_won,
+                source, notes
+            ) VALUES (
+                $1, $2, $3,
+                $4, $5, $6, $7,
+                $8, $9,
+                $10, $11,
+                $12, $13, $14,
+                $15, $16
+            )
+            RETURNING *
+            """,
+            new_uuid,
+            (payload.get("company") or "").strip(),
+            payload.get("domain", "") or "",
+            payload.get("primary_contacts") or [],
+            payload.get("emails") or [],
+            payload.get("phones") or [],
+            payload.get("websites") or [],
+            int(payload.get("inquiry_count") or 0),
+            payload.get("last_contact"),
+            payload.get("rfp_categories") or [],
+            payload.get("products_quoted") or [],
+            int(payload.get("bid_count") or 0),
+            payload.get("bid_history", "") or "",
+            payload.get("rfps_won", "") or "",
+            source,
+            payload.get("notes", "") or "",
+        )
+        return _vendor_row_to_dict(row)
+
+
+async def update_vendor(vendor_uuid: str, payload: dict) -> Optional[dict]:
+    """Update editable fields. Display-only fields are silently dropped.
+
+    Returns the updated row, or None if no vendor matches.
+    """
+    # Drop display-only fields up front
+    payload = {k: v for k, v in payload.items() if k not in _VENDOR_DISPLAY_ONLY_FIELDS}
+
+    # Columns the caller is allowed to update (whitelist)
+    allowed = (
+        "company", "domain",
+        "primary_contacts", "emails", "phones", "websites",
+        "rfp_categories", "products_quoted",
+        "rfps_won", "notes",
+    )
+    sets: list[str] = []
+    params: list = []
+    idx = 1
+    for col in allowed:
+        if col in payload:
+            sets.append(f"{col} = ${idx}")
+            v = payload[col]
+            # Coerce list-typed columns
+            if col in ("primary_contacts", "emails", "phones", "websites",
+                       "rfp_categories", "products_quoted"):
+                v = v or []
+            elif v is None:
+                v = ""
+            params.append(v)
+            idx += 1
+    if not sets:
+        # Nothing to update — just return the current row
+        return await get_vendor_by_uuid(vendor_uuid)
+
+    sets.append("updated_at = NOW()")
+    params.append(vendor_uuid)
+
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            f"UPDATE vendors SET {', '.join(sets)} "
+            f"WHERE uuid = ${idx}::uuid RETURNING *",
+            *params,
+        )
+        if not row:
+            return None
+        vendor = _vendor_row_to_dict(row)
+        # Embed products (consistent with get_vendor_by_uuid response shape)
+        prods = await conn.fetch(
+            """SELECT product, rfp_code, source_tab, domain_sender_key
+               FROM products_by_vendor
+               WHERE vendor_id = $1
+               ORDER BY product""",
+            row["id"],
+        )
+        vendor["products"] = [dict(p) for p in prods]
+        return vendor
+
+
+async def delete_vendor(vendor_uuid: str) -> bool:
+    """Hard-delete a vendor. Products are cascaded via FK ON DELETE CASCADE."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            "DELETE FROM vendors WHERE uuid = $1::uuid",
+            vendor_uuid,
+        )
+        return result.endswith(" 1")
+
+
+async def list_rfp_categories() -> list[dict]:
+    """List all RFP categories (for filter dropdown + reference)."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """SELECT id, category, keywords,
+                      vendors_tagged_count, needs_enrichment_count,
+                      updated_at
+               FROM rfp_categories
+               ORDER BY category"""
+        )
+        out = []
+        for r in rows:
+            d = dict(r)
+            if d.get("updated_at") is not None and hasattr(d["updated_at"], "isoformat"):
+                d["updated_at"] = d["updated_at"].isoformat()
+            out.append(d)
+        return out
+
+
+async def merge_vendor_upload(
+    vendors: list[dict],
+    categories: list[dict],
+    products: list[dict],
+) -> dict:
+    """Apply a parsed xlsx upload using merge-with-xlsx-wins semantics.
+
+    Behavior (locked in plan):
+      * Vendor in xlsx AND in DB → xlsx-sourced fields overwrite DB row.
+        `source` and `notes` (portal-only) are preserved.
+      * Vendor only in xlsx → inserted with source='upload'.
+      * Vendor only in DB → left alone (manual additions survive re-imports).
+      * RFP categories: full UPSERT (xlsx is authoritative metadata).
+      * Products: xlsx-sourced product rows (source_tab in ('Vendors',
+        'Products by Vendor')) are wiped per affected vendor and reinserted.
+        Manually-added products (source_tab='manual') are preserved.
+
+    Runs in a single transaction so a parse error or constraint violation
+    rolls everything back.
+    """
+    import uuid as _uuid
+
+    pool = await get_pool()
+    counts = {
+        "vendors_inserted": 0,
+        "vendors_updated": 0,
+        "categories_upserted": 0,
+        "products_inserted": 0,
+        "products_skipped_orphan": 0,
+    }
+
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            # ── Vendors ─────────────────────────────────────────
+            # Build company → id map for product reconcile after upsert.
+            company_to_id: dict[str, int] = {}
+
+            for v in vendors:
+                company = (v.get("company") or "").strip()
+                if not company:
+                    continue
+
+                # ON CONFLICT update only xlsx-authoritative columns.
+                # primary_contacts etc. come in as Python lists -> Postgres TEXT[].
+                row = await conn.fetchrow(
+                    """
+                    INSERT INTO vendors (
+                        uuid, company, domain,
+                        primary_contacts, emails, phones, websites,
+                        inquiry_count, last_contact,
+                        rfp_categories, products_quoted,
+                        bid_count, bid_history, rfps_won,
+                        source
+                    ) VALUES (
+                        $1, $2, $3,
+                        $4, $5, $6, $7,
+                        $8, $9,
+                        $10, $11,
+                        $12, $13, $14,
+                        'upload'
+                    )
+                    ON CONFLICT (company) DO UPDATE SET
+                        domain          = EXCLUDED.domain,
+                        primary_contacts= EXCLUDED.primary_contacts,
+                        emails          = EXCLUDED.emails,
+                        phones          = EXCLUDED.phones,
+                        websites        = EXCLUDED.websites,
+                        inquiry_count   = EXCLUDED.inquiry_count,
+                        last_contact    = EXCLUDED.last_contact,
+                        rfp_categories  = EXCLUDED.rfp_categories,
+                        products_quoted = EXCLUDED.products_quoted,
+                        bid_count       = EXCLUDED.bid_count,
+                        bid_history     = EXCLUDED.bid_history,
+                        rfps_won        = EXCLUDED.rfps_won,
+                        updated_at      = NOW()
+                    RETURNING id, (xmax = 0) AS inserted
+                    """,
+                    _uuid.uuid4(),
+                    company,
+                    v.get("domain", "") or "",
+                    v.get("primary_contacts") or [],
+                    v.get("emails") or [],
+                    v.get("phones") or [],
+                    v.get("websites") or [],
+                    int(v.get("inquiry_count") or 0),
+                    v.get("last_contact"),
+                    v.get("rfp_categories") or [],
+                    v.get("products_quoted") or [],
+                    int(v.get("bid_count") or 0),
+                    v.get("bid_history", "") or "",
+                    v.get("rfps_won", "") or "",
+                )
+                company_to_id[company.lower()] = row["id"]
+                if row["inserted"]:
+                    counts["vendors_inserted"] += 1
+                else:
+                    counts["vendors_updated"] += 1
+
+            # ── RFP categories (xlsx is authoritative) ──────────
+            for c in categories:
+                cat = (c.get("category") or "").strip()
+                if not cat:
+                    continue
+                await conn.execute(
+                    """
+                    INSERT INTO rfp_categories (category, keywords,
+                                                vendors_tagged_count,
+                                                needs_enrichment_count)
+                    VALUES ($1, $2, $3, $4)
+                    ON CONFLICT (category) DO UPDATE SET
+                        keywords               = EXCLUDED.keywords,
+                        vendors_tagged_count   = EXCLUDED.vendors_tagged_count,
+                        needs_enrichment_count = EXCLUDED.needs_enrichment_count,
+                        updated_at             = NOW()
+                    """,
+                    cat,
+                    c.get("keywords") or [],
+                    int(c.get("vendors_tagged_count") or 0),
+                    int(c.get("needs_enrichment_count") or 0),
+                )
+                counts["categories_upserted"] += 1
+
+            # ── Products by vendor ──────────────────────────────
+            # Wipe xlsx-sourced products for vendors we just upserted, then
+            # reinsert from the parsed list. Manually-added products
+            # (source_tab='manual') are untouched.
+            if company_to_id:
+                await conn.execute(
+                    """DELETE FROM products_by_vendor
+                       WHERE source_tab IN ('Vendors', 'Products by Vendor')
+                         AND vendor_id = ANY($1::int[])""",
+                    list(company_to_id.values()),
+                )
+
+            for p in products:
+                company = (p.get("vendor_company") or "").strip()
+                vid = company_to_id.get(company.lower())
+                if vid is None:
+                    # Orphan — vendor in Products sheet but not in Vendors sheet.
+                    # Insert with NULL vendor_id so the row isn't lost, and
+                    # surface via the warnings list returned by the parser.
+                    counts["products_skipped_orphan"] += 1
+                await conn.execute(
+                    """
+                    INSERT INTO products_by_vendor
+                        (vendor_id, vendor_company, domain_sender_key,
+                         product, rfp_code, source_tab)
+                    VALUES ($1, $2, $3, $4, $5, $6)
+                    """,
+                    vid,
+                    company,
+                    p.get("domain_sender_key", "") or "",
+                    p.get("product", "") or "",
+                    p.get("rfp_code", "") or "",
+                    p.get("source_tab", "Products by Vendor") or "Products by Vendor",
+                )
+                counts["products_inserted"] += 1
+
+    return counts

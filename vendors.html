@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAD Global — Vendor Management</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Corporate palette — default. Mirrors po.html so the iframe matches the
+   parent dashboard's Corporate skin. */
+:root {
+  --bg-deep: #FFFFFF;
+  --bg-base: #FFFFFF;
+  --bg-surface: #F8F9FA;
+  --bg-card: #FFFFFF;
+  --bg-elevated: #F1F5F9;
+  --cyan: #1E3A5F;
+  --cyan-rgb: 30, 58, 95;
+  --orange: #D97706;
+  --green: #16A34A;
+  --red: #DC2626;
+  --yellow: #D97706;
+  --text-primary: #1A202C;
+  --text-secondary: #64748B;
+  --text-muted: #94A3B8;
+  --border: #E2E8F0;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+body.theme-fun {
+  --bg-deep: #050816;
+  --bg-base: #0A0E27;
+  --bg-surface: #111738;
+  --bg-card: #151B3D;
+  --bg-elevated: #1A2248;
+  --cyan: #00D4FF;
+  --cyan-rgb: 0, 212, 255;
+  --orange: #FF6B35;
+  --green: #00FF88;
+  --red: #FF3B5C;
+  --yellow: #FFD93D;
+  --text-primary: #E8ECF4;
+  --text-secondary: #8892B0;
+  --text-muted: #4A5280;
+  --border: rgba(0, 212, 255, 0.12);
+  --shadow-sm: none;
+  --shadow-md: none;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: 'Outfit', sans-serif;
+  min-height: 100vh;
+  padding: 24px;
+}
+.wrap { max-width: 1280px; margin: 0 auto; }
+.section-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 13px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--cyan);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.section-title .icon { font-size: 18px; }
+.panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-sm);
+}
+.muted { color: var(--text-secondary); font-size: 13px; }
+.mono { font-family: 'JetBrains Mono', monospace; font-feature-settings: 'tnum' 1; }
+
+/* Buttons */
+.btn {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 9px 18px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--cyan); color: #FFFFFF; }
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(var(--cyan-rgb), 0.25);
+  filter: brightness(1.08);
+}
+.btn-primary:disabled {
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  cursor: not-allowed; transform: none; box-shadow: none; filter: none;
+}
+.btn-secondary {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover { border-color: var(--cyan); }
+.btn-ghost { background: transparent; color: var(--text-secondary); border: 1px solid var(--border); }
+.btn-danger { background: rgba(220, 38, 38, 0.08); color: var(--red); border: 1px solid rgba(220, 38, 38, 0.3); }
+.btn-danger:hover { background: var(--red); color: #FFFFFF; }
+.btn-sm { padding: 6px 12px; font-size: 13px; }
+
+/* Upload */
+.drop {
+  border: 2px dashed var(--border);
+  border-radius: 14px;
+  padding: 40px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--bg-surface);
+}
+.drop:hover, .drop.over {
+  border-color: var(--cyan);
+  background: var(--bg-elevated);
+}
+.drop.has-file {
+  border-color: var(--green);
+  border-style: solid;
+  background: rgba(22, 163, 74, 0.06);
+}
+.drop .label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+.drop .hint { color: var(--text-muted); font-size: 12px; margin-top: 8px; }
+.drop .filename {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--green);
+  word-break: break-all;
+  font-size: 13px;
+}
+.drop input[type="file"] { display: none; }
+
+/* Toolbar */
+.toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.toolbar input, .toolbar select {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 14px;
+}
+.toolbar input:focus, .toolbar select:focus { outline: none; border-color: var(--cyan); }
+.toolbar .search { flex: 1; min-width: 220px; }
+
+/* Table */
+.table-wrap { overflow-x: auto; }
+table.vendors {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 980px;
+}
+.vendors th {
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  text-align: left;
+  padding: 10px 10px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.vendors td {
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.vendors tr:hover td { background: var(--bg-surface); }
+.vendors td .company { font-weight: 600; color: var(--text-primary); }
+.vendors td .sub { color: var(--text-secondary); font-size: 12px; margin-top: 2px; }
+.vendors td.num { text-align: right; font-family: 'JetBrains Mono', monospace; }
+.vendors .actions { display: flex; gap: 6px; justify-content: flex-end; }
+
+/* Chips */
+.chips { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(var(--cyan-rgb), 0.08);
+  color: var(--cyan);
+  border: 1px solid rgba(var(--cyan-rgb), 0.18);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chip .x {
+  cursor: pointer;
+  opacity: 0.6;
+  font-size: 14px;
+  line-height: 1;
+}
+.chip .x:hover { opacity: 1; color: var(--red); }
+.chip-more { color: var(--text-muted); font-size: 11px; padding: 2px 6px; }
+
+/* Empty / placeholders */
+.empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 36px 16px;
+  font-size: 14px;
+}
+.spinner {
+  display: inline-block;
+  width: 14px; height: 14px;
+  border: 2px solid rgba(var(--cyan-rgb), 0.2);
+  border-top-color: var(--cyan);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.btn-primary .spinner { border-color: rgba(255,255,255,0.35); border-top-color: #FFFFFF; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Warnings panel */
+.warnings {
+  background: rgba(217, 119, 6, 0.08);
+  border: 1px solid rgba(217, 119, 6, 0.32);
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 18px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.warnings .heading {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--orange);
+  margin-bottom: 8px;
+}
+.warnings ul { list-style: none; padding-left: 0; }
+.warnings li {
+  font-size: 13px;
+  color: var(--text-primary);
+  padding: 4px 0;
+  padding-left: 20px;
+  position: relative;
+}
+.warnings li:before {
+  content: "▶"; position: absolute; left: 0;
+  color: var(--orange); font-size: 9px; top: 6px;
+}
+
+/* Counts panel */
+.counts { display: flex; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
+.count {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 16px;
+  min-width: 120px;
+}
+.count .n {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--cyan);
+}
+.count .lbl {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* Drawer */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  z-index: 100;
+  display: none;
+}
+.overlay.show { display: block; }
+.drawer {
+  position: fixed;
+  top: 0; right: 0;
+  width: min(640px, 100vw);
+  height: 100vh;
+  background: var(--bg-card);
+  border-left: 1px solid var(--border);
+  z-index: 101;
+  display: none;
+  flex-direction: column;
+  box-shadow: -8px 0 24px rgba(15, 23, 42, 0.08);
+}
+.drawer.show { display: flex; }
+.drawer-header {
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.drawer-header h2 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 14px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+.drawer-body { padding: 22px; overflow-y: auto; flex: 1; }
+.drawer-footer {
+  padding: 14px 22px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+/* Form */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 18px;
+  margin-bottom: 16px;
+}
+@media (max-width: 720px) { .form-grid { grid-template-columns: 1fr; } }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field.full { grid-column: 1 / -1; }
+.field label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.field input, .field textarea {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 14px;
+}
+.field input:focus, .field textarea:focus { outline: none; border-color: var(--cyan); }
+.field textarea { resize: vertical; min-height: 60px; }
+
+/* List editor (chips with add input) */
+.list-editor {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  min-height: 38px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.list-editor .chip {
+  max-width: none;
+  background: rgba(var(--cyan-rgb), 0.1);
+}
+.list-editor .add-input {
+  flex: 1;
+  min-width: 120px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  padding: 4px 6px;
+  font-size: 13px;
+  font-family: 'Outfit', sans-serif;
+}
+
+/* Pipeline-only panel */
+.pipeline {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+.pipeline .header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.pipeline .title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.pipeline .note { font-size: 11px; color: var(--text-muted); }
+.pipeline .grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+.pipeline .stat .v {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-primary);
+}
+.pipeline .stat .k {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.pipeline pre.bid-history {
+  margin-top: 8px;
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+/* Products table inside drawer */
+.products-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 8px;
+}
+.products-table th, .products-table td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.products-table th { color: var(--text-secondary); font-weight: 600; }
+
+/* Pagination */
+.pager {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 16px;
+}
+.pager .info { color: var(--text-muted); font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  z-index: 200;
+  display: none;
+  max-width: 360px;
+  box-shadow: var(--shadow-md);
+}
+.toast.show { display: block; animation: slidein 0.25s ease-out; }
+.toast.success { border-color: var(--green); color: var(--green); }
+.toast.error { border-color: var(--red); color: var(--red); }
+@keyframes slidein { from { transform: translateY(20px); opacity: 0; } }
+</style>
+</head>
+<body>
+<script>
+// Apply theme before paint to avoid flash. Same trick as po.html.
+(function() {
+  try {
+    if (localStorage.getItem('theme') === 'fun') {
+      document.body.classList.add('theme-fun');
+    }
+  } catch (_) {}
+})();
+</script>
+
+<div class="wrap">
+
+  <!-- STATE A: Upload (shown when DB is empty or user clicks Re-import) -->
+  <div class="panel" id="upload-panel" hidden>
+    <div class="section-title"><span class="icon">📤</span> Import Vendor Database</div>
+    <p class="muted" style="margin-bottom:18px">
+      Upload the <strong>RAD Global Vendor Database</strong> xlsx. The Vendors,
+      RFP Categories, and Products by Vendor sheets are imported. Existing
+      vendors are updated with xlsx values; portal-only fields and manually-added
+      vendors are preserved. Max 15 MB.
+    </p>
+
+    <label class="drop" id="drop-zone">
+      <div class="label">Vendor Database</div>
+      <div class="filename" id="filename-label">Drop .xlsx or click to browse</div>
+      <div class="hint">Excel workbook with Vendors, RFP Categories, Products by Vendor sheets</div>
+      <input type="file" id="file-input" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+    </label>
+
+    <div style="display:flex;gap:12px;margin-top:18px;align-items:center;justify-content:space-between">
+      <span class="muted" id="upload-status">Select a file to enable import.</span>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-ghost" id="btn-cancel-upload" style="display:none">Cancel</button>
+        <button class="btn btn-primary" id="btn-upload" disabled>
+          <span id="btn-upload-label">Import</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATE B: Vendor list (default) -->
+  <div class="panel" id="list-panel">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <div class="section-title" style="margin-bottom:0">
+        <span class="icon">🏢</span> Vendor Management
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-ghost btn-sm" id="btn-reimport">⤓ Re-import xlsx</button>
+        <button class="btn btn-primary btn-sm" id="btn-add">+ Add Vendor</button>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <input class="search" id="search-input" placeholder="Search company or domain…" type="search">
+      <select id="category-filter">
+        <option value="">All categories</option>
+      </select>
+      <span class="muted mono" id="result-count" style="margin-left:auto"></span>
+    </div>
+
+    <div class="table-wrap">
+      <table class="vendors">
+        <thead>
+          <tr>
+            <th style="min-width:180px">Company</th>
+            <th>Contact</th>
+            <th>Email</th>
+            <th class="num">Inq.</th>
+            <th class="num">Bids</th>
+            <th>Last Contact</th>
+            <th>Categories</th>
+            <th style="width:80px"></th>
+          </tr>
+        </thead>
+        <tbody id="vendor-rows">
+          <tr><td colspan="8"><div class="empty">Loading…</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pager">
+      <button class="btn btn-ghost btn-sm" id="pg-prev">← Prev</button>
+      <span class="info" id="pg-info">—</span>
+      <button class="btn btn-ghost btn-sm" id="pg-next">Next →</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Drawer: Vendor edit / create -->
+<div class="overlay" id="overlay"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-header">
+    <h2 id="drawer-title">Vendor</h2>
+    <button class="btn btn-ghost btn-sm" onclick="closeDrawer()">Close</button>
+  </div>
+  <div class="drawer-body">
+
+    <div class="form-grid">
+      <div class="field"><label>Company *</label>
+        <input id="f-company" type="text" required></div>
+      <div class="field"><label>Domain</label>
+        <input id="f-domain" type="text" placeholder="example.com"></div>
+
+      <div class="field full"><label>Primary Contact(s)</label>
+        <div class="list-editor" data-list="primary_contacts"></div>
+      </div>
+      <div class="field full"><label>Email(s)</label>
+        <div class="list-editor" data-list="emails"></div>
+      </div>
+      <div class="field full"><label>Phone(s)</label>
+        <div class="list-editor" data-list="phones"></div>
+      </div>
+      <div class="field full"><label>Website(s)</label>
+        <div class="list-editor" data-list="websites"></div>
+      </div>
+
+      <div class="field full"><label>RFP Categories</label>
+        <div class="list-editor" data-list="rfp_categories"></div>
+      </div>
+      <div class="field full"><label>Products Quoted</label>
+        <div class="list-editor" data-list="products_quoted"></div>
+      </div>
+
+      <div class="field full"><label>RFPs Won (likely)</label>
+        <input id="f-rfps_won" type="text"></div>
+      <div class="field full"><label>Notes (portal-only)</label>
+        <textarea id="f-notes" rows="2" placeholder="Internal notes — survives re-imports"></textarea>
+      </div>
+    </div>
+
+    <!-- Pipeline data — display only -->
+    <div class="pipeline" id="pipeline-panel">
+      <div class="header">
+        <span class="title">Pipeline data</span>
+        <span class="note">— regenerated on next xlsx import</span>
+      </div>
+      <div class="grid">
+        <div class="stat"><div class="k">Inquiry Count</div><div class="v" id="pd-inquiry">—</div></div>
+        <div class="stat"><div class="k">Bid Count</div><div class="v" id="pd-bids">—</div></div>
+        <div class="stat"><div class="k">Last Contact</div><div class="v" id="pd-last">—</div></div>
+      </div>
+      <div id="pd-bid-history-wrap" hidden>
+        <div class="k" style="margin-top:10px;color:var(--text-secondary);font-size:11px">Bid History</div>
+        <pre class="bid-history" id="pd-bid-history"></pre>
+      </div>
+    </div>
+
+    <!-- Products -->
+    <div id="products-section" hidden>
+      <div class="section-title" style="font-size:11px;margin-top:14px">
+        <span class="icon">📦</span> Products (catalog)
+      </div>
+      <div class="table-wrap">
+        <table class="products-table">
+          <thead><tr>
+            <th>Product</th><th style="width:140px">RFP Code</th><th style="width:120px">Source</th>
+          </tr></thead>
+          <tbody id="products-rows"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+  <div class="drawer-footer">
+    <button class="btn btn-danger btn-sm" id="btn-delete" style="margin-right:auto">Delete</button>
+    <button class="btn btn-ghost" onclick="closeDrawer()">Cancel</button>
+    <button class="btn btn-primary" id="btn-save">Save</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ─── API base resolution (mirrors po.html) ─────────────────────────── */
+const API_BASE = (() => {
+  if (window.VENDOR_API_BASE) return window.VENDOR_API_BASE.replace(/\/$/, '');
+  if (window.PO_API_BASE)     return window.PO_API_BASE.replace(/\/$/, '');
+  const m = window.location.search.match(/[?&]api=([^&]+)/);
+  return m ? decodeURIComponent(m[1]).replace(/\/$/, '') : '';
+})();
+
+/* ─── State ─────────────────────────────────────────────────────────── */
+const state = {
+  uploadFile: null,
+  vendors: [],
+  categories: [],
+  q: '',
+  category: '',
+  limit: 200,
+  offset: 0,
+  total: 0,
+  editing: null,        // currently-open vendor (null = new vendor)
+  editingLists: {},     // working copy of TEXT[] fields
+};
+
+/* ─── Utility ───────────────────────────────────────────────────────── */
+function showToast(msg, kind='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast show ${kind}`;
+  setTimeout(() => t.classList.remove('show'), 4500);
+}
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function debounce(fn, ms) {
+  let id; return (...args) => { clearTimeout(id); id = setTimeout(() => fn(...args), ms); };
+}
+
+/* ─── Upload state (State A) ────────────────────────────────────────── */
+function wireUpload() {
+  const drop = document.getElementById('drop-zone');
+  const input = document.getElementById('file-input');
+  const label = document.getElementById('filename-label');
+  const btn = document.getElementById('btn-upload');
+  const status = document.getElementById('upload-status');
+
+  function attach(file) {
+    if (!file) return;
+    const lname = file.name.toLowerCase();
+    if (!lname.endsWith('.xlsx')) return showToast('Must be a .xlsx file.', 'error');
+    if (file.size > 15 * 1024 * 1024) return showToast('File too large — max 15 MB.', 'error');
+    state.uploadFile = file;
+    drop.classList.add('has-file');
+    label.textContent = file.name;
+    btn.disabled = false;
+    status.textContent = 'Click Import to upload.';
+  }
+
+  input.addEventListener('change', e => attach(e.target.files[0]));
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', e => {
+    e.preventDefault();
+    drop.classList.remove('over');
+    attach(e.dataTransfer.files[0]);
+  });
+
+  btn.addEventListener('click', runUpload);
+  document.getElementById('btn-cancel-upload').addEventListener('click', () => {
+    showList();
+  });
+}
+
+async function runUpload() {
+  const btn = document.getElementById('btn-upload');
+  const btnLabel = document.getElementById('btn-upload-label');
+  const status = document.getElementById('upload-status');
+  if (!state.uploadFile) return;
+
+  btn.disabled = true;
+  btnLabel.innerHTML = '<span class="spinner"></span> Importing…';
+  status.textContent = 'Parsing & saving — this can take ~10–30 seconds for the full file.';
+
+  const fd = new FormData();
+  fd.append('file', state.uploadFile);
+
+  try {
+    const res = await fetch(API_BASE + '/api/vendors/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Upload failed');
+
+    // Build a small summary panel inline
+    const counts = data.counts || {};
+    const w = data.warnings || [];
+    const summaryHtml = `
+      <div class="counts">
+        <div class="count"><div class="n">${counts.vendors_inserted ?? 0}</div><div class="lbl">Inserted</div></div>
+        <div class="count"><div class="n">${counts.vendors_updated ?? 0}</div><div class="lbl">Updated</div></div>
+        <div class="count"><div class="n">${counts.categories_upserted ?? 0}</div><div class="lbl">Categories</div></div>
+        <div class="count"><div class="n">${counts.products_inserted ?? 0}</div><div class="lbl">Products</div></div>
+      </div>
+      ${w.length ? `<div class="warnings">
+        <div class="heading">⚠ ${w.length} warning${w.length === 1 ? '' : 's'}</div>
+        <ul>${w.slice(0, 50).map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
+        ${w.length > 50 ? `<div class="muted" style="margin-top:6px">…and ${w.length - 50} more.</div>` : ''}
+      </div>` : ''}`;
+    document.getElementById('upload-panel').insertAdjacentHTML(
+      'afterbegin', `<div id="upload-summary" style="margin-bottom:18px">${summaryHtml}</div>`
+    );
+    showToast(`Imported — ${counts.vendors_inserted ?? 0} new, ${counts.vendors_updated ?? 0} updated.`, 'success');
+    // Transition to list after a beat
+    setTimeout(() => {
+      document.getElementById('upload-summary')?.remove();
+      showList();
+      loadVendors();
+    }, 1500);
+  } catch (err) {
+    showToast(err.message || 'Upload failed', 'error');
+    status.textContent = (err.message || 'Failed') + '. Try a different file or check the format.';
+  } finally {
+    btnLabel.textContent = 'Import';
+    btn.disabled = false;
+  }
+}
+
+/* ─── List state (State B) ──────────────────────────────────────────── */
+function showUpload() {
+  document.getElementById('upload-panel').hidden = false;
+  document.getElementById('list-panel').hidden = true;
+  document.getElementById('btn-cancel-upload').style.display = state.vendors.length ? '' : 'none';
+}
+function showList() {
+  document.getElementById('upload-panel').hidden = true;
+  document.getElementById('list-panel').hidden = false;
+}
+
+async function loadVendors() {
+  const tbody = document.getElementById('vendor-rows');
+  tbody.innerHTML = `<tr><td colspan="8"><div class="empty">Loading…</div></td></tr>`;
+
+  const url = new URL(API_BASE + '/api/vendors', window.location.origin);
+  if (state.q) url.searchParams.set('q', state.q);
+  if (state.category) url.searchParams.set('category', state.category);
+  url.searchParams.set('limit', state.limit);
+  url.searchParams.set('offset', state.offset);
+
+  try {
+    const res = await fetch(url);
+    const rows = await res.json();
+    state.vendors = Array.isArray(rows) ? rows : [];
+    if (state.vendors.length === 0 && state.offset === 0 && !state.q && !state.category) {
+      // Truly empty — show upload state
+      showUpload();
+      return;
+    }
+    renderRows();
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty">Could not load vendors.</div></td></tr>`;
+  }
+}
+
+function renderRows() {
+  const tbody = document.getElementById('vendor-rows');
+  const count = document.getElementById('result-count');
+
+  if (!state.vendors.length) {
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty">No vendors match.</div></td></tr>`;
+    count.textContent = '';
+    document.getElementById('pg-info').textContent = '—';
+    return;
+  }
+  count.textContent = `${state.vendors.length} shown`;
+  document.getElementById('pg-info').textContent =
+    `${state.offset + 1}–${state.offset + state.vendors.length}`;
+
+  tbody.innerHTML = state.vendors.map(v => {
+    const cats = (v.rfp_categories || []);
+    const catChips = cats.slice(0, 3).map(c => `<span class="chip">${escapeHtml(c)}</span>`).join('');
+    const more = cats.length > 3 ? `<span class="chip-more">+${cats.length - 3}</span>` : '';
+    const firstContact = (v.primary_contacts || [])[0] || '';
+    const firstEmail = (v.emails || [])[0] || '';
+    const last = v.last_contact ? v.last_contact.slice(0, 10) : '';
+    const domainLine = v.domain ? `<div class="sub">${escapeHtml(v.domain)}</div>` : '';
+    return `<tr data-uuid="${v.uuid}">
+      <td>
+        <div class="company">${escapeHtml(v.company)}</div>
+        ${domainLine}
+      </td>
+      <td>${escapeHtml(firstContact)}</td>
+      <td><span class="mono" style="font-size:12px">${escapeHtml(firstEmail)}</span></td>
+      <td class="num">${v.inquiry_count ?? 0}</td>
+      <td class="num">${v.bid_count ?? 0}</td>
+      <td class="mono" style="font-size:12px">${escapeHtml(last)}</td>
+      <td><div class="chips">${catChips}${more}</div></td>
+      <td><div class="actions">
+        <button class="btn btn-ghost btn-sm" onclick="openEdit('${v.uuid}')">Edit</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+async function loadCategories() {
+  try {
+    const res = await fetch(API_BASE + '/api/rfp-categories');
+    const cats = await res.json();
+    state.categories = cats;
+    const sel = document.getElementById('category-filter');
+    const cur = sel.value;
+    sel.innerHTML = `<option value="">All categories</option>` +
+      cats.map(c => `<option value="${escapeHtml(c.category)}">${escapeHtml(c.category)}</option>`).join('');
+    sel.value = cur;
+  } catch (_) {/* not fatal */}
+}
+
+/* ─── Drawer (State C) ──────────────────────────────────────────────── */
+function openEdit(uuid) {
+  const v = state.vendors.find(x => x.uuid === uuid);
+  if (!v) return;
+  // Fetch full vendor (with embedded products) — list omits embedded data
+  fetch(API_BASE + '/api/vendors/' + encodeURIComponent(uuid))
+    .then(r => r.json())
+    .then(full => {
+      state.editing = full;
+      openDrawer('Edit Vendor', full);
+    })
+    .catch(() => openDrawer('Edit Vendor', v));
+}
+
+function openCreate() {
+  state.editing = null;
+  openDrawer('New Vendor', {
+    company: '', domain: '',
+    primary_contacts: [], emails: [], phones: [], websites: [],
+    rfp_categories: [], products_quoted: [],
+    rfps_won: '', notes: '',
+    inquiry_count: 0, bid_count: 0, bid_history: '', last_contact: null,
+    products: [],
+  });
+}
+
+function openDrawer(title, v) {
+  document.getElementById('drawer-title').textContent = title;
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('drawer').classList.add('show');
+
+  // Scalar fields
+  document.getElementById('f-company').value = v.company || '';
+  document.getElementById('f-domain').value = v.domain || '';
+  document.getElementById('f-rfps_won').value = v.rfps_won || '';
+  document.getElementById('f-notes').value = v.notes || '';
+
+  // List fields → chip editors
+  const listFields = ['primary_contacts', 'emails', 'phones', 'websites',
+                       'rfp_categories', 'products_quoted'];
+  state.editingLists = {};
+  listFields.forEach(f => {
+    state.editingLists[f] = Array.isArray(v[f]) ? v[f].slice() : [];
+    renderListEditor(f);
+  });
+
+  // Pipeline panel
+  document.getElementById('pd-inquiry').textContent = v.inquiry_count ?? 0;
+  document.getElementById('pd-bids').textContent = v.bid_count ?? 0;
+  document.getElementById('pd-last').textContent = v.last_contact ? v.last_contact.slice(0, 10) : '—';
+  const histWrap = document.getElementById('pd-bid-history-wrap');
+  if (v.bid_history) {
+    histWrap.hidden = false;
+    document.getElementById('pd-bid-history').textContent = v.bid_history;
+  } else { histWrap.hidden = true; }
+
+  // Products
+  const prodSection = document.getElementById('products-section');
+  const prods = v.products || [];
+  if (prods.length) {
+    prodSection.hidden = false;
+    document.getElementById('products-rows').innerHTML = prods.map(p => `
+      <tr>
+        <td>${escapeHtml(p.product)}</td>
+        <td class="mono" style="font-size:11px">${escapeHtml(p.rfp_code || '')}</td>
+        <td class="mono" style="font-size:11px;color:var(--text-muted)">${escapeHtml(p.source_tab || '')}</td>
+      </tr>`).join('');
+  } else { prodSection.hidden = true; }
+
+  // Delete button visible only when editing
+  document.getElementById('btn-delete').style.display = state.editing ? '' : 'none';
+}
+
+function closeDrawer() {
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('drawer').classList.remove('show');
+}
+
+function renderListEditor(field) {
+  const el = document.querySelector(`.list-editor[data-list="${field}"]`);
+  const items = state.editingLists[field] || [];
+  el.innerHTML = items.map((item, i) => `
+    <span class="chip">${escapeHtml(item)}<span class="x" data-i="${i}" data-f="${field}">×</span></span>
+  `).join('') +
+  `<input class="add-input" data-f="${field}" placeholder="add…" />`;
+
+  el.querySelectorAll('.x').forEach(x => {
+    x.addEventListener('click', () => {
+      const i = parseInt(x.dataset.i);
+      const f = x.dataset.f;
+      state.editingLists[f].splice(i, 1);
+      renderListEditor(f);
+    });
+  });
+
+  const add = el.querySelector('.add-input');
+  add.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ',' || e.key === ';') {
+      e.preventDefault();
+      const val = add.value.trim();
+      if (val) {
+        state.editingLists[field].push(val);
+        renderListEditor(field);
+        // Focus the fresh add input after re-render
+        setTimeout(() => {
+          document.querySelector(`.list-editor[data-list="${field}"] .add-input`)?.focus();
+        }, 0);
+      }
+    }
+  });
+  add.addEventListener('blur', () => {
+    const val = add.value.trim();
+    if (val) {
+      state.editingLists[field].push(val);
+      renderListEditor(field);
+    }
+  });
+}
+
+async function saveVendor() {
+  const payload = {
+    company: document.getElementById('f-company').value.trim(),
+    domain: document.getElementById('f-domain').value.trim(),
+    primary_contacts: state.editingLists.primary_contacts,
+    emails: state.editingLists.emails,
+    phones: state.editingLists.phones,
+    websites: state.editingLists.websites,
+    rfp_categories: state.editingLists.rfp_categories,
+    products_quoted: state.editingLists.products_quoted,
+    rfps_won: document.getElementById('f-rfps_won').value.trim(),
+    notes: document.getElementById('f-notes').value.trim(),
+  };
+  if (!payload.company) {
+    showToast('Company is required.', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btn-save');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Saving…';
+
+  try {
+    let res;
+    if (state.editing) {
+      res = await fetch(API_BASE + '/api/vendors/' + encodeURIComponent(state.editing.uuid), {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload),
+      });
+    } else {
+      res = await fetch(API_BASE + '/api/vendors', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload),
+      });
+    }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Save failed');
+
+    showToast(state.editing ? 'Vendor updated.' : 'Vendor created.', 'success');
+    closeDrawer();
+    await loadVendors();
+    await loadCategories();
+  } catch (err) {
+    showToast(err.message || 'Save failed', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save';
+  }
+}
+
+async function deleteVendor() {
+  if (!state.editing) return;
+  const ok = confirm(`Delete vendor "${state.editing.company}"? This will also remove their products. This cannot be undone.`);
+  if (!ok) return;
+  try {
+    const res = await fetch(API_BASE + '/api/vendors/' + encodeURIComponent(state.editing.uuid), {
+      method: 'DELETE',
+    });
+    if (!res.ok && res.status !== 204) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Delete failed');
+    }
+    showToast('Vendor deleted.', 'success');
+    closeDrawer();
+    await loadVendors();
+  } catch (err) {
+    showToast(err.message || 'Delete failed', 'error');
+  }
+}
+
+/* ─── Boot ──────────────────────────────────────────────────────────── */
+wireUpload();
+document.getElementById('btn-reimport').addEventListener('click', () => showUpload());
+document.getElementById('btn-add').addEventListener('click', openCreate);
+document.getElementById('btn-save').addEventListener('click', saveVendor);
+document.getElementById('btn-delete').addEventListener('click', deleteVendor);
+document.getElementById('overlay').addEventListener('click', closeDrawer);
+
+const onSearch = debounce(() => {
+  state.q = document.getElementById('search-input').value.trim();
+  state.offset = 0;
+  loadVendors();
+}, 300);
+document.getElementById('search-input').addEventListener('input', onSearch);
+document.getElementById('category-filter').addEventListener('change', () => {
+  state.category = document.getElementById('category-filter').value;
+  state.offset = 0;
+  loadVendors();
+});
+document.getElementById('pg-prev').addEventListener('click', () => {
+  state.offset = Math.max(0, state.offset - state.limit);
+  loadVendors();
+});
+document.getElementById('pg-next').addEventListener('click', () => {
+  if (state.vendors.length >= state.limit) {
+    state.offset += state.limit;
+    loadVendors();
+  }
+});
+
+loadCategories();
+loadVendors();
+</script>
+</body>
+</html>

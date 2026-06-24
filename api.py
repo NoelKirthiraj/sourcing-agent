@@ -23,6 +23,7 @@ from urllib.parse import urlparse, parse_qs
 
 import db
 import po_routes
+import vendor_routes
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -32,7 +33,7 @@ _loop = None
 # Hard upper bound on request body size to prevent a malicious Content-Length
 # header from causing an OOM by inflating rfile.read(N). /api/po accepts
 # base64-encoded PDFs so it gets a larger cap; everything else stays small.
-_LARGE_BODY_PATHS = ("/api/po", "/api/po/extract")
+_LARGE_BODY_PATHS = ("/api/po", "/api/po/extract", "/api/vendors/upload")
 _LARGE_BODY_MAX = 30 * 1024 * 1024   # 30 MB — fits two 10MB base64 PDFs + metadata
 _SMALL_BODY_MAX = 64 * 1024          # 64 KB — every other JSON POST
 
@@ -78,6 +79,17 @@ class APIHandler(BaseHTTPRequestHandler):
                 po_routes.handle_download(self, _run_async, parts[3])
             else:
                 self._json_response({"error": "invalid path"}, 400)
+        elif path == "/api/vendors":
+            vendor_routes.handle_list(self, _run_async, params)
+        elif path.startswith("/api/vendors/"):
+            # /api/vendors/<uuid> — exactly 4 segments
+            parts = path.split("/")
+            if len(parts) == 4 and parts[3]:
+                vendor_routes.handle_get(self, _run_async, parts[3])
+            else:
+                self._json_response({"error": "invalid path"}, 400)
+        elif path == "/api/rfp-categories":
+            vendor_routes.handle_list_categories(self, _run_async)
         elif path == "/api/health":
             self._json_response({"status": "ok"})
         else:
@@ -107,6 +119,11 @@ class APIHandler(BaseHTTPRequestHandler):
         # PO extract uses multipart — handle before the JSON-parsing block below.
         if path == "/api/po/extract":
             po_routes.handle_extract(self, _run_async)
+            return
+
+        # Vendor upload uses multipart (xlsx file) — handle before JSON parsing.
+        if path == "/api/vendors/upload":
+            vendor_routes.handle_upload(self, _run_async)
             return
 
         try:
@@ -140,13 +157,49 @@ class APIHandler(BaseHTTPRequestHandler):
                 self._handle_submit_all_accepted()
             elif path == "/api/po":
                 po_routes.handle_generate(self, _run_async, body)
+            elif path == "/api/vendors":
+                vendor_routes.handle_create(self, _run_async, body)
             else:
                 self._json_response({"error": "not found"}, 404)
         except (ValueError, TypeError, IndexError):
             self._json_response({"error": "invalid request"}, 400)
 
+    def do_PUT(self):
+        """Handle PUT requests. Currently only /api/vendors/<uuid> is supported."""
+        parsed = urlparse(self.path)
+        path = parsed.path
+
+        # Body-size cap (same scheme as do_POST — vendors PUT is JSON only).
+        try:
+            content_length = int(self.headers.get("Content-Length", 0))
+        except (TypeError, ValueError):
+            content_length = 0
+        if content_length > _SMALL_BODY_MAX:
+            mb = content_length / (1024 * 1024)
+            cap_kb = _SMALL_BODY_MAX // 1024
+            self._json_response(
+                {"error": f"request body too large ({mb:.2f} MB; max {cap_kb} KB)"},
+                413,
+            )
+            return
+
+        try:
+            body = json.loads(self.rfile.read(content_length)) if content_length > 0 else {}
+        except (json.JSONDecodeError, ValueError):
+            self._json_response({"error": "invalid JSON body"}, 400)
+            return
+
+        if path.startswith("/api/vendors/"):
+            parts = path.split("/")
+            # /api/vendors/<uuid> — exactly 4 segments
+            if len(parts) == 4 and parts[3]:
+                vendor_routes.handle_update(self, _run_async, parts[3], body)
+                return
+
+        self._json_response({"error": "not found"}, 404)
+
     def do_DELETE(self):
-        """Handle DELETE requests. Currently only /api/po/<uuid> is supported."""
+        """Handle DELETE requests. /api/po/<uuid> and /api/vendors/<uuid>."""
         parsed = urlparse(self.path)
         path = parsed.path
 
@@ -155,6 +208,12 @@ class APIHandler(BaseHTTPRequestHandler):
             # /api/po/<uuid> — exactly 4 segments (empty, api, po, uuid)
             if len(parts) == 4 and parts[3]:
                 po_routes.handle_delete(self, _run_async, parts[3])
+                return
+
+        if path.startswith("/api/vendors/"):
+            parts = path.split("/")
+            if len(parts) == 4 and parts[3]:
+                vendor_routes.handle_delete(self, _run_async, parts[3])
                 return
 
         self._json_response({"error": "not found"}, 404)
@@ -314,7 +373,7 @@ class APIHandler(BaseHTTPRequestHandler):
 
     def _cors_headers(self):
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
 
     def log_message(self, format, *args):
