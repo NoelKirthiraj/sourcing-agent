@@ -119,6 +119,9 @@ body {
 
 /* Upload */
 .drop {
+  display: block;        /* <label> is inline by default; without this
+                            the dashed border escapes its container and
+                            overlaps the intro paragraph above. */
   border: 2px dashed var(--border);
   border-radius: 14px;
   padding: 40px 24px;
@@ -126,6 +129,7 @@ body {
   cursor: pointer;
   transition: all 0.2s;
   background: var(--bg-surface);
+  margin-top: 18px;
 }
 .drop:hover, .drop.over {
   border-color: var(--cyan);
@@ -200,6 +204,8 @@ table.vendors {
   border-bottom: 1px solid var(--border);
   vertical-align: top;
 }
+.vendors td.cats { min-width: 220px; }
+.vendors td.cats .chip { font-size: 10px; max-width: none; }
 .vendors tr:hover td { background: var(--bg-surface); }
 .vendors td .company { font-weight: 600; color: var(--text-primary); }
 .vendors td .sub { color: var(--text-secondary); font-size: 12px; margin-top: 2px; }
@@ -787,10 +793,12 @@ async function runUpload() {
       'afterbegin', `<div id="upload-summary" style="margin-bottom:18px">${summaryHtml}</div>`
     );
     showToast(`Imported — ${counts.vendors_inserted ?? 0} new, ${counts.vendors_updated ?? 0} updated.`, 'success');
-    // Transition to list after a beat
+    // Transition to list after a beat. Refresh categories too —
+    // the dropdown was populated at boot when the DB was empty.
     setTimeout(() => {
       document.getElementById('upload-summary')?.remove();
       showList();
+      loadCategories();
       loadVendors();
     }, 1500);
   } catch (err) {
@@ -870,7 +878,7 @@ function renderRows() {
       <td class="num">${v.inquiry_count ?? 0}</td>
       <td class="num">${v.bid_count ?? 0}</td>
       <td class="mono" style="font-size:12px">${escapeHtml(last)}</td>
-      <td><div class="chips">${catChips}${more}</div></td>
+      <td class="cats"><div class="chips">${catChips}${more}</div></td>
       <td><div class="actions">
         <button class="btn btn-ghost btn-sm" onclick="openEdit('${v.uuid}')">Edit</button>
       </div></td>

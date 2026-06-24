@@ -39,3 +39,4 @@ agent.log
 *.swp
 *.swo
 .DS_Store
+.gstack/
