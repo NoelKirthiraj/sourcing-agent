@@ -1597,6 +1597,7 @@ body.theme-corporate {
     <button class="nav-tab" onclick="switchTab('review')">&#x1F50D; Tender Review</button>
     <button class="nav-tab" onclick="switchTab('associates')">&#x1F465; Associates</button>
     <button class="nav-tab" onclick="switchTab('po')">&#x1F4DD; Generate PO</button>
+    <button class="nav-tab" onclick="switchTab('vendors')">&#x1F3E2; Vendor Management</button>
   </div>
 
   <!-- Tab: Mission Control -->
@@ -1673,6 +1674,17 @@ body.theme-corporate {
       </div>
     </section>
   </div><!-- /tab-po -->
+
+  <!-- Tab: Vendor Management -->
+  <div id="tab-vendors" class="tab-content">
+    <section class="bottom" style="display:block">
+      <div class="section-panel" style="grid-column: 1 / -1; padding: 0; overflow: hidden">
+        <iframe id="vendors-frame"
+                title="Vendor Management"
+                style="width:100%;border:0;display:block;min-height:1600px;background:transparent"></iframe>
+      </div>
+    </section>
+  </div><!-- /tab-vendors -->
 
 <!-- Settings Modal -->
 <div class="modal-overlay" id="settings-modal" onclick="if(event.target===this)closeSettingsModal()">
@@ -2756,6 +2768,7 @@ function switchTab(tab) {
   if (tab === 'review') loadReviewTenders();
   if (tab === 'associates') loadAssociatesTab();
   if (tab === 'po') loadPoTab();
+  if (tab === 'vendors') loadVendorsTab();
 }
 
 function loadPoTab() {
@@ -2767,6 +2780,19 @@ function loadPoTab() {
     try {
       // Inject API base before any script reads it
       frame.contentWindow.PO_API_BASE = REVIEW_API;
+    } catch (_) { /* cross-origin safe */ }
+  }, { once: true });
+  frame.src = src;
+  frame.dataset.loaded = '1';
+}
+
+function loadVendorsTab() {
+  const frame = document.getElementById('vendors-frame');
+  if (frame.dataset.loaded === '1') return;
+  const src = 'vendors.html?api=' + encodeURIComponent(REVIEW_API);
+  frame.addEventListener('load', () => {
+    try {
+      frame.contentWindow.VENDOR_API_BASE = REVIEW_API;
     } catch (_) { /* cross-origin safe */ }
   }, { once: true });
   frame.src = src;
