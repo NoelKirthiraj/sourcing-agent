@@ -1,11 +1,18 @@
 name: Daily Sourcing Agent
 
 on:
-  schedule:
-    # 5 PM ET (22:00 UTC) weekdays — daily mode
-    - cron: '0 22 * * 1-5'
-    # 5 PM ET (22:00 UTC) Saturday — weekly mode
-    - cron: '0 22 * * 6'
+  # === SCHEDULE PAUSED ===
+  # Reason: SAP/CanadaBuys (the underlying SAP Ariba portal) started
+  # detecting our Playwright-based scrapes as automation and is blocking
+  # the account. Pausing the cron until that's diagnosed and the scraper
+  # is updated (stealth profile, slower pacing, residential proxy, etc.).
+  # Re-enable: uncomment the schedule block below.
+  #
+  # schedule:
+  #   # 5 PM ET (22:00 UTC) weekdays — daily mode
+  #   - cron: '0 22 * * 1-5'
+  #   # 5 PM ET (22:00 UTC) Saturday — weekly mode
+  #   - cron: '0 22 * * 6'
   workflow_dispatch:
     inputs:
       mode:
