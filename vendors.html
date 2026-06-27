@@ -630,9 +630,6 @@ table.vendors {
       <div class="field full"><label>RFP Categories</label>
         <div class="list-editor" data-list="rfp_categories"></div>
       </div>
-      <div class="field full"><label>Products Quoted</label>
-        <div class="list-editor" data-list="products_quoted"></div>
-      </div>
 
       <div class="field full"><label>RFPs Won (likely)</label>
         <input id="f-rfps_won" type="text"></div>
@@ -658,15 +655,22 @@ table.vendors {
       </div>
     </div>
 
-    <!-- Products -->
+    <!-- Products — unified list. Combines items from the structured
+         catalog (products_by_vendor table) with strings from the
+         products_quoted column on the Vendors sheet, deduped by
+         (name, RFP code). Read-only here; the source of truth is the
+         xlsx re-import. -->
     <div id="products-section" hidden>
       <div class="section-title" style="font-size:11px;margin-top:14px">
-        <span class="icon">📦</span> Products (catalog)
+        <span class="icon">📦</span> Products
+        <span id="products-count" class="muted" style="font-size:11px;font-weight:400;letter-spacing:0"></span>
       </div>
       <div class="table-wrap">
         <table class="products-table">
           <thead><tr>
-            <th>Product</th><th style="width:140px">RFP Code</th><th style="width:120px">Source</th>
+            <th>Product</th>
+            <th style="width:120px">RFP Code</th>
+            <th style="width:90px">Source</th>
           </tr></thead>
           <tbody id="products-rows"></tbody>
         </table>
@@ -713,6 +717,58 @@ function showToast(msg, kind='') {
   t.className = `toast show ${kind}`;
   setTimeout(() => t.classList.remove('show'), 4500);
 }
+// Merge a vendor's two product representations into a single deduped list.
+//
+// The Vendors sheet has a `Products Quoted` column whose cells look like
+// "FILTER ELEMENT, FLUID [7180-RR-04]" — name with the RFP code in a
+// trailing bracket. The Products by Vendor sheet has a normalized table
+// with separate Product / RFP Code columns. For some vendors only one
+// source has data; for others both do (and contain the same items).
+//
+// Strategy:
+//   1. Add structured catalog rows first — they have explicit rfp_code
+//      and source_tab, so we don't lose that detail.
+//   2. Add string entries from products_quoted, parsing out the trailing
+//      `[CODE]` when present. If the resulting (name, code) key already
+//      came in via the catalog, skip — otherwise append.
+// Returns the list sorted alphabetically by product name.
+function unifyProducts(structured, quoted) {
+  const norm = s => (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const key = (name, code) => `${norm(name)}::${norm(code)}`;
+  const out = new Map();
+
+  for (const p of structured || []) {
+    if (!p || !p.product) continue;
+    out.set(key(p.product, p.rfp_code || ''), {
+      product: p.product,
+      rfp_code: p.rfp_code || '',
+      source_tab: p.source_tab || '',
+    });
+  }
+
+  const CODE_RE = /^(.*?)\s*\[([^\[\]]+)\]\s*$/;
+  for (const s of quoted || []) {
+    const raw = (s || '').trim();
+    if (!raw) continue;
+    const m = raw.match(CODE_RE);
+    const name = m ? m[1].trim() : raw;
+    const code = m ? m[2].trim() : '';
+    const k = key(name, code);
+    if (out.has(k)) continue;
+    // If code was empty in this row but a catalog row had the same name
+    // with a code, skip to avoid a duplicate "no-code" companion row.
+    if (!code) {
+      const dupeWithCode = Array.from(out.values()).some(p =>
+        norm(p.product) === norm(name) && p.rfp_code);
+      if (dupeWithCode) continue;
+    }
+    out.set(k, { product: name, rfp_code: code, source_tab: '' });
+  }
+
+  return Array.from(out.values()).sort((a, b) =>
+    a.product.localeCompare(b.product, undefined, {sensitivity: 'base'}));
+}
+
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c =>
     ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -923,6 +979,9 @@ function openCreate() {
     inquiry_count: 0, bid_count: 0, bid_history: '', last_contact: null,
     products: [],
   });
+  // products_quoted is preserved per-vendor as a hidden field — never
+  // edited via the chip editor (since the Products section unifies both
+  // sources read-only), but round-tripped on save so it isn't wiped.
 }
 
 function openDrawer(title, v) {
@@ -936,14 +995,20 @@ function openDrawer(title, v) {
   document.getElementById('f-rfps_won').value = v.rfps_won || '';
   document.getElementById('f-notes').value = v.notes || '';
 
-  // List fields → chip editors
+  // List fields → chip editors. products_quoted is intentionally NOT in
+  // this list — it has no chip editor anymore; the unified Products
+  // section displays both products + products_quoted read-only.
   const listFields = ['primary_contacts', 'emails', 'phones', 'websites',
-                       'rfp_categories', 'products_quoted'];
+                       'rfp_categories'];
   state.editingLists = {};
   listFields.forEach(f => {
     state.editingLists[f] = Array.isArray(v[f]) ? v[f].slice() : [];
     renderListEditor(f);
   });
+  // Stash products_quoted on state so saveVendor() can round-trip it
+  // without modification (preserves the xlsx-sourced values across edits).
+  state.editingLists.products_quoted = Array.isArray(v.products_quoted)
+    ? v.products_quoted.slice() : [];
 
   // Pipeline panel
   document.getElementById('pd-inquiry').textContent = v.inquiry_count ?? 0;
@@ -955,18 +1020,39 @@ function openDrawer(title, v) {
     document.getElementById('pd-bid-history').textContent = v.bid_history;
   } else { histWrap.hidden = true; }
 
-  // Products
+  // Products — unified view that merges two source representations:
+  //   1. `v.products`: structured catalog rows from the Products by
+  //      Vendor sheet (have explicit product / rfp_code / source_tab).
+  //   2. `v.products_quoted`: text strings from the Vendors sheet,
+  //      often shaped "<NAME> [<RFP-CODE>]". We parse the trailing
+  //      [CODE] when present and treat the rest as the product name.
+  // Deduplicate on (normalized_name, normalized_code) so the same
+  // product doesn't appear twice when both sources have it (typical
+  // for Tronair) but DOES appear when only one source has it (typical
+  // for AAR, which has products_quoted but no catalog row).
   const prodSection = document.getElementById('products-section');
-  const prods = v.products || [];
-  if (prods.length) {
+  const prodRows = document.getElementById('products-rows');
+  const prodCount = document.getElementById('products-count');
+  const unified = unifyProducts(v.products || [], v.products_quoted || []);
+  if (unified.length) {
     prodSection.hidden = false;
-    document.getElementById('products-rows').innerHTML = prods.map(p => `
-      <tr>
+    prodCount.textContent = `(${unified.length})`;
+    prodRows.innerHTML = unified.map(p => {
+      const codeCell = p.rfp_code
+        ? `<span class="mono" style="font-size:11px">${escapeHtml(p.rfp_code)}</span>`
+        : `<span class="muted" style="font-size:11px">—</span>`;
+      const srcCell = p.source_tab
+        ? `<span class="mono" style="font-size:10px;color:var(--text-muted)">${escapeHtml(p.source_tab)}</span>`
+        : `<span class="muted" style="font-size:10px">quoted</span>`;
+      return `<tr>
         <td>${escapeHtml(p.product)}</td>
-        <td class="mono" style="font-size:11px">${escapeHtml(p.rfp_code || '')}</td>
-        <td class="mono" style="font-size:11px;color:var(--text-muted)">${escapeHtml(p.source_tab || '')}</td>
-      </tr>`).join('');
-  } else { prodSection.hidden = true; }
+        <td>${codeCell}</td>
+        <td>${srcCell}</td>
+      </tr>`;
+    }).join('');
+  } else {
+    prodSection.hidden = true;
+  }
 
   // Delete button visible only when editing
   document.getElementById('btn-delete').style.display = state.editing ? '' : 'none';
