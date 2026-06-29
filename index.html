@@ -1484,6 +1484,55 @@ body.theme-corporate {
 .theme-corporate .avatar-container.celebrating { animation: none; }
 .theme-corporate .metric-card.wave { animation: none; }
 .theme-corporate .log-entry.new-entry { animation: none; box-shadow: none; }
+
+/* ── SAP halt banner ──────────────────────────────────────────────
+   Shown across the top of Mission Control when agent_profile.json
+   carries sap_login_halted=true. Style is intentionally loud so it
+   can't be missed; clears once the operator runs the CLI helper. */
+.sap-halt-banner {
+  display: none;
+  background: linear-gradient(135deg, rgba(255, 59, 92, 0.18), rgba(255, 107, 53, 0.12));
+  border: 1px solid var(--red);
+  color: var(--text-primary);
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin: 0 32px 16px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.sap-halt-banner.show { display: block; }
+.sap-halt-banner .title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--red);
+  margin-bottom: 6px;
+}
+.sap-halt-banner code {
+  background: rgba(0, 0, 0, 0.25);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--cyan);
+}
+.sap-halt-banner .meta {
+  margin-top: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.theme-corporate .sap-halt-banner {
+  background: rgba(220, 38, 38, 0.06);
+  border-color: #DC2626;
+}
+.theme-corporate .sap-halt-banner .title { color: #DC2626; }
+.theme-corporate .sap-halt-banner code {
+  background: #F1F5F9;
+  color: #1E3A5F;
+}
 </style>
 </head>
 <body>
@@ -1522,6 +1571,10 @@ body.theme-corporate {
   <div class="header-progress" id="header-progress">
     <div class="header-progress-fill" id="header-progress-fill"></div>
   </div>
+
+  <!-- SAP halt banner — populated by renderSapHaltBanner() when
+       agent_profile.json carries sap_login_halted=true. Hidden otherwise. -->
+  <div class="sap-halt-banner" id="sap-halt-banner" role="alert"></div>
 
   <!-- Agent Hero -->
   <section class="hero">
@@ -1796,6 +1849,7 @@ function useSampleData() {
    RENDER
    ═══════════════════════════════════════════════════════════ */
 function render() {
+  renderSapHaltBanner();
   renderStatus();
   renderAvatar();
   renderHeroInfo();
@@ -1804,6 +1858,48 @@ function render() {
   renderAchievements();
   renderSparkline();
   animateCounters();
+}
+
+/* When the cron's SAP login fails repeatedly (typically a rotated
+   password the cron isn't using yet), agent.py sets a halt flag in
+   agent_profile.json so we stop hitting SAP and triggering account
+   lockouts. Render a sticky banner so the operator notices and runs
+   the rotate-password + tools/clear_sap_halt.py sequence. */
+function renderSapHaltBanner() {
+  const el = document.getElementById('sap-halt-banner');
+  if (!el) return;
+  if (!agentProfile || !agentProfile.sap_login_halted) {
+    el.classList.remove('show');
+    el.innerHTML = '';
+    return;
+  }
+  const at = agentProfile.sap_halted_at || '';
+  const atShort = at ? at.slice(0, 16).replace('T', ' ') + ' UTC' : 'unknown';
+  const strikes = agentProfile.sap_halted_attempts || agentProfile.sap_consecutive_failures || 0;
+  const lastErr = agentProfile.sap_last_error || '(no detail recorded)';
+
+  el.classList.add('show');
+  el.innerHTML = `
+    <div class="title">⛔ SAP login halted</div>
+    <div>
+      The cron has stopped attempting SAP logins after
+      <strong>${escapeHtml(String(strikes))} consecutive failures</strong>
+      to prevent further account lockouts.
+      Likely cause: <strong>SAP password was rotated</strong> and the cron
+      is still using the old value.
+    </div>
+    <div style="margin-top:10px">
+      <strong>To resume:</strong>
+      (1) Update <code>SAP_PASSWORD</code> in GitHub Secrets
+      (Settings → Secrets and variables → Actions).
+      (2) From a checkout, run <code>python tools/clear_sap_halt.py</code>
+      and commit + push the resulting <code>data/agent_profile.json</code> change.
+      (3) Next scheduled run will resume SAP login attempts.
+    </div>
+    <div class="meta">
+      halted at: ${escapeHtml(atShort)}
+      &nbsp;·&nbsp; last error: ${escapeHtml(lastErr)}
+    </div>`;
 }
 
 function renderStatus() {

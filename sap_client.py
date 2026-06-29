@@ -96,6 +96,12 @@ class SAPClient:
         self._username = username or os.environ.get("SAP_USERNAME", "")
         self._password = password or os.environ.get("SAP_PASSWORD", "")
         self._logged_in = False
+        # Tri-state: None = no login attempted, True = succeeded, False = failed.
+        # The caller (agent.py) reads this to distinguish "login failed" from
+        # "logged in OK but downloaded nothing", which matters for the
+        # halt-on-repeated-failure guardrail.
+        self.last_login_succeeded: bool | None = None
+        self.last_login_error: str = ""
 
     @property
     def has_credentials(self) -> bool:
@@ -163,12 +169,19 @@ class SAPClient:
         return downloaded
 
     async def _login_flow(self, page: Page) -> bool:
-        """Handle full SAP login: Respond → Register/Login → cookie → username → password."""
+        """Handle full SAP login: Respond → Register/Login → cookie → username → password.
+
+        Sets self.last_login_succeeded (True/False) and self.last_login_error
+        so callers can distinguish a credential/auth failure from a downstream
+        "nothing to download" outcome.
+        """
         try:
             # Click Respond
             respond = page.locator("button:has-text('Respond')").first
             if await respond.count() == 0:
                 log.warning("SAP: no Respond button")
+                self.last_login_succeeded = False
+                self.last_login_error = "no Respond button on discovery page"
                 return False
             await respond.click()
             await page.wait_for_timeout(3000)
@@ -203,6 +216,8 @@ class SAPClient:
 
             if not username_filled:
                 log.warning("SAP: no username field")
+                self.last_login_succeeded = False
+                self.last_login_error = "no username field after Register/Login"
                 return False
             await page.wait_for_timeout(5000)
 
@@ -222,6 +237,8 @@ class SAPClient:
 
             if await pwd.count() == 0:
                 log.warning("SAP: no password field")
+                self.last_login_succeeded = False
+                self.last_login_error = "no password field after username submit"
                 return False
 
             await pwd.fill(self._password)
@@ -232,14 +249,20 @@ class SAPClient:
             event_page = await self._find_event_page()
             if event_page:
                 self._logged_in = True
+                self.last_login_succeeded = True
+                self.last_login_error = ""
                 log.info("SAP login successful")
                 return True
 
             log.warning("SAP: login completed but event page not found")
+            self.last_login_succeeded = False
+            self.last_login_error = "login completed but event page not found"
             return False
 
         except Exception as exc:
             log.warning("SAP login error: %s", exc)
+            self.last_login_succeeded = False
+            self.last_login_error = f"login flow exception: {exc}"
             return False
 
     async def _find_event_page(self) -> Page | None:
