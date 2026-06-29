@@ -12,6 +12,104 @@ log = logging.getLogger(__name__)
 
 MAX_HISTORY = 365
 
+# ── SAP login-halt guardrail ─────────────────────────────────────────────────
+# When the cron repeatedly fails to log into SAP Ariba (typically because the
+# password was rotated and our copy is stale), continuing to retry causes
+# the SAP account to lock out for fraud-review. We track consecutive failure
+# counts in agent_profile.json and halt the SAP login step (only) after N
+# strikes. The CanadaBuys scrape continues normally.
+#
+# Default threshold (2) means: tolerate one transient blip, then stop. After
+# rotating the SAP password the user runs `python tools/clear_sap_halt.py`
+# to reset the counter + clear the halt flag.
+SAP_HALT_THRESHOLD = 2
+
+SAP_HALT_DEFAULTS = {
+    "sap_consecutive_failures": 0,
+    "sap_login_halted": False,
+    "sap_halted_at": None,
+    "sap_halted_attempts": 0,
+    "sap_last_error": "",
+}
+
+
+def _read_profile(data_dir: Path) -> dict:
+    """Read agent_profile.json. Empty dict if missing or malformed."""
+    p = data_dir / "agent_profile.json"
+    if not p.exists():
+        return {}
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        log.warning("Could not parse %s — returning empty profile", p)
+        return {}
+
+
+def _write_profile(profile: dict, data_dir: Path) -> None:
+    p = data_dir / "agent_profile.json"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(profile, indent=2), encoding="utf-8")
+
+
+def get_sap_halt_state(data_dir: Path) -> dict:
+    """Current SAP halt fields, with defaults filled in for any missing keys."""
+    profile = _read_profile(data_dir)
+    state = dict(SAP_HALT_DEFAULTS)
+    for k in SAP_HALT_DEFAULTS:
+        if k in profile:
+            state[k] = profile[k]
+    return state
+
+
+def record_sap_login_success(data_dir: Path) -> None:
+    """Reset the consecutive-failure counter and clear any halt flag.
+
+    Called by agent.py whenever an SAP login attempt actually succeeds —
+    we know the credentials still work, so the halt (if any) is stale.
+    """
+    profile = _read_profile(data_dir)
+    profile.update(SAP_HALT_DEFAULTS)
+    _write_profile(profile, data_dir)
+
+
+def _ensure_sap_halt_defaults(profile: dict) -> dict:
+    """Backfill any missing SAP halt fields with defaults so callers
+    can always rely on the full block being present in the dict."""
+    for k, v in SAP_HALT_DEFAULTS.items():
+        profile.setdefault(k, v)
+    return profile
+
+
+def record_sap_login_failure(
+    error_msg: str,
+    data_dir: Path,
+    threshold: int = SAP_HALT_THRESHOLD,
+) -> dict:
+    """Increment the consecutive-failure counter. Set halt flag if threshold
+    reached. Returns the updated state so the caller can log accordingly.
+    """
+    profile = _ensure_sap_halt_defaults(_read_profile(data_dir))
+    fails = int(profile.get("sap_consecutive_failures", 0)) + 1
+    profile["sap_consecutive_failures"] = fails
+    # Cap error string to avoid pathological growth from stack-trace dumps.
+    profile["sap_last_error"] = (error_msg or "")[:300]
+    if fails >= threshold and not profile.get("sap_login_halted"):
+        profile["sap_login_halted"] = True
+        profile["sap_halted_at"] = datetime.now(timezone.utc).isoformat()
+        profile["sap_halted_attempts"] = fails
+    _write_profile(profile, data_dir)
+    return profile
+
+
+def clear_sap_halt(data_dir: Path) -> dict:
+    """Reset all SAP halt fields. Called by `tools/clear_sap_halt.py` after
+    the operator has rotated the SAP password in GitHub Secrets.
+    """
+    profile = _read_profile(data_dir)
+    profile.update(SAP_HALT_DEFAULTS)
+    _write_profile(profile, data_dir)
+    return profile
+
 LEVEL_THRESHOLDS = [
     (0, "Rookie"),
     (10, "Rookie"),
@@ -164,7 +262,7 @@ def recompute_profile(history: list[dict], existing_profile: dict) -> dict:
         else:
             last_status = "success"
 
-    return {
+    profile = {
         "xp": total_processed,
         "level": level,
         "level_title": level_title,
@@ -176,6 +274,12 @@ def recompute_profile(history: list[dict], existing_profile: dict) -> dict:
         "last_run_at": last_run.get("run_at", ""),
         "last_status": last_status,
     }
+    # Carry forward the SAP halt fields verbatim. They're independent of
+    # the recomputed metrics and mid-run writes (record_sap_login_*) must
+    # not be overwritten by the end-of-run record_run() flow.
+    for k, default in SAP_HALT_DEFAULTS.items():
+        profile[k] = existing_profile.get(k, default)
+    return profile
 
 
 def record_run(summary: Any, data_dir: Path) -> None:

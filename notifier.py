@@ -28,6 +28,10 @@ class RunSummary:
     files_downloaded: int = 0
     files_uploaded: int = 0
     sap_flagged: int = 0
+    # Incremented when an SAP tender is encountered but the global halt
+    # flag is set — the cron is choosing not to attempt login. Surfaced
+    # in logs / processing notes so users know download was deferred.
+    sap_skipped_halted: int = 0
 
     def __post_init__(self):
         if not self.run_at:

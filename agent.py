@@ -76,6 +76,11 @@ def _use_db() -> bool:
     return bool(os.environ.get("DATABASE_URL", ""))
 
 
+# Directory where dashboard_data persists agent_profile.json + run_history.json.
+# Shared with the SAP halt-state helpers in dashboard_data.py.
+DATA_DIR = Path(__file__).parent / "data"
+
+
 async def run_agent():
     log.info("=" * 60)
     log.info("CanadaBuys → CFlow Agent starting  %s", datetime.now().strftime("%Y-%m-%d %H:%M"))
@@ -192,7 +197,22 @@ async def run_agent():
                 summary.sap_flagged += 1
                 if not downloaded_files:
                     sap_user = os.environ.get("SAP_USERNAME", "")
-                    if sap_user:
+                    # Halt guardrail: if previous runs logged repeated SAP
+                    # login failures (typically due to a rotated password),
+                    # skip the login attempt entirely so we don't lock the
+                    # account out. Operator clears the halt via
+                    # tools/clear_sap_halt.py after rotating the secret.
+                    sap_halt = dashboard_data.get_sap_halt_state(DATA_DIR)
+                    if sap_halt["sap_login_halted"]:
+                        summary.sap_skipped_halted += 1
+                        log.warning(
+                            "  SAP login HALTED (since %s, %d strikes; last error: %s) — skipping for %s",
+                            sap_halt["sap_halted_at"],
+                            sap_halt["sap_halted_attempts"],
+                            (sap_halt["sap_last_error"] or "")[:80],
+                            sol_no,
+                        )
+                    elif sap_user:
                         try:
                             from sap_client import SAPClient
                             # Use a FRESH browser context for SAP — CanadaBuys cookies
@@ -211,6 +231,25 @@ async def run_agent():
                                     log.info("  SAP download: %d file(s) for %s", len(downloaded_files), sol_no)
                                 else:
                                     log.info("  No files from CanadaBuys or SAP for %s", sol_no)
+
+                                # Update halt state based on what _login_flow recorded.
+                                # last_login_succeeded is tri-state: None means
+                                # _login_flow was never reached (e.g. SAPClient
+                                # short-circuited because already logged in); we
+                                # leave the counter alone in that case.
+                                if sap.last_login_succeeded is True:
+                                    dashboard_data.record_sap_login_success(DATA_DIR)
+                                elif sap.last_login_succeeded is False:
+                                    new_state = dashboard_data.record_sap_login_failure(
+                                        sap.last_login_error or "unknown", DATA_DIR,
+                                    )
+                                    if new_state["sap_login_halted"] and new_state["sap_consecutive_failures"] >= dashboard_data.SAP_HALT_THRESHOLD:
+                                        log.warning(
+                                            "  ⛔ SAP login halt TRIGGERED after %d consecutive failures. "
+                                            "Rotate SAP_PASSWORD in GH secrets, then run: "
+                                            "python tools/clear_sap_halt.py",
+                                            new_state["sap_consecutive_failures"],
+                                        )
                             finally:
                                 await sap_context.close()
                         except Exception as exc:
@@ -240,6 +279,8 @@ async def run_agent():
                             notes.append(f"SAP tender — {len(downloaded_files)} file(s) downloaded")
                         elif not os.environ.get("SAP_USERNAME"):
                             notes.append("SAP tender — no SAP credentials configured, manual download needed")
+                        elif dashboard_data.get_sap_halt_state(DATA_DIR)["sap_login_halted"]:
+                            notes.append("SAP tender — login HALTED (repeated failures), manual download needed")
                         else:
                             notes.append("SAP tender — login failed, manual download needed")
                     elif not downloaded_files:
