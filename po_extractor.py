@@ -331,6 +331,26 @@ def _call_claude(pdf_bytes: bytes, prompt: str) -> dict[str, Any]:
                 status=503,
             ) from exc
         except anthropic.BadRequestError as exc:
+            # BadRequestError covers multiple root causes; the message must
+            # tell them apart so the user knows what to fix.
+            #   * credit balance exhausted → billing message (503)
+            #   * per-request limit / quota exhausted → billing-adjacent (503)
+            #   * genuinely bad PDF (too big, unreadable, unsupported) → PDF
+            #     message (400) so the user knows to re-upload
+            msg = str(exc).lower()
+            if "credit balance" in msg or "insufficient" in msg or "low balance" in msg:
+                raise PoExtractionError(
+                    "Anthropic API credit balance is exhausted. "
+                    "Top up at https://console.anthropic.com/settings/billing "
+                    "and retry.",
+                    status=503,
+                ) from exc
+            if "quota" in msg or "usage limit" in msg or "spend limit" in msg:
+                raise PoExtractionError(
+                    "Anthropic API usage/quota limit reached. Check plan "
+                    "limits at https://console.anthropic.com/settings/limits.",
+                    status=503,
+                ) from exc
             raise PoExtractionError(
                 "The PDF could not be processed (too large or unreadable).",
                 status=400,
