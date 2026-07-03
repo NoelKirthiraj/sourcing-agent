@@ -18,6 +18,7 @@ from __future__ import annotations
 import base64
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Optional
 
 import db
@@ -169,9 +170,20 @@ def handle_extract(handler, _run_async) -> None:
     contract_name = contract_part.get("filename") or "contract.pdf"
     quote_name = quote_part.get("filename") or "quote.pdf"
 
+    # Contract and quote extractions are independent Claude calls that used to
+    # run serially (~4.5 min contract + ~1.5 min quote = ~6 min total on real
+    # POs). Run them concurrently — the SDK is blocking I/O so threads are
+    # sufficient — cutting wall-clock latency to max(contract, quote).
     try:
-        contract_result = po_extractor.extract_contract(contract_bytes, contract_name)
-        quote_result = po_extractor.extract_quote(quote_bytes, quote_name)
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            contract_future = pool.submit(
+                po_extractor.extract_contract, contract_bytes, contract_name,
+            )
+            quote_future = pool.submit(
+                po_extractor.extract_quote, quote_bytes, quote_name,
+            )
+            contract_result = contract_future.result()
+            quote_result = quote_future.result()
     except po_extractor.PoExtractionError as exc:
         log.warning("po.extract.failed: %s", exc.user_message)
         handler._json_response({"error": exc.user_message}, exc.status)
