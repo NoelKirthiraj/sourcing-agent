@@ -149,3 +149,77 @@ def test_bad_request_pdf_related_still_returns_pdf_message(monkeypatch):
     assert err.status == 400
     # Must NOT tell the user to top up billing when the PDF is the culprit
     assert "billing" not in err.user_message.lower()
+
+
+# ── max_tokens truncation short-circuit ─────────────────────────────────────
+# When Claude hits the max_tokens ceiling, the JSON body is truncated and
+# unparseable. Retrying is pointless — the second attempt truncates in the
+# same place — and burns another full inference call (~2 min for our PDFs).
+# _call_claude must detect stop_reason == "max_tokens" and raise immediately.
+
+def _patch_claude_stop_reason(monkeypatch, stop_reason: str, text: str = ""):
+    """Patch anthropic.Anthropic so client.messages.create returns a Message
+    with the given stop_reason (and content text)."""
+    import anthropic
+
+    class FakeContentBlock:
+        def __init__(self, text): self.text = text
+
+    class FakeMessage:
+        def __init__(self, stop_reason, text):
+            self.stop_reason = stop_reason
+            self.content = [FakeContentBlock(text)]
+
+    class FakeMessages:
+        def __init__(self):
+            self.call_count = 0
+        def create(self, **kw):
+            self.call_count += 1
+            return FakeMessage(stop_reason, text)
+
+    fake_messages = FakeMessages()
+
+    class FakeClient:
+        def __init__(self, **kw): pass
+        @property
+        def messages(self): return fake_messages
+
+    monkeypatch.setattr(anthropic, "Anthropic", FakeClient)
+    return fake_messages
+
+
+def test_max_tokens_stop_reason_raises_immediately(monkeypatch):
+    """When Claude cuts off at max_tokens, retrying can't help — the second
+    attempt will truncate at the same length. Fail fast, don't burn 2min."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    fake = _patch_claude_stop_reason(
+        monkeypatch,
+        stop_reason="max_tokens",
+        text='{"contract_no": "CW123", "items": [{"line": 1, "part_number": "ABC',
+    )
+    with pytest.raises(E.PoExtractionError) as excinfo:
+        E._call_claude(_MIN_PDF, "prompt")
+    err = excinfo.value
+    assert "too many line items" in err.user_message.lower() or "truncated" in err.user_message.lower()
+    assert err.status == 422  # unprocessable entity — PDF is intelligible but too big for one pass
+    # Critically: we must NOT have called the API twice
+    assert fake.call_count == 1
+
+
+def test_normal_stop_reason_does_not_short_circuit(monkeypatch):
+    """Sanity check: end_turn (the normal happy path) must still parse."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    fake = _patch_claude_stop_reason(
+        monkeypatch,
+        stop_reason="end_turn",
+        text='{"contract_no": "CW123"}',
+    )
+    result = E._call_claude(_MIN_PDF, "prompt")
+    assert result == {"contract_no": "CW123"}
+    assert fake.call_count == 1
+
+
+def test_max_tokens_env_constant_is_raised_above_8k():
+    """Regression guard: 8192 wasn't enough for real ~14-item contracts (it
+    truncated mid-JSON on 2026-07-03). Anything below 16k risks the same."""
+    assert E.ANTHROPIC_MAX_TOKENS >= 16384

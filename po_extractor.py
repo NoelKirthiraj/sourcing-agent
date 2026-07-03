@@ -28,7 +28,10 @@ log = logging.getLogger(__name__)
 # Upload caps. Tuned for Anthropic's per-doc limit (32 MB) and to keep DB rows small.
 MAX_PDF_BYTES = 10 * 1024 * 1024  # 10 MB
 ANTHROPIC_MODEL = "claude-sonnet-4-6"
-ANTHROPIC_MAX_TOKENS = 8192
+# 8192 was hit mid-JSON on real ~14-line contracts, producing "Unterminated
+# string" on parse and burning two retries (~5 min total) before failing. 16k
+# gives comfortable headroom for large POs without materially increasing cost.
+ANTHROPIC_MAX_TOKENS = 16384
 ANTHROPIC_TIMEOUT_SECONDS = 90.0
 
 
@@ -301,6 +304,16 @@ def _call_claude(pdf_bytes: bytes, prompt: str) -> dict[str, Any]:
                 max_tokens=ANTHROPIC_MAX_TOKENS,
                 messages=[{"role": "user", "content": content}],
             )
+            # If the model was cut off mid-response, the JSON will be truncated
+            # and the retry will hit the exact same wall. Fail loudly instead of
+            # burning another ~2 minutes on a doomed second attempt.
+            if getattr(message, "stop_reason", None) == "max_tokens":
+                raise PoExtractionError(
+                    "The PDF has too many line items to extract in one pass "
+                    "(model output was truncated). Contact admin to raise the "
+                    "token cap, or enter fields manually.",
+                    status=422,
+                )
             response_text = message.content[0].text
             try:
                 return json.loads(_strip_code_fence(response_text))
