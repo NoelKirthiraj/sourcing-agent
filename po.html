@@ -1110,6 +1110,24 @@ function startProcessing() {
   };
 }
 
+// Poll the extract-status endpoint until it reports done or failed.
+// Extraction runs on the server as a background job because real POs take
+// 3–8 min, which exceeds Railway's 300 s HTTP edge timeout. This polling
+// loop replaces the old long-lived POST connection.
+async function pollExtractStatus(jobId, {intervalMs = 3000, timeoutMs = 12 * 60 * 1000} = {}) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    await new Promise(r => setTimeout(r, intervalMs));
+    const res = await fetch(`${API_BASE}/api/po/extract/status/${encodeURIComponent(jobId)}`);
+    if (res.status === 404) throw new Error('Extraction job expired or was lost. Please retry.');
+    if (!res.ok) throw new Error(`Status poll failed (HTTP ${res.status})`);
+    const data = await res.json();
+    if (data.status === 'done' || data.status === 'failed') return data;
+    // Otherwise pending/running — loop.
+  }
+  throw new Error('Extraction timed out after 12 minutes.');
+}
+
 async function runExtract() {
   const btn = document.getElementById('btn-extract');
   const label = document.getElementById('extract-label');
@@ -1125,12 +1143,19 @@ async function runExtract() {
   const proc = startProcessing();
 
   try {
-    const res = await fetch(API_BASE + '/api/po/extract', {
+    // Kick off the job — server returns immediately with a job_id (202).
+    const kickoff = await fetch(API_BASE + '/api/po/extract', {
       method: 'POST',
       body: fd,
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Extraction failed');
+    const kickoffData = await kickoff.json();
+    if (!kickoff.ok || !kickoffData.job_id) {
+      throw new Error(kickoffData.error || 'Failed to start extraction');
+    }
+
+    // Poll until done or failed.
+    const data = await pollExtractStatus(kickoffData.job_id);
+    if (data.status === 'failed') throw new Error(data.error || 'Extraction failed');
 
     state.draft = data.draft;
     state.extractedContract = data.extracted_contract;

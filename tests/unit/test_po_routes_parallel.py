@@ -1,12 +1,12 @@
-"""Concurrency guard: /api/po/extract must run contract and quote extractions
-in parallel, not serially.
+"""Concurrency guard: the background /api/po/extract job must run contract
+and quote extractions in parallel, not serially.
 
-The extractions are independent Claude vision calls that used to run one
-after the other (~4.5min contract + ~1.5min quote = ~6min total on real POs)
-and now run concurrently on a ThreadPoolExecutor.
-
-Both tests here would time out (hang) if the code regressed to serial
-execution — that's their point.
+The extract endpoint no longer waits for the extraction to finish — it kicks
+off a background thread and returns a job_id (see test_po_jobs.py for the
+job store, and test_po_routes_async.py for the endpoint shape). But once
+the background worker starts, the two Claude calls must still run
+concurrently. These tests exercise the worker code path directly to
+guarantee that.
 """
 from __future__ import annotations
 
@@ -58,7 +58,6 @@ def _passthrough(x):
 
 
 def _canned_result(kind: str):
-    """Minimal shape that satisfies po_reconciler.reconcile() and the JSON encoder."""
     import po_extractor
     if kind == "contract":
         data = {"contract_no": "CW1", "items": [], "delivery_date": ""}
@@ -67,13 +66,28 @@ def _canned_result(kind: str):
     return po_extractor.ExtractionResult(data=data, warnings=())
 
 
-def test_handle_extract_runs_contract_and_quote_in_parallel(monkeypatch):
-    """If the two extractions run in parallel, both threads reach their
-    barrier at the same time. If they run serially, the first one blocks
-    the second forever and the test times out (fails)."""
+def _wait_until_done(job_id, timeout=5.0):
+    """Block the test thread until the job store marks the job done/failed."""
+    import po_jobs
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        job = po_jobs.get(job_id)
+        if job and job["status"] in ("done", "failed"):
+            return job
+        time.sleep(0.02)
+    raise AssertionError(f"job {job_id} did not reach terminal state within {timeout}s")
+
+
+def test_extract_worker_runs_contract_and_quote_in_parallel(monkeypatch):
+    """If the two extractions run in parallel, both threads reach the barrier
+    at the same time. If they run serially, the first one blocks the second
+    forever and the barrier times out → BrokenBarrierError → test fails."""
     import po_extractor
+    import po_jobs
     import po_reconciler
     import po_routes
+
+    po_jobs._reset_for_tests()
 
     both_arrived = threading.Barrier(2, timeout=5)
     contract_arrived_at = []
@@ -81,7 +95,7 @@ def test_handle_extract_runs_contract_and_quote_in_parallel(monkeypatch):
 
     def fake_contract(pdf_bytes, filename=""):
         contract_arrived_at.append(time.monotonic())
-        both_arrived.wait()  # Times out (raises BrokenBarrierError) if quote never arrives
+        both_arrived.wait()
         return _canned_result("contract")
 
     def fake_quote(pdf_bytes, filename=""):
@@ -103,27 +117,31 @@ def test_handle_extract_runs_contract_and_quote_in_parallel(monkeypatch):
 
     po_routes.handle_extract(h, _passthrough)
 
-    # Both must have entered their extraction functions — proves concurrency.
+    # Kickoff response should be immediate with a job_id and 202.
+    assert h.responses, "no response captured"
+    kickoff_data, kickoff_status = h.responses[0]
+    assert kickoff_status == 202
+    assert kickoff_data["status"] == "pending"
+    job_id = kickoff_data["job_id"]
+
+    # Wait for the background worker to complete.
+    job = _wait_until_done(job_id)
+    assert job["status"] == "done"
+
+    # Both fakes must have entered — this is what proves concurrency.
     assert len(contract_arrived_at) == 1
     assert len(quote_arrived_at) == 1
-    # They should have entered within a very small window (both threads
-    # dispatched immediately, no waiting for each other).
     assert abs(contract_arrived_at[0] - quote_arrived_at[0]) < 0.5
 
-    # Response was captured
-    assert h.responses, "no response captured"
-    data, status = h.responses[0]
-    assert status == 200
-    assert "draft" in data
 
-
-def test_handle_extract_wall_clock_is_max_not_sum(monkeypatch):
-    """Timing-based check: with two 250ms extractions, serial takes >=500ms;
-    parallel takes ~250ms. Assert wall time < 400ms so we catch a serial
-    regression without being flaky on slow CI."""
+def test_extract_worker_wall_clock_is_max_not_sum(monkeypatch):
+    """Timing check: two 250ms extractions must take ~250ms, not ~500ms."""
     import po_extractor
+    import po_jobs
     import po_reconciler
     import po_routes
+
+    po_jobs._reset_for_tests()
 
     def slow_contract(pdf_bytes, filename=""):
         time.sleep(0.25)
@@ -147,20 +165,26 @@ def test_handle_extract_wall_clock_is_max_not_sum(monkeypatch):
 
     t0 = time.monotonic()
     po_routes.handle_extract(h, _passthrough)
+    job_id = h.responses[0][0]["job_id"]
+    job = _wait_until_done(job_id, timeout=2.0)
     elapsed = time.monotonic() - t0
 
-    assert elapsed < 0.4, (
-        f"handle_extract took {elapsed:.2f}s for two 0.25s extractions — "
+    assert job["status"] == "done"
+    assert elapsed < 0.5, (
+        f"extract worker took {elapsed:.2f}s for two 0.25s extractions — "
         f"suggests serial execution. Expected ~0.25s if parallel."
     )
 
 
-def test_handle_extract_propagates_extraction_error(monkeypatch):
-    """When one of the two parallel calls raises PoExtractionError, the
-    handler must surface the error message + status, not swallow it."""
+def test_extract_worker_records_extraction_error(monkeypatch):
+    """When one worker raises PoExtractionError, the job store must record
+    it with the correct error_status so the poll endpoint can surface it."""
     import po_extractor
+    import po_jobs
     import po_reconciler
     import po_routes
+
+    po_jobs._reset_for_tests()
 
     def good_contract(pdf_bytes, filename=""):
         return _canned_result("contract")
@@ -182,8 +206,9 @@ def test_handle_extract_propagates_extraction_error(monkeypatch):
     h = _make_handler(headers={"Content-Length": str(len(body)), "Content-Type": ct}, body=body)
 
     po_routes.handle_extract(h, _passthrough)
+    job_id = h.responses[0][0]["job_id"]
+    job = _wait_until_done(job_id)
 
-    assert h.responses, "no response captured"
-    data, status = h.responses[0]
-    assert status == 503
-    assert "credit balance" in data["error"].lower()
+    assert job["status"] == "failed"
+    assert "credit balance" in job["error"].lower()
+    assert job["error_status"] == 503

@@ -18,11 +18,14 @@ from __future__ import annotations
 import base64
 import json
 import logging
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Optional
 
 import db
 import po_extractor
+import po_jobs
 import po_reconciler
 import po_renderer
 
@@ -170,52 +173,98 @@ def handle_extract(handler, _run_async) -> None:
     contract_name = contract_part.get("filename") or "contract.pdf"
     quote_name = quote_part.get("filename") or "quote.pdf"
 
-    # Contract and quote extractions are independent Claude calls that used to
-    # run serially (~4.5 min contract + ~1.5 min quote = ~6 min total on real
-    # POs). Run them concurrently — the SDK is blocking I/O so threads are
-    # sufficient — cutting wall-clock latency to max(contract, quote).
-    try:
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            contract_future = pool.submit(
-                po_extractor.extract_contract, contract_bytes, contract_name,
+    # Extraction takes 3–8 min for real POs, which exceeds Railway's 300s HTTP
+    # edge timeout. Register a job, kick off the work on a background thread,
+    # and return immediately. The client polls /api/po/extract/status/<id>
+    # until status is 'done' or 'failed'.
+    job_id = po_jobs.create()
+    log.info("po.extract.job.created job=%s contract_size=%d quote_size=%d",
+             job_id, len(contract_bytes), len(quote_bytes))
+
+    def _run_extraction() -> None:
+        po_jobs.mark_running(job_id)
+        try:
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                contract_future = pool.submit(
+                    po_extractor.extract_contract, contract_bytes, contract_name,
+                )
+                quote_future = pool.submit(
+                    po_extractor.extract_quote, quote_bytes, quote_name,
+                )
+                contract_result = contract_future.result()
+                quote_result = quote_future.result()
+
+            reconciled = po_reconciler.reconcile(
+                contract_result.data, quote_result.data, tender_id=tender_id,
             )
-            quote_future = pool.submit(
-                po_extractor.extract_quote, quote_bytes, quote_name,
+            warnings = (
+                list(contract_result.warnings)
+                + list(quote_result.warnings)
+                + list(reconciled.warnings)
             )
-            contract_result = contract_future.result()
-            quote_result = quote_future.result()
-    except po_extractor.PoExtractionError as exc:
-        log.warning("po.extract.failed: %s", exc.user_message)
-        handler._json_response({"error": exc.user_message}, exc.status)
+            po_jobs.mark_done(job_id, {
+                "draft": reconciled.draft,
+                "warnings": warnings,
+                "extracted_contract": contract_result.data,
+                "extracted_quote": quote_result.data,
+                "contract_b64": base64.standard_b64encode(contract_bytes).decode("ascii"),
+                "quote_b64": base64.standard_b64encode(quote_bytes).decode("ascii"),
+                "contract_filename": contract_name,
+                "quote_filename": quote_name,
+            })
+            log.info("po.extract.job.done job=%s", job_id)
+        except po_extractor.PoExtractionError as exc:
+            log.warning("po.extract.job.failed job=%s: %s", job_id, exc.user_message)
+            po_jobs.mark_failed(job_id, exc.user_message, exc.status)
+        except Exception as exc:  # last-resort safety net
+            log.exception("po.extract.job.unexpected job=%s: %s", job_id, exc)
+            po_jobs.mark_failed(
+                job_id,
+                "Unexpected extraction failure. Please try again.",
+                500,
+            )
+
+    threading.Thread(target=_run_extraction, daemon=True, name=f"po-extract-{job_id[:8]}").start()
+
+    handler._json_response({"job_id": job_id, "status": "pending"}, 202)
+
+
+def handle_extract_status(handler, _run_async, job_id: str) -> None:
+    """GET /api/po/extract/status/<job_id> — poll job state.
+
+    Response shape:
+        pending/running: {status, elapsed}
+        done:            {status: 'done', elapsed, draft, warnings, ...same
+                          keys as the old synchronous extract response}
+        failed:          {status: 'failed', elapsed, error, error_status}
+
+    Always returns HTTP 200 for known job_ids so the client can distinguish
+    poll-transport errors from job-outcome errors. Unknown job_id → 404.
+    """
+    job = po_jobs.get(job_id)
+    if job is None:
+        handler._json_response({"error": "job not found"}, 404)
         return
-    except Exception as exc:  # last-resort safety net
-        log.exception("po.extract.unexpected_error: %s", exc)
-        handler._json_response(
-            {"error": "Unexpected extraction failure. Please try again."},
-            500,
-        )
+
+    status = job["status"]
+    elapsed = round(time.time() - job["started_at"], 1)
+
+    if status in ("pending", "running"):
+        handler._json_response({"status": status, "elapsed": elapsed}, 200)
         return
-
-    reconciled = po_reconciler.reconcile(
-        contract_result.data, quote_result.data, tender_id=tender_id,
-    )
-
-    warnings = (
-        list(contract_result.warnings)
-        + list(quote_result.warnings)
-        + list(reconciled.warnings)
-    )
-
+    if status == "done":
+        handler._json_response({
+            "status": "done",
+            "elapsed": elapsed,
+            **job["result"],
+        }, 200)
+        return
     handler._json_response({
-        "draft": reconciled.draft,
-        "warnings": warnings,
-        "extracted_contract": contract_result.data,
-        "extracted_quote": quote_result.data,
-        "contract_b64": base64.standard_b64encode(contract_bytes).decode("ascii"),
-        "quote_b64": base64.standard_b64encode(quote_bytes).decode("ascii"),
-        "contract_filename": contract_name,
-        "quote_filename": quote_name,
-    })
+        "status": "failed",
+        "elapsed": elapsed,
+        "error": job.get("error") or "Unknown error",
+        "error_status": job.get("error_status") or 500,
+    }, 200)
 
 
 def handle_generate(handler, _run_async, body: dict[str, Any]) -> None:

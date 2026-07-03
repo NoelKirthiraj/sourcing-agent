@@ -72,6 +72,14 @@ class APIHandler(BaseHTTPRequestHandler):
             self._json_response(counts)
         elif path == "/api/po":
             po_routes.handle_list(self, _run_async)
+        elif path.startswith("/api/po/extract/status/"):
+            # /api/po/extract/status/<job_id> — 6 segments (empty, api, po,
+            # extract, status, id). Poll endpoint for the async extract job.
+            parts = path.split("/")
+            if len(parts) == 6 and parts[5]:
+                po_routes.handle_extract_status(self, _run_async, parts[5])
+            else:
+                self._json_response({"error": "invalid path"}, 400)
         elif path.startswith("/api/po/") and path.endswith("/docx"):
             # /api/po/<uuid>/docx
             parts = path.split("/")
