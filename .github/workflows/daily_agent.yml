@@ -100,6 +100,19 @@ jobs:
           path: agent.log
           retention-days: 30
 
+      # Screenshots + page dumps captured whenever an SAP step fails. This is
+      # the evidence that was missing for the 80 consecutive login failures
+      # between 2026-06-09 and 2026-06-26. Shorter retention than the log
+      # because screenshots of the login page are heavier and more sensitive.
+      - name: Upload SAP diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sap-diagnostics-${{ github.run_id }}
+          path: sap_diagnostics/
+          retention-days: 14
+          if-no-files-found: ignore
+
       - name: Push updated dashboard data to main
         if: always()
         run: |

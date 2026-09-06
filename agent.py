@@ -81,6 +81,47 @@ def _use_db() -> bool:
 DATA_DIR = Path(__file__).parent / "data"
 
 
+class _SapSession:
+    """Run-scoped SAP browser context + client, created on first use.
+
+    This used to be built inside the per-tender loop, so a run with 9 SAP
+    tenders performed 9 full logins at ~110s each — roughly 16 minutes of a
+    20 minute run, and nine authentications from one IP inside that window.
+    SAP Ariba does not tolerate concurrent sessions on a single account, so
+    those logins could also invalidate each other.
+
+    One login per run. The context is deliberately separate from the
+    CanadaBuys one: its cookies and cache-busting headers break SAP's SPA.
+    """
+
+    def __init__(self, scraper):
+        self._scraper = scraper
+        self._context = None
+        self._client = None
+
+    async def client(self):
+        """The run's SAPClient, logging in on first use only."""
+        if self._client is None:
+            from sap_client import SAPClient
+            self._context = await self._scraper._browser.new_context(
+                user_agent=self._scraper._USER_AGENT,
+                accept_downloads=True,
+                viewport={"width": 1280, "height": 900},
+            )
+            self._client = SAPClient(self._context)
+        return self._client
+
+    async def close(self):
+        """Idempotent. Safe to call when no session was ever opened."""
+        if self._context is not None:
+            try:
+                await self._context.close()
+            except Exception as exc:
+                log.debug("SAP context close failed: %s", exc)
+        self._context = None
+        self._client = None
+
+
 async def run_agent():
     log.info("=" * 60)
     log.info("CanadaBuys → CFlow Agent starting  %s", datetime.now().strftime("%Y-%m-%d %H:%M"))
@@ -126,6 +167,11 @@ async def run_agent():
         tenders = await scraper.fetch_tender_list()
         log.info("Found %d tender(s) total", len(tenders))
         summary.total_found = len(tenders)
+
+        # Opened lazily on the first SAP tender that needs it, closed once
+        # after the loop. On the exception path the browser teardown in
+        # CanadaBuysScraper.__aexit__ takes the context with it.
+        sap_session = _SapSession(scraper)
 
         for tender in tenders:
             link = tender.get("inquiry_link", "").strip()
@@ -214,44 +260,39 @@ async def run_agent():
                         )
                     elif sap_user:
                         try:
-                            from sap_client import SAPClient
-                            # Use a FRESH browser context for SAP — CanadaBuys cookies
-                            # and cache-busting headers interfere with SAP's SPA rendering
-                            sap_context = await scraper._browser.new_context(
-                                user_agent=scraper._USER_AGENT,
-                                accept_downloads=True,
-                                viewport={"width": 1280, "height": 900},
-                            )
-                            try:
-                                sap = SAPClient(sap_context)
-                                sap_link = tender.get("sap_link", "") or tender.get("inquiry_link", "")
-                                downloaded_files = await sap.download_solicitation(sap_link, download_dir)
-                                if downloaded_files:
-                                    summary.files_downloaded += len(downloaded_files)
-                                    log.info("  SAP download: %d file(s) for %s", len(downloaded_files), sol_no)
-                                else:
-                                    log.info("  No files from CanadaBuys or SAP for %s", sol_no)
+                            # Run-scoped session: logs in on the first SAP
+                            # tender, reused by every later one.
+                            sap = await sap_session.client()
+                            sap_link = tender.get("sap_link", "") or tender.get("inquiry_link", "")
+                            downloaded_files = await sap.download_solicitation(sap_link, download_dir)
+                            if downloaded_files:
+                                summary.files_downloaded += len(downloaded_files)
+                                log.info("  SAP download: %d file(s) for %s", len(downloaded_files), sol_no)
+                            else:
+                                log.info("  No files from CanadaBuys or SAP for %s", sol_no)
 
-                                # Update halt state based on what _login_flow recorded.
-                                # last_login_succeeded is tri-state: None means
-                                # _login_flow was never reached (e.g. SAPClient
-                                # short-circuited because already logged in); we
-                                # leave the counter alone in that case.
-                                if sap.last_login_succeeded is True:
-                                    dashboard_data.record_sap_login_success(DATA_DIR)
-                                elif sap.last_login_succeeded is False:
-                                    new_state = dashboard_data.record_sap_login_failure(
-                                        sap.last_login_error or "unknown", DATA_DIR,
+                            # Update halt state based on what _login_flow recorded.
+                            # last_login_succeeded is tri-state: None means
+                            # _login_flow was never reached (e.g. SAPClient
+                            # short-circuited because already logged in); we
+                            # leave the counter alone in that case.
+                            if sap.last_login_succeeded is True:
+                                dashboard_data.record_sap_login_success(DATA_DIR)
+                            elif sap.last_login_succeeded is False:
+                                # Start the next tender from a clean context.
+                                # A half-authenticated session leaves cookies
+                                # that would poison the retry.
+                                await sap_session.close()
+                                new_state = dashboard_data.record_sap_login_failure(
+                                    sap.last_login_error or "unknown", DATA_DIR,
+                                )
+                                if new_state["sap_login_halted"] and new_state["sap_consecutive_failures"] >= dashboard_data.SAP_HALT_THRESHOLD:
+                                    log.warning(
+                                        "  ⛔ SAP login halt TRIGGERED after %d consecutive failures. "
+                                        "Check the sap_diagnostics artifact for the captured page, "
+                                        "then clear with: python tools/clear_sap_halt.py",
+                                        new_state["sap_consecutive_failures"],
                                     )
-                                    if new_state["sap_login_halted"] and new_state["sap_consecutive_failures"] >= dashboard_data.SAP_HALT_THRESHOLD:
-                                        log.warning(
-                                            "  ⛔ SAP login halt TRIGGERED after %d consecutive failures. "
-                                            "Rotate SAP_PASSWORD in GH secrets, then run: "
-                                            "python tools/clear_sap_halt.py",
-                                            new_state["sap_consecutive_failures"],
-                                        )
-                            finally:
-                                await sap_context.close()
                         except Exception as exc:
                             log.warning("  SAP download failed for %s: %s", sol_no, exc)
                     else:
@@ -375,6 +416,8 @@ async def run_agent():
                     log.error("✗ Failed %s: %s", sol_no, exc)
                     summary.error_count += 1
                     summary.errors.append(f"{sol_no}: {exc}")
+
+        await sap_session.close()
     finally:
         shutil.rmtree(download_dir, ignore_errors=True)
 
