@@ -33,6 +33,9 @@ dashboard-data/
 agent.log
 *.log
 
+# SAP failure screenshots + page dumps (uploaded as a CI artifact instead)
+sap_diagnostics/
+
 # IDE
 .vscode/
 .idea/
