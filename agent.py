@@ -133,12 +133,16 @@ async def run_agent(
     weekly: bool | None = None,
     headless: bool | None = None,
     max_pages: int | None = None,
+    limit: int | None = None,
 ):
     """Run the full pipeline.
 
     weekly    None = auto-detect Saturday, True/False = force the mode.
     headless  None = use SCRAPER_HEADLESS / config, False = show the browser.
     max_pages None = use the configured default.
+    limit     None = process everything found. Otherwise stop after N tenders;
+              the rest are left unprocessed and picked up on the next run,
+              which makes it safe for bounding the cost of a test run.
 
     These used to be applied by run.py to a Config it had loaded itself,
     but run_agent then called Config.load() again (and in DB mode ignores
@@ -197,6 +201,14 @@ async def run_agent(
         tenders = await scraper.fetch_tender_list()
         log.info("Found %d tender(s) total", len(tenders))
         summary.total_found = len(tenders)
+
+        if limit is not None and len(tenders) > limit:
+            log.info(
+                "--limit %d: processing the first %d of %d. The remaining %d "
+                "are not marked processed and will be picked up next run.",
+                limit, limit, len(tenders), len(tenders) - limit,
+            )
+            tenders = tenders[:limit]
 
         # Opened lazily on the first SAP tender that needs it, closed once
         # after the loop. On the exception path the browser teardown in

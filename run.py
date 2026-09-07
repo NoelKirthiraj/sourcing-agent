@@ -211,6 +211,7 @@ async def main():
         weekly=weekly,
         headless=False if args.visible else None,
         max_pages=args.pages,
+        limit=args.limit,
     )
 
 if __name__ == "__main__":
