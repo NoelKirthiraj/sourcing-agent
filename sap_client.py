@@ -37,6 +37,40 @@ SAP_DIAGNOSTICS_DIR = Path(os.environ.get("SAP_DIAGNOSTICS_DIR", "sap_diagnostic
 BODY_SNIPPET_CHARS = 1500
 
 
+class SapVisionUnavailable(Exception):
+    """Claude vision could not run at all, as opposed to running and finding
+    nothing on the page.
+
+    On 2026-09-07 an exhausted API balance was reported as "SAP: no Download
+    Content button found by vision" — a billing problem dressed up as a page
+    problem. The button was plainly visible in the screenshot. Distinguishing
+    the two is the whole point of this exception.
+    """
+
+    def __init__(self, user_message: str):
+        super().__init__(user_message)
+        self.user_message = user_message
+
+
+def _vision_unavailable_reason(exc: Exception) -> Optional[str]:
+    """Operator-facing reason if `exc` means vision could not run, else None.
+
+    Mirrors the classification po_extractor gained in #58 — same API, same
+    failure modes, same need to name the actual problem.
+    """
+    msg = str(exc).lower()
+    if "credit balance" in msg or "insufficient" in msg or "low balance" in msg:
+        return ("Anthropic API credit balance is exhausted. Top up at "
+                "https://console.anthropic.com/settings/billing and retry.")
+    if "quota" in msg or "usage limit" in msg or "spend limit" in msg:
+        return ("Anthropic API usage/quota limit reached. Check plan limits at "
+                "https://console.anthropic.com/settings/limits.")
+    if "authentication" in msg or "invalid x-api-key" in msg or "api key" in msg:
+        return ("Anthropic API key is missing or invalid — check the "
+                "ANTHROPIC_API_KEY secret.")
+    return None
+
+
 def _parse_claude_json(text: str) -> list[dict]:
     """Parse Claude's JSON response, handling markdown fences and string coords."""
     text = text.strip()
@@ -97,6 +131,12 @@ Return ONLY the JSON array, no explanation. If nothing found, return []."""},
         )
         return _parse_claude_json(message2.content[0].text)
     except Exception as exc:
+        reason = _vision_unavailable_reason(exc)
+        if reason:
+            # Not a page problem. Say so, loudly, instead of returning [] and
+            # letting the caller report a missing button.
+            log.error("SAP vision unavailable: %s", reason)
+            raise SapVisionUnavailable(reason) from exc
         log.warning("Claude vision failed: %s", exc)
         return []
 
@@ -121,6 +161,11 @@ class SAPClient:
         # halt-on-repeated-failure guardrail.
         self.last_login_succeeded: bool | None = None
         self.last_login_error: str = ""
+        # Set when Claude vision could not run (billing/auth). Distinct from
+        # last_login_error: it must never feed the SAP login halt guardrail,
+        # because halting SAP logins over an Anthropic billing problem would
+        # be the wrong remedy entirely.
+        self.last_vision_error: str = ""
         self._diagnostics_dir = Path(diagnostics_dir) if diagnostics_dir else SAP_DIAGNOSTICS_DIR
         self._diag_seq = 0
 
@@ -225,6 +270,7 @@ class SAPClient:
         # re-record that same success or failure once per tender.
         self.last_login_succeeded = None
         self.last_login_error = ""
+        self.last_vision_error = ""
 
         os.makedirs(download_dir, exist_ok=True)
 
@@ -280,6 +326,12 @@ class SAPClient:
             # Step 5: Vision-guided download
             downloaded = await self._vision_download(event_page, download_dir, dl_files)
 
+        except SapVisionUnavailable as exc:
+            # Login worked; we simply cannot read the page. Keep it out of the
+            # login halt path and name the real cause in the run log.
+            self.last_vision_error = exc.user_message
+            log.error("SAP: cannot read the event page for this tender — %s",
+                      exc.user_message)
         except Exception as exc:
             log.warning("SAP download failed: %s", exc)
         finally:
