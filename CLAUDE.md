@@ -11,9 +11,18 @@ Four subsystems in one repo, sharing a PostgreSQL database and a single API proc
 
 ## Operational state
 
-**The scrape cron is paused** (PR #56, 2026-06-26). SAP Ariba began flagging the Playwright sessions as automation and blocking the account. `daily_agent.yml` has the `schedule:` block commented out — only `workflow_dispatch` remains. Don't re-enable it without addressing detection (stealth profile, slower pacing, residential proxy).
+**The scrape cron is paused** (PR #56, 2026-06-26) and only `workflow_dispatch` is live. It stays paused until one manual run confirms SAP logs in with the credentials that replaced the old shared account. Re-enable by uncommenting the `schedule:` block in `daily_agent.yml`, which already holds the agreed times:
 
-There is also a **SAP login halt guardrail**: after `dashboard_data.SAP_HALT_THRESHOLD` consecutive login failures the agent stops attempting SAP logins entirely (prevents permanent account lockout) and the dashboard shows a banner. Clear it with `python tools/clear_sap_halt.py` **after** rotating `SAP_PASSWORD` — otherwise it re-triggers on the next run.
+| Cron (UTC) | Days | Mode |
+|---|---|---|
+| `0 12 * * 1-5` | Mon–Fri | daily |
+| `0 12 * * 6` | Saturday | weekly (Open + Goods + last 7 days) |
+
+GitHub cron is always UTC and does not follow daylight saving, so `12:00 UTC` is **8:00 AM ET in summer (EDT) and 7:00 AM ET in winter (EST)**. Don't write "8 AM ET" in a comment as if it were year-round; the previous schedule carried a "5 PM ET" label that was an hour off for eight months a year.
+
+The workflow always passes the mode explicitly (`--weekly` or `--daily`). `agent._is_saturday()` is the fallback for a bare local `python run.py` only. Letting both decide meant a manual `mode: daily` dispatch on a Saturday silently ran weekly.
+
+**SAP login halt guardrail:** after `dashboard_data.SAP_HALT_THRESHOLD` (currently 2) consecutive login failures the agent stops attempting SAP logins entirely (prevents account lockout) and the dashboard shows a banner. Clear it with `python tools/clear_sap_halt.py` **after** fixing the underlying cause — otherwise it re-triggers on the next run. When it fires, read the `sap-diagnostics-<run_id>` artifact first: it has the page URL, title, body text and a screenshot from the moment of failure. Don't assume the cause is a rotated password; between 2026-06-09 and 2026-06-26 the real signature was 80 identical failures with no block signal at all (see PR #63).
 
 ## Commands
 
@@ -27,11 +36,15 @@ python run.py --dry-run --weekly --limit 5
 # Dry-run with visible browser (debug selector issues)
 python run.py --dry-run --visible --limit 1
 
-# Scrape + record dashboard data only — skips CFlow entirely (what the cron runs)
+# Scrape + record dashboard data only — no DB, no SAP, no CFlow
 python run.py --scrape-only
 
-# Full run: DB mode if DATABASE_URL is set, else legacy direct-to-CFlow
+# Full run: DB mode if DATABASE_URL is set, else legacy direct-to-CFlow.
+# This is what the cron runs. Mode is auto-detected from the weekday
+# unless --weekly or --daily is passed.
 python run.py
+python run.py --weekly    # force weekly filters on any day
+python run.py --daily     # force daily filters, even on a Saturday
 
 # Push all dashboard-accepted tenders to CFlow
 python run.py --submit-accepted
@@ -107,6 +120,9 @@ Per-subsystem:
 
 - **Don't** swallow extraction problems silently — reviewers can't see logs.
   **Do** call `db.add_processing_note(tender_id, ...)`; the dashboard surfaces notes in the tender detail view.
+
+- **Don't** apply CLI overrides by mutating a `Config` in `run.py`. `run_agent()` loads its own config (and in DB mode ignores `Config` entirely), so those mutations are discarded — `--weekly`, `--visible` and `--pages` were dead on the full-run path for months.
+  **Do** pass them as `run_agent(weekly=..., headless=..., max_pages=...)` arguments.
 
 ### CFlow
 

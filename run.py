@@ -17,6 +17,7 @@ def parse_args():
     p.add_argument("--pages", type=int, default=None, help="Max pages to scrape")
     p.add_argument("--no-detail", action="store_true", help="Skip detail pages")
     p.add_argument("--weekly", action="store_true", help="Use weekly filters (Open + Goods + Last 7 days)")
+    p.add_argument("--daily", action="store_true", help="Force daily filters, overriding the Saturday auto-detect")
     p.add_argument("--scrape-only", action="store_true", help="Scrape + record dashboard data, skip CFlow")
     p.add_argument("--init-db", action="store_true", help="Initialize PostgreSQL schema")
     p.add_argument("--migrate-state", action="store_true", help="Migrate JSON state to PostgreSQL")
@@ -184,24 +185,6 @@ async def main():
             print(f"\n{status.title()}. New: {summary.new_count} | Skipped: {summary.skipped_count} | Errors: {summary.error_count}")
         return
 
-    import os
-    use_db = bool(os.environ.get("DATABASE_URL", ""))
-
-    if use_db:
-        # Phase 2: agent.py handles its own config — skip Config.load()
-        config = None
-    else:
-        from config import Config
-        config = Config.load()
-
-    if config and args.visible:
-        config.scraper.headless = False
-    if config and args.weekly:
-        from scraper import WEEKLY_URL
-        config.scraper.search_url = WEEKLY_URL
-    if config and args.pages:
-        config.scraper.max_pages = args.pages
-
     if args.dry_run:
         import test_run
         from scraper import WEEKLY_URL
@@ -213,8 +196,22 @@ async def main():
         )
         return
 
+    # agent.run_agent owns config loading for both DB and legacy mode, so the
+    # CLI overrides go in as arguments. weekly stays None when neither flag is
+    # given, which preserves the Saturday auto-detect for a bare `python run.py`.
+    if args.weekly:
+        weekly = True
+    elif args.daily:
+        weekly = False
+    else:
+        weekly = None
+
     import agent
-    await agent.run_agent()
+    await agent.run_agent(
+        weekly=weekly,
+        headless=False if args.visible else None,
+        max_pages=args.pages,
+    )
 
 if __name__ == "__main__":
     asyncio.run(main())

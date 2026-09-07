@@ -122,7 +122,30 @@ class _SapSession:
         self._client = None
 
 
-async def run_agent():
+def _is_saturday() -> bool:
+    """Saturday on the runner's clock (UTC in CI). Split out so the mode
+    resolution below is testable without patching datetime globally."""
+    return datetime.now().weekday() == 5
+
+
+async def run_agent(
+    *,
+    weekly: bool | None = None,
+    headless: bool | None = None,
+    max_pages: int | None = None,
+):
+    """Run the full pipeline.
+
+    weekly    None = auto-detect Saturday, True/False = force the mode.
+    headless  None = use SCRAPER_HEADLESS / config, False = show the browser.
+    max_pages None = use the configured default.
+
+    These used to be applied by run.py to a Config it had loaded itself,
+    but run_agent then called Config.load() again (and in DB mode ignores
+    Config entirely), so every mutation was discarded. --weekly, --visible
+    and --pages were silently dead on the full-run path; only --dry-run,
+    which passes its own arguments, ever honoured them.
+    """
     log.info("=" * 60)
     log.info("CanadaBuys → CFlow Agent starting  %s", datetime.now().strftime("%Y-%m-%d %H:%M"))
     log.info("=" * 60)
@@ -145,20 +168,27 @@ async def run_agent():
         log.info("Legacy mode: direct CFlow submission")
 
     config = Config.load() if not use_db else None
+    effective_scraper_config = scraper_config if use_db else config.scraper
 
-    # Saturday → weekly filters (Open + Goods + Last 7 days)
-    if datetime.now().weekday() == 5:  # 5 = Saturday
-        log.info("Saturday detected — using weekly filters (Goods, Last 7 days)")
-        if use_db:
-            scraper_config.search_url = WEEKLY_URL
-        else:
-            config.scraper.search_url = WEEKLY_URL
+    # Explicit --weekly wins; otherwise fall back to the Saturday auto-detect.
+    if weekly is None:
+        weekly = _is_saturday()
+        if weekly:
+            log.info("Saturday detected — using weekly filters (Goods, Last 7 days)")
+    elif weekly:
+        log.info("Weekly mode requested — using weekly filters (Goods, Last 7 days)")
+
+    if weekly:
+        effective_scraper_config.search_url = WEEKLY_URL
+    if headless is not None:
+        effective_scraper_config.headless = headless
+    if max_pages is not None:
+        effective_scraper_config.max_pages = max_pages
 
     state = AgentState(path=Path("processed_solicitations.json"))
     cflow = CFlowClient(config.cflow) if config else None
     notifier = Notifier()
     summary = RunSummary()
-    effective_scraper_config = scraper_config if use_db else config.scraper
 
     download_dir = tempfile.mkdtemp(prefix="sourcing_agent_")
     try:
@@ -432,7 +462,9 @@ async def run_agent():
     await notifier.send(summary)
 
     summary.duration_seconds = time.monotonic() - start_time
-    summary.mode = "weekly" if datetime.now().weekday() == 5 else "daily"
+    # Report the mode we actually ran, not a fresh weekday check — a forced
+    # --weekly run on a Tuesday was previously recorded as "daily".
+    summary.mode = "weekly" if weekly else "daily"
     dashboard_data.record_run(summary, data_dir=Path("data"))
 
     if use_db:
