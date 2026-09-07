@@ -16,16 +16,33 @@ from typing import Any
 from urllib.parse import urljoin
 
 from playwright.async_api import Browser, Page, async_playwright
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
 log = logging.getLogger(__name__)
 
 
 _BASE_SEARCH = "https://canadabuys.canada.ca/en/tender-opportunities?search_filter="
 
-# Daily: Open + Last 24 hours (all categories)
+# The portal renders "Showing X of Y results" above the list. Y is the
+# authoritative count, and it is present whether or not there are any hits,
+# which lets us tell "nothing published today" apart from "the page broke".
+_RESULT_COUNT_RE = re.compile(r"Showing\s+[\d,]+\s+of\s+([\d,]+)\s+results", re.I)
+
+# === TEMPORARY (2026-09-07) ===
+# Widened from pub[1] (Last 24 hours) to pub[2] (Last 7 days) so a test run
+# picks up Friday's postings. The portal offers no 72-hour option — the
+# choices are 24 hours, 7 days, 30 days, more than 30 — so 7 days is the
+# narrowest window that reaches back past a weekend.
+#
+# REVERT to `&pub%5B1%5D=1&status%5B87%5D=87` once SAP is verified, unless
+# you decide to keep the wider window: at 08:00 ET the 24-hour window is
+# mostly overnight, and on Mondays it covers Sunday only, so it is empty
+# more often than not.
+#
+# Daily: Open + Last 7 days (all categories)  [was: Last 24 hours]
 DAILY_URL = (
     _BASE_SEARCH
-    + "&pub%5B1%5D=1&status%5B87%5D=87"
+    + "&pub%5B2%5D=2&status%5B87%5D=87"
     "&Apply_filters=Apply+filters&record_per_page=200&current_tab=t&words="
 )
 
@@ -103,11 +120,29 @@ class CanadaBuysScraper:
                 wait_until="domcontentloaded",
             )
             await page.wait_for_load_state("networkidle", timeout=self.config.timeout_ms)
-            await page.wait_for_selector(
+            try:
+                await page.wait_for_selector(
                     "main a[href*='/en/tender-opportunities/tender-notice/'], "
                     "main a[href*='/en/tender-opportunities/award-notice/']",
                     timeout=self.config.timeout_ms,
                 )
+            except PlaywrightTimeoutError:
+                # An empty result set is a normal outcome, not a failure:
+                # weekends, statutory holidays, or an early-morning run before
+                # the day's notices are posted. This used to raise and take the
+                # whole run down with it.
+                total = await self._reported_result_count(page)
+                if total == 0:
+                    log.info(
+                        "Portal reports 0 results for this filter — nothing "
+                        "published in the window. Ending run cleanly."
+                    )
+                    return []
+                # The portal claims results but rendered no links, or the count
+                # is missing entirely. That is a real anomaly (markup change,
+                # block page), so fail loudly — but with evidence this time.
+                await self._log_listing_failure(page, total)
+                raise
 
             for page_num in range(1, self.config.max_pages + 1):
                 log.info("Scraping page %d...", page_num)
@@ -161,6 +196,44 @@ class CanadaBuysScraper:
             return {}
         finally:
             await page.close()
+
+    async def _reported_result_count(self, page: Page) -> int | None:
+        """The Y from the portal's "Showing X of Y results" banner.
+
+        None means the banner wasn't found at all, which is itself a signal
+        that we are not looking at the page we think we are.
+        """
+        try:
+            body = await page.locator("body").inner_text()
+        except Exception as exc:
+            log.debug("Could not read body text for result count: %s", exc)
+            return None
+        match = _RESULT_COUNT_RE.search(" ".join(body.split()))
+        if not match:
+            return None
+        try:
+            return int(match.group(1).replace(",", ""))
+        except ValueError:
+            return None
+
+    async def _log_listing_failure(self, page: Page, total: int | None) -> None:
+        """Evidence for a listing that neither rendered links nor reported
+        zero results. Never raises — it runs on the way to re-raising."""
+        try:
+            url = page.url
+        except Exception:
+            url = "?"
+        try:
+            title = await page.title()
+        except Exception:
+            title = "?"
+        try:
+            body = " ".join((await page.locator("body").inner_text()).split())[:600]
+        except Exception:
+            body = ""
+        log.error("LISTING DIAG url=%s", url)
+        log.error("LISTING DIAG title=%r reported_total=%s", title, total)
+        log.error("LISTING DIAG body=%s", body)
 
     async def _extract_listing(self, page: Page, seen: set[str]) -> list[dict[str, Any]]:
         tenders: list[dict[str, Any]] = []

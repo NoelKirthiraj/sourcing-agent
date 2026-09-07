@@ -22,6 +22,10 @@ GitHub cron is always UTC and does not follow daylight saving, so `12:00 UTC` is
 
 The workflow always passes the mode explicitly (`--weekly` or `--daily`). `agent._is_saturday()` is the fallback for a bare local `python run.py` only. Letting both decide meant a manual `mode: daily` dispatch on a Saturday silently ran weekly.
 
+**TEMPORARY (2026-09-07):** `DAILY_URL` is widened from `pub[1]` (Last 24 hours) to `pub[2]` (Last 7 days) so a verification run reaches past the Labour Day weekend. The portal has no 72-hour option. Revert to `&pub%5B1%5D=1&status%5B87%5D=87` in `scraper.py` once SAP is verified — `tests/unit/test_scraper.py::test_daily_url_is_temporarily_widened_to_last_7_days` carries the revert instructions.
+
+**Zero results is not an error.** Weekends, statutory holidays and early-morning runs legitimately return nothing. `fetch_tender_list` reads the portal's own "Showing X of Y results" banner: `Y == 0` ends the run cleanly, anything else (results claimed but no links rendered, or no banner at all) logs `LISTING DIAG` evidence and re-raises. Don't "fix" an empty day by making the scraper swallow all listing failures.
+
 **SAP login halt guardrail:** after `dashboard_data.SAP_HALT_THRESHOLD` (currently 2) consecutive login failures the agent stops attempting SAP logins entirely (prevents account lockout) and the dashboard shows a banner. Clear it with `python tools/clear_sap_halt.py` **after** fixing the underlying cause — otherwise it re-triggers on the next run. When it fires, read the `sap-diagnostics-<run_id>` artifact first: it has the page URL, title, body text and a screenshot from the moment of failure. Don't assume the cause is a rotated password; between 2026-06-09 and 2026-06-26 the real signature was 80 identical failures with no block signal at all (see PR #63).
 
 ## Commands
@@ -45,6 +49,7 @@ python run.py --scrape-only
 python run.py
 python run.py --weekly    # force weekly filters on any day
 python run.py --daily     # force daily filters, even on a Saturday
+python run.py --limit 5   # stop after 5 tenders; the rest retry next run
 
 # Push all dashboard-accepted tenders to CFlow
 python run.py --submit-accepted

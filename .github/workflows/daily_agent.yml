@@ -33,6 +33,11 @@ on:
         options:
           - daily
           - weekly
+      limit:
+        description: 'Max tenders to process (blank = all). Bounds the cost of a test run.'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: write
@@ -95,14 +100,19 @@ jobs:
           else
             MODE="daily"
           fi
+          LIMIT_ARG=""
+          if [ -n "${{ github.event.inputs.limit }}" ]; then
+            LIMIT_ARG="--limit ${{ github.event.inputs.limit }}"
+            echo "Limiting to ${{ github.event.inputs.limit }} tender(s)"
+          fi
           echo "Running in $MODE mode"
           # Always pass the mode explicitly. The agent has its own Saturday
           # auto-detect for bare local runs; letting both decide meant a
           # manual "daily" dispatch on a Saturday silently ran weekly.
           if [ "$MODE" = "weekly" ]; then
-            python run.py --weekly
+            python run.py --weekly $LIMIT_ARG
           else
-            python run.py --daily
+            python run.py --daily $LIMIT_ARG
           fi
 
       - name: Upload agent log

@@ -98,9 +98,17 @@ class TestURLConstants:
     def test_weekly_url_has_goods_category_153(self):
         assert "category%5B153%5D=153" in WEEKLY_URL
 
-    def test_daily_url_has_last_24h_filter(self):
-        # pub[1]=1 is the "Last 24 hours" filter
-        assert "pub%5B1%5D=1" in DAILY_URL
+    def test_daily_url_is_temporarily_widened_to_last_7_days(self):
+        """TEMPORARY (2026-09-07). DAILY_URL normally uses pub[1] ("Last 24
+        hours"); it is on pub[2] ("Last 7 days") so a test run reaches back
+        past the Labour Day weekend to Friday's postings. The portal has no
+        72-hour option.
+
+        On revert, restore this to the original assertion:
+            assert "pub%5B1%5D=1" in DAILY_URL
+        """
+        assert "pub%5B2%5D=2" in DAILY_URL
+        assert "pub%5B1%5D=1" not in DAILY_URL
 
     def test_weekly_url_has_last_7_days_filter(self):
         # pub[2]=2 is the "Last 7 days" filter
