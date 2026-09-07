@@ -11,7 +11,7 @@ Four subsystems in one repo, sharing a PostgreSQL database and a single API proc
 
 ## Operational state
 
-**Schedule** (`daily_agent.yml`), resumed 2026-09-07 after the SAP account moved off a shared login:
+**The scrape cron is paused** (PR #56, 2026-06-26) and only `workflow_dispatch` is live. It stays paused until one manual run confirms SAP logs in with the credentials that replaced the old shared account. Re-enable by uncommenting the `schedule:` block in `daily_agent.yml`, which already holds the agreed times:
 
 | Cron (UTC) | Days | Mode |
 |---|---|---|
