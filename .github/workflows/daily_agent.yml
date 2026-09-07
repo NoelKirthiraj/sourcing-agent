@@ -1,18 +1,20 @@
 name: Daily Sourcing Agent
 
 on:
-  # === SCHEDULE PAUSED ===
-  # Reason: SAP/CanadaBuys (the underlying SAP Ariba portal) started
-  # detecting our Playwright-based scrapes as automation and is blocking
-  # the account. Pausing the cron until that's diagnosed and the scraper
-  # is updated (stealth profile, slower pacing, residential proxy, etc.).
-  # Re-enable: uncomment the schedule block below.
+  # Resumed 2026-09-07 after the SAP account was moved off a shared login.
+  # Paused 2026-06-26 (#56); see #63 for what the CI logs actually showed.
   #
-  # schedule:
-  #   # 5 PM ET (22:00 UTC) weekdays — daily mode
-  #   - cron: '0 22 * * 1-5'
-  #   # 5 PM ET (22:00 UTC) Saturday — weekly mode
-  #   - cron: '0 22 * * 6'
+  # GitHub cron is always UTC and does NOT follow daylight saving, so a
+  # fixed UTC time drifts by an hour twice a year. 12:00 UTC is:
+  #   8:00 AM ET from mid-March to early November (EDT, ~8 months)
+  #   7:00 AM ET from early November to mid-March (EST, ~4 months)
+  # Anchored to EDT because that covers most of the year. Use '0 13' instead
+  # to anchor to EST (9:00 AM in summer, 8:00 AM in winter).
+  schedule:
+    # Weekdays — daily mode
+    - cron: '0 12 * * 1-5'
+    # Saturday — weekly mode (Open + Goods + last 7 days)
+    - cron: '0 12 * * 6'
   workflow_dispatch:
     inputs:
       mode:
@@ -86,10 +88,13 @@ jobs:
             MODE="daily"
           fi
           echo "Running in $MODE mode"
+          # Always pass the mode explicitly. The agent has its own Saturday
+          # auto-detect for bare local runs; letting both decide meant a
+          # manual "daily" dispatch on a Saturday silently ran weekly.
           if [ "$MODE" = "weekly" ]; then
             python run.py --weekly
           else
-            python run.py
+            python run.py --daily
           fi
 
       - name: Upload agent log
