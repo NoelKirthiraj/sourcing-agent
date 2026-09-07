@@ -226,11 +226,14 @@ async def test_capture_tolerates_an_unwritable_directory(tmp_path):
 # ── The failure paths actually call it ──────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_login_flow_captures_when_respond_button_missing(tmp_path):
+async def test_missing_respond_button_captures_evidence(tmp_path):
+    """Clicking Respond moved out of _login_flow into _click_respond, because
+    it is navigation rather than authentication and has to run for every
+    tender. The diagnostics moved with it."""
     page = FakePage(respond_count=0)
     client = make_client(tmp_path, pages=[page])
 
-    ok = await client._login_flow(page)
+    ok = await client._click_respond(page)
 
     assert ok is False
     assert client.last_login_error == "no Respond button on discovery page"
@@ -245,7 +248,7 @@ async def test_login_flow_logs_diagnostics_at_warning(tmp_path, caplog):
     client = make_client(tmp_path, pages=[page])
 
     with caplog.at_level(logging.WARNING, logger="sap_client"):
-        await client._login_flow(page)
+        await client._click_respond(page)
 
     diag = [r.getMessage() for r in caplog.records if "SAP DIAG" in r.getMessage()]
     assert any("https://sap.example/login" in m for m in diag)

@@ -268,20 +268,10 @@ async def test_reused_session_reports_no_login_result(tmp_path):
     Otherwise agent.py re-records the first tender's login outcome once per
     tender, either resetting the halt counter or inflating it.
     """
-    page = MagicMock()
-    page.goto = AsyncMock()
-    page.wait_for_timeout = AsyncMock()
-    page.locator = MagicMock(return_value=MagicMock(wait_for=AsyncMock()))
-    page.close = AsyncMock()
-
-    ctx = MagicMock()
-    ctx.pages = [page]
-    ctx.new_page = AsyncMock(return_value=page)
-
-    client = SAPClient(ctx, username="u@example.com", password="p",
+    client = SAPClient(FakeContext(), username="u@example.com", password="p",
                        diagnostics_dir=tmp_path)
-    client._find_event_page = AsyncMock(return_value=None)
-    client._logged_in = True          # session already established
+    client._vision_download = AsyncMock(return_value=[])
+    client._logged_in = True            # session already established
     client.last_login_succeeded = True  # ...by an earlier tender
 
     await client.download_solicitation("https://portal.ariba.com/b", str(tmp_path))
@@ -292,26 +282,149 @@ async def test_reused_session_reports_no_login_result(tmp_path):
 @pytest.mark.asyncio
 async def test_second_download_skips_the_login_flow(tmp_path):
     """Reusing a client across tenders must not re-authenticate."""
-    page = MagicMock()
-    page.goto = AsyncMock()
-    page.wait_for_timeout = AsyncMock()
-    page.locator = MagicMock(return_value=MagicMock(wait_for=AsyncMock()))
-    page.close = AsyncMock()
-
-    ctx = MagicMock()
-    ctx.pages = [page]
-    ctx.new_page = AsyncMock(return_value=page)
-
-    client = SAPClient(ctx, username="u@example.com", password="p",
+    client = SAPClient(FakeContext(), username="u@example.com", password="p",
                        diagnostics_dir=tmp_path)
-    client._login_flow = AsyncMock(return_value=True)
-    client._find_event_page = AsyncMock(return_value=None)  # stop after login
+    client._vision_download = AsyncMock(return_value=[])
+
+    async def fake_login(page, preexisting=None):
+        client._logged_in = True
+        client.last_login_succeeded = True
+        return True
+
+    client._login_flow = AsyncMock(side_effect=fake_login)
 
     await client.download_solicitation("https://portal.ariba.com/a", str(tmp_path))
     assert client._login_flow.await_count == 1
 
-    # Simulate the first call having established the session.
-    client._logged_in = True
+    await client.download_solicitation("https://portal.ariba.com/b", str(tmp_path))
+    assert client._login_flow.await_count == 1, "re-authenticated on tender 2"
+
+
+# ── the session-reuse bug found by the 2026-09-07 end-to-end run ────────────
+
+class FakePage:
+    """Playwright page stand-in that tracks whether Respond was clicked."""
+
+    def __init__(self, url="https://portal.us.bn.cloud.ariba.com/dashboard/x"):
+        self.url = url
+        self.respond_clicks = 0
+        self.closed = False
+
+    def locator(self, selector):
+        page = self
+
+        class _Loc:
+            @property
+            def first(self):
+                return self
+
+            async def count(self):
+                return 1 if "Respond" in selector else 0
+
+            async def wait_for(self, **kw):
+                return None
+
+            async def click(self, **kw):
+                if "Respond" in selector:
+                    page.respond_clicks += 1
+                    # Reaching the event is what Respond does.
+                    page.url = "https://service.ariba.com/Sourcing.aw/event/999"
+
+            async def inner_text(self):
+                return ""
+
+        return _Loc()
+
+    async def goto(self, *a, **kw):
+        return MagicMock(status=200)
+
+    async def wait_for_timeout(self, ms):
+        return None
+
+    async def title(self):
+        return "SAP"
+
+    async def screenshot(self, **kw):
+        return None
+
+    def on(self, event, handler):
+        return None
+
+    async def close(self):
+        self.closed = True
+
+
+class FakeContext:
+    def __init__(self):
+        self.pages: list[FakePage] = []
+
+    async def new_page(self):
+        p = FakePage()
+        self.pages.append(p)
+        return p
+
+
+@pytest.mark.asyncio
+async def test_respond_is_clicked_for_every_tender(tmp_path):
+    """Clicking Respond is navigation, not authentication. When it lived
+    inside _login_flow, a reused session skipped it and never left the
+    discovery page."""
+    ctx = FakeContext()
+    client = SAPClient(ctx, username="u@example.com", password="p",
+                       diagnostics_dir=tmp_path)
+    client._logged_in = True                      # session already established
+    client._vision_download = AsyncMock(return_value=[])
+
+    await client.download_solicitation("https://portal.ariba.com/a", str(tmp_path))
     await client.download_solicitation("https://portal.ariba.com/b", str(tmp_path))
 
-    assert client._login_flow.await_count == 1
+    assert [p.respond_clicks for p in ctx.pages] == [1, 1]
+
+
+@pytest.mark.asyncio
+async def test_second_tender_does_not_reuse_the_first_tenders_event_page(tmp_path):
+    """The 2026-09-07 bug: tender 2 screenshotted tender 1's page, found no
+    "Download Content" button on it, and reported zero files."""
+    ctx = FakeContext()
+    client = SAPClient(ctx, username="u@example.com", password="p",
+                       diagnostics_dir=tmp_path)
+    client._logged_in = True
+
+    seen: list[FakePage] = []
+
+    async def capture(page, *a, **kw):
+        seen.append(page)
+        return []
+
+    client._vision_download = capture
+
+    await client.download_solicitation("https://portal.ariba.com/a", str(tmp_path))
+    await client.download_solicitation("https://portal.ariba.com/b", str(tmp_path))
+
+    assert len(seen) == 2
+    assert seen[0] is not seen[1], "tender 2 operated on tender 1's page"
+
+
+@pytest.mark.asyncio
+async def test_pages_are_closed_between_tenders(tmp_path):
+    """Leftover pages are what made the wrong event findable."""
+    ctx = FakeContext()
+    client = SAPClient(ctx, username="u@example.com", password="p",
+                       diagnostics_dir=tmp_path)
+    client._logged_in = True
+    client._vision_download = AsyncMock(return_value=[])
+
+    await client.download_solicitation("https://portal.ariba.com/a", str(tmp_path))
+    assert ctx.pages[0].closed is True
+
+
+@pytest.mark.asyncio
+async def test_find_event_page_ignores_preexisting_pages(tmp_path):
+    ctx = FakeContext()
+    stale = FakePage(url="https://service.ariba.com/Sourcing.aw/event/111")
+    ctx.pages.append(stale)
+    client = SAPClient(ctx, username="u", password="p", diagnostics_dir=tmp_path)
+
+    with patch("sap_client.asyncio.sleep", AsyncMock()):
+        assert await client._find_event_page(exclude={stale}) is None
+    assert await client._find_event_page() is stale

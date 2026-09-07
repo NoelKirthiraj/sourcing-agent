@@ -4,8 +4,10 @@ Uses Playwright + Claude Vision to navigate SAP's complex UI.
 
 Flow:
   1. Navigate to SAP discovery page (public)
-  2. Click "Respond" → "Register/Login" → login page
-  3. Dismiss cookie consent, fill username → Next → password → Enter
+  2. Click "Respond" — every tender, session reuse or not. This is what
+     navigates to the specific event.
+  3. First tender only: "Register/Login", dismiss cookie consent, fill
+     username → Next → password → Enter
   4. On event page: use Claude Vision to find "Download Content" button
   5. Click "Download Content" → export panel opens
   6. Use Claude Vision to find "Download Attachments" in panel
@@ -225,6 +227,12 @@ class SAPClient:
         self.last_login_error = ""
 
         os.makedirs(download_dir, exist_ok=True)
+
+        # Pages already open before this tender started. A reused session can
+        # leave the previous tender's event page around, and _find_event_page
+        # matches on any "ariba.com/Sourcing" URL — so without this, tender 2
+        # silently operates on tender 1's page.
+        preexisting = set(self._context.pages)
         page = await self._context.new_page()
         downloaded: list[str] = []
 
@@ -234,23 +242,26 @@ class SAPClient:
             await page.goto(sap_url, timeout=60000, wait_until="load")
             await page.wait_for_timeout(15000)  # SAP SPA needs time
 
-            # Step 2: Login if needed. One session serves the whole run —
-            # see _SapSession in agent.py.
+            # Step 2: Navigate from the public discovery page to THIS event.
+            # Clicking Respond is navigation, not authentication, so it has to
+            # happen for every tender — including ones reusing a session. It
+            # used to live inside _login_flow, which meant a reused session
+            # skipped it and never left the discovery page.
+            if not await self._click_respond(page):
+                return []
+
+            # Step 3: Log in if we haven't already. One session serves the
+            # whole run — see _SapSession in agent.py.
             if not self._logged_in:
-                # Wait for SPA to render Respond button
-                try:
-                    await page.locator("button:has-text('Respond')").wait_for(timeout=15000)
-                except:
-                    log.debug("SAP: Respond button not found after wait, checking page...")
-                success = await self._login_flow(page)
+                success = await self._login_flow(page, preexisting)
                 if not success:
                     log.warning("SAP login failed")
                     return []
             else:
                 log.info("SAP: reusing existing session, skipping login")
 
-            # Step 3: Find event page
-            event_page = await self._find_event_page()
+            # Step 4: Find the event page THIS tender opened
+            event_page = await self._find_event_page(exclude=preexisting)
             if not event_page:
                 log.warning("SAP: could not find event page after login")
                 await self._capture_failure(
@@ -272,34 +283,54 @@ class SAPClient:
         except Exception as exc:
             log.warning("SAP download failed: %s", exc)
         finally:
-            for pg in self._context.pages[1:]:
-                try:
-                    await pg.close()
-                except:
-                    pass
+            # Close everything this tender opened. Leaving pages behind is what
+            # let the next tender find the wrong event. Cookies live on the
+            # context, so the session survives a context with zero pages.
+            for pg in list(self._context.pages):
+                if pg not in preexisting:
+                    try:
+                        await pg.close()
+                    except:
+                        pass
 
         return downloaded
 
-    async def _login_flow(self, page: Page) -> bool:
-        """Handle full SAP login: Respond → Register/Login → cookie → username → password.
+    async def _click_respond(self, page: Page) -> bool:
+        """Click Respond on the public discovery page to reach the event.
+
+        This is navigation, not authentication. It has to run for every
+        tender: when it lived inside _login_flow, a tender reusing an
+        established session skipped it, never left the discovery page, and
+        _find_event_page then matched the *previous* tender's event.
+        """
+        try:
+            await page.locator("button:has-text('Respond')").wait_for(timeout=15000)
+        except Exception:
+            log.debug("SAP: Respond button not visible after wait, checking anyway...")
+
+        respond = page.locator("button:has-text('Respond')").first
+        if await respond.count() == 0:
+            log.warning("SAP: no Respond button")
+            self.last_login_succeeded = False
+            self.last_login_error = "no Respond button on discovery page"
+            await self._capture_failure(page, "no-respond-button")
+            return False
+
+        await respond.click()
+        log.info("SAP: clicked Respond")
+        await page.wait_for_timeout(3000)
+        return True
+
+    async def _login_flow(self, page: Page, preexisting: set | None = None) -> bool:
+        """Handle SAP login: Register/Login → cookie → username → password.
+
+        Assumes _click_respond has already navigated off the discovery page.
 
         Sets self.last_login_succeeded (True/False) and self.last_login_error
         so callers can distinguish a credential/auth failure from a downstream
         "nothing to download" outcome.
         """
         try:
-            # Click Respond
-            respond = page.locator("button:has-text('Respond')").first
-            if await respond.count() == 0:
-                log.warning("SAP: no Respond button")
-                self.last_login_succeeded = False
-                self.last_login_error = "no Respond button on discovery page"
-                await self._capture_failure(page, "no-respond-button")
-                return False
-            await respond.click()
-            log.info("SAP: clicked Respond")
-            await page.wait_for_timeout(3000)
-
             # Click Register/Login in popup
             login_btn = page.locator("button:has-text('Register/Login'), button:has-text('Login')").first
             if await login_btn.count() > 0:
@@ -366,7 +397,7 @@ class SAPClient:
             await page.wait_for_timeout(15000)
 
             # Verify login
-            event_page = await self._find_event_page()
+            event_page = await self._find_event_page(exclude=preexisting)
             if event_page:
                 self._logged_in = True
                 self.last_login_succeeded = True
@@ -395,10 +426,19 @@ class SAPClient:
             await self._capture_failure(page, "login-exception")
             return False
 
-    async def _find_event_page(self) -> Page | None:
-        """Find the SAP event page among open pages."""
+    async def _find_event_page(self, exclude: set | None = None) -> Page | None:
+        """Find the SAP event page among the pages this tender opened.
+
+        `exclude` is the set of pages that were already open before the
+        current tender began. Without it, a session reused across tenders
+        matches the previous tender's leftover event page and silently
+        operates on the wrong solicitation.
+        """
+        exclude = exclude or set()
         for _ in range(12):  # 12 × 5s = 60s max wait
             for pg in self._context.pages:
+                if pg in exclude:
+                    continue
                 if "ariba.com/Sourcing" in pg.url:
                     return pg
             await asyncio.sleep(5)
