@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import sys
+import threading
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -18,7 +19,7 @@ load_dotenv()
 # Ensure project root is in path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
 import db
@@ -30,6 +31,9 @@ log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 _loop = None
+# Guards the shared event loop above. See _run_async for why one loop plus a
+# lock is used rather than a loop per thread.
+_loop_lock = threading.Lock()
 
 # Hard upper bound on request body size to prevent a malicious Content-Length
 # header from causing an OOM by inflating rfile.read(N). /api/po accepts
@@ -40,11 +44,26 @@ _SMALL_BODY_MAX = 64 * 1024          # 64 KB — every other JSON POST
 
 
 def _run_async(coro):
-    """Run an async function from sync context."""
+    """Run an async function from sync context.
+
+    The server is threaded, so this can be called from several request threads
+    at once — but a single asyncio loop cannot be driven concurrently, and the
+    asyncpg pool is bound to the loop that created it. The lock serialises
+    access to that one loop rather than creating a loop per thread, which would
+    strand the pool.
+
+    Database work therefore still runs one call at a time. That is fine at this
+    scale and, crucially, it is only the *database* that serialises: a slow
+    third-party call (Claude web search) happens outside this lock, so it no
+    longer stalls the health check or any other request.
+    """
     global _loop
-    if _loop is None:
-        _loop = asyncio.new_event_loop()
-    return _loop.run_until_complete(coro)
+    with _loop_lock:
+        if _loop is None:
+            _loop = asyncio.new_event_loop()
+        # Make it discoverable to anything calling get_event_loop() downstream.
+        asyncio.set_event_loop(_loop)
+        return _loop.run_until_complete(coro)
 
 
 class APIHandler(BaseHTTPRequestHandler):
@@ -406,7 +425,13 @@ async def _init():
 def main():
     port = int(os.environ.get("PORT", os.environ.get("API_PORT", "8000")))
     _run_async(_init())
-    server = HTTPServer(("0.0.0.0", port), APIHandler)
+    # Threaded, not single-threaded. A synchronous handler that takes a minute
+    # (Claude web search for external suppliers) previously blocked every other
+    # request including Railway's /api/health probe, which failed the health
+    # check and restarted the container — surfacing as 502 "Application failed
+    # to respond" across the whole dashboard.
+    server = ThreadingHTTPServer(("0.0.0.0", port), APIHandler)
+    server.daemon_threads = True
     log.info("Dashboard API running on http://0.0.0.0:%d", port)
     try:
         server.serve_forever()
