@@ -52,23 +52,9 @@ class SapVisionUnavailable(Exception):
         self.user_message = user_message
 
 
-def _vision_unavailable_reason(exc: Exception) -> Optional[str]:
-    """Operator-facing reason if `exc` means vision could not run, else None.
-
-    Mirrors the classification po_extractor gained in #58 — same API, same
-    failure modes, same need to name the actual problem.
-    """
-    msg = str(exc).lower()
-    if "credit balance" in msg or "insufficient" in msg or "low balance" in msg:
-        return ("Anthropic API credit balance is exhausted. Top up at "
-                "https://console.anthropic.com/settings/billing and retry.")
-    if "quota" in msg or "usage limit" in msg or "spend limit" in msg:
-        return ("Anthropic API usage/quota limit reached. Check plan limits at "
-                "https://console.anthropic.com/settings/limits.")
-    if "authentication" in msg or "invalid x-api-key" in msg or "api key" in msg:
-        return ("Anthropic API key is missing or invalid — check the "
-                "ANTHROPIC_API_KEY secret.")
-    return None
+# Shared with supplier_search — see llm_errors for why this lives in one place.
+# Re-exported under the old name so existing callers and tests are unaffected.
+from llm_errors import api_unavailable_reason as _vision_unavailable_reason
 
 
 def _parse_claude_json(text: str) -> list[dict]:

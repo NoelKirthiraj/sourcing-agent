@@ -23,6 +23,7 @@ from urllib.parse import urlparse, parse_qs
 
 import db
 import po_routes
+import supplier_routes
 import vendor_routes
 
 log = logging.getLogger(__name__)
@@ -96,6 +97,10 @@ class APIHandler(BaseHTTPRequestHandler):
                 vendor_routes.handle_get(self, _run_async, parts[3])
             else:
                 self._json_response({"error": "invalid path"}, 400)
+        elif path.startswith("/api/tenders/") and path.endswith("/suggestions"):
+            supplier_routes.handle_list_suggestions(self, _run_async, path.split("/")[3])
+        elif path.startswith("/api/tenders/") and path.endswith("/outreach"):
+            supplier_routes.handle_list_outreach(self, _run_async, path.split("/")[3])
         elif path == "/api/rfp-categories":
             vendor_routes.handle_list_categories(self, _run_async)
         elif path == "/api/health":
@@ -163,6 +168,12 @@ class APIHandler(BaseHTTPRequestHandler):
                 self._handle_bulk_accept(ids)
             elif path == "/api/tenders/submit-accepted":
                 self._handle_submit_all_accepted()
+            elif path.startswith("/api/tenders/") and path.endswith("/suggest-suppliers/external"):
+                supplier_routes.handle_suggest_external(self, _run_async, path.split("/")[3])
+            elif path.startswith("/api/tenders/") and path.endswith("/suggest-suppliers"):
+                supplier_routes.handle_suggest(self, _run_async, path.split("/")[3])
+            elif path.startswith("/api/tenders/") and path.endswith("/outreach"):
+                supplier_routes.handle_create_outreach(self, _run_async, path.split("/")[3], body)
             elif path == "/api/po":
                 po_routes.handle_generate(self, _run_async, body)
             elif path == "/api/vendors":

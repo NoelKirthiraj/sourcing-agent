@@ -795,6 +795,120 @@ body::after {
 .theme-corporate .review-btn.reject { background: rgba(220,38,38,0.1); color: #DC2626; }
 .theme-corporate .review-btn.reject:hover { background: #DC2626; color: #fff; }
 .theme-corporate .review-btn.bulk { background: rgba(30,58,95,0.1); color: #1E3A5F; }
+
+/* ── Supplier matching panel (accepted tenders only) ───────────────────── */
+.supplier-panel {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.sp-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.sp-title {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-right: auto;
+}
+.sp-btn {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--cyan-dim);
+  color: var(--cyan);
+}
+.sp-btn:hover:not(:disabled) { background: var(--cyan); color: #000; }
+.sp-btn:disabled { opacity: 0.5; cursor: default; }
+.sp-btn.ghost { background: var(--bg-surface); color: var(--text-secondary); }
+.sp-btn.ghost:hover:not(:disabled) { background: var(--text-secondary); color: var(--bg-deep); }
+.theme-corporate .sp-btn { background: rgba(30,58,95,0.1); color: #1E3A5F; }
+.theme-corporate .sp-btn:hover:not(:disabled) { background: #1E3A5F; color: #fff; }
+
+.sp-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  margin-bottom: 6px;
+}
+.sp-row input[type=checkbox] { margin-top: 3px; cursor: pointer; flex-shrink: 0; }
+.sp-row-main { flex: 1; min-width: 0; }
+.sp-company { font-size: 0.8125rem; font-weight: 600; }
+.sp-why {
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+.sp-score {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  color: var(--cyan);
+  flex-shrink: 0;
+}
+.sp-badge {
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--red-dim);
+  color: var(--red);
+  margin-left: 6px;
+}
+/* External results are visually separated so an unvetted web hit can never
+   be mistaken for a registry supplier. */
+.sp-external { border-left: 3px solid var(--amber, #F59E0B); }
+.sp-section-note {
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+  margin: 10px 0 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+}
+.sp-empty { font-size: 0.75rem; color: var(--text-secondary); padding: 8px 0; }
+.sp-warn {
+  font-size: 0.75rem;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--red-dim);
+  color: var(--red);
+  border-left: 3px solid var(--red);
+}
+.sp-draft {
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.sp-draft-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.sp-draft-to {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+  margin-right: auto;
+  word-break: break-all;
+}
+.sp-draft-subject { font-size: 0.75rem; font-weight: 600; margin-bottom: 6px; }
+.sp-draft-body {
+  white-space: pre-wrap;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 8px;
+  border-radius: 4px;
+  background: var(--bg-deep, rgba(0,0,0,0.15));
+}
 .review-status {
   font-family: var(--font-mono);
   font-size: 0.5625rem;
@@ -3048,8 +3162,236 @@ function renderReviewTender(t) {
         <div class="detail-label">Scraped</div><div class="detail-value">${t.scraped_at ? new Date(t.scraped_at).toLocaleString() : '—'}</div>
         ${t.processing_notes ? `<div class="detail-label">Notes</div><div class="detail-value" style="white-space:pre-wrap;font-size:0.75rem;padding:8px 12px;background:${t.processing_notes.includes('failed') || t.processing_notes.includes('manual') ? 'var(--red-dim)' : 'var(--cyan-dim)'};border-radius:6px;border-left:3px solid ${t.processing_notes.includes('failed') || t.processing_notes.includes('manual') ? 'var(--red)' : 'var(--cyan)'}">${escapeHtml(t.processing_notes)}</div>` : ''}
       </div>
+      ${(t.status === 'accepted' || t.status === 'submitted') ? `
+      <div class="supplier-panel">
+        <div class="sp-head">
+          <span class="sp-title">Suppliers</span>
+          <button class="sp-btn" onclick="event.stopPropagation();findSuppliers(${t.id},this)">Find suppliers</button>
+          <button class="sp-btn ghost" onclick="event.stopPropagation();findExternalSuppliers(${t.id},this)">Search web</button>
+        </div>
+        <div class="sp-body" id="sp-body-${t.id}"></div>
+      </div>` : ''}
     </div>
   </div>`;
+}
+
+/* ── Supplier matching ──────────────────────────────────────────────────── */
+
+// Shortlists keyed by tender id, so "show all" and draft generation can read
+// the current selection without re-fetching.
+const supplierState = {};
+
+async function findSuppliers(id, btn) {
+  const body = document.getElementById(`sp-body-${id}`);
+  if (!body) return;
+  btn.disabled = true;
+  const label = btn.textContent;
+  btn.textContent = 'Matching…';
+  body.innerHTML = '<div class="sp-empty">Searching the supplier registry…</div>';
+
+  const data = await reviewApi(`/api/tenders/${id}/suggest-suppliers`, { method: 'POST' });
+
+  btn.disabled = false;
+  btn.textContent = label;
+
+  if (!data) {
+    body.innerHTML = '<div class="sp-warn">Could not reach the API. Try again.</div>';
+    return;
+  }
+  if (data.warning) {
+    body.innerHTML = `<div class="sp-warn">${escapeHtml(data.warning)}</div>`;
+    return;
+  }
+
+  const st = supplierState[id] || (supplierState[id] = {});
+  st.internal = data.suggestions || [];
+  st.shortlist = data.shortlist_size || 5;
+  st.expanded = false;
+  renderSuppliers(id);
+}
+
+async function findExternalSuppliers(id, btn) {
+  const body = document.getElementById(`sp-body-${id}`);
+  if (!body) return;
+  btn.disabled = true;
+  const label = btn.textContent;
+  btn.textContent = 'Searching…';
+
+  const data = await reviewApi(`/api/tenders/${id}/suggest-suppliers/external`, { method: 'POST' });
+
+  btn.disabled = false;
+  btn.textContent = label;
+
+  const st = supplierState[id] || (supplierState[id] = {});
+  if (!data || data.error) {
+    st.externalError = (data && data.error) || 'Web search unavailable.';
+    st.external = [];
+  } else {
+    st.externalError = '';
+    st.external = data.suggestions || [];
+  }
+  renderSuppliers(id);
+}
+
+function renderSuppliers(id) {
+  const body = document.getElementById(`sp-body-${id}`);
+  const st = supplierState[id];
+  if (!body || !st) return;
+
+  const internal = st.internal || [];
+  const shortlist = st.shortlist || 5;
+  const shown = st.expanded ? internal : internal.slice(0, shortlist);
+  let html = '';
+
+  if (!internal.length) {
+    html += '<div class="sp-empty">No registry supplier matched this tender. '
+          + 'Try “Search web”, or add keywords to the relevant RFP category.</div>';
+  } else {
+    // Only the top N are pre-checked; the rest are opt-in.
+    html += shown.map((s, i) => supplierRow(id, s, i < shortlist, false)).join('');
+    if (internal.length > shortlist) {
+      html += `<button class="sp-btn ghost" style="margin:4px 0 8px"
+                 onclick="event.stopPropagation();toggleAllSuppliers(${id})">`
+            + (st.expanded ? 'Show top ' + shortlist
+                           : `Show all ${internal.length}`) + '</button>';
+    }
+  }
+
+  if (st.externalError) {
+    html += `<div class="sp-warn" style="margin-top:10px">${escapeHtml(st.externalError)}</div>`;
+  } else if (st.external && st.external.length) {
+    html += '<div class="sp-section-note">From the web — <strong>not vetted</strong> and not in '
+          + 'your registry. Check the company before contacting, and add it to Vendors if it '
+          + 'turns out to be a real supplier.</div>';
+    html += st.external.map((s, i) => supplierRow(id, s, false, true, i)).join('');
+  }
+
+  if (internal.length || (st.external && st.external.length)) {
+    html += `<div class="sp-head" style="margin-top:12px">
+               <button class="sp-btn" onclick="event.stopPropagation();generateDrafts(${id},this)">
+                 Generate email drafts</button>
+             </div>`;
+  }
+
+  html += `<div id="sp-drafts-${id}"></div>`;
+  body.innerHTML = html;
+}
+
+function supplierRow(id, s, checked, isExternal, extIdx) {
+  const value = isExternal ? `ext:${extIdx}` : s.vendor_id;
+  const noEmail = !isExternal && !s.contactable
+    ? '<span class="sp-badge">no email</span>' : '';
+  const link = isExternal && s.external_source_url
+    ? ` <a href="${escapeHtml(s.external_source_url)}" target="_blank" rel="noopener"
+         style="color:var(--cyan);font-size:0.6875rem">source</a>` : '';
+  return `
+    <div class="sp-row${isExternal ? ' sp-external' : ''}">
+      <input type="checkbox" data-tender="${id}" value="${escapeHtml(String(value))}"
+             ${checked ? 'checked' : ''} onclick="event.stopPropagation()">
+      <div class="sp-row-main">
+        <div class="sp-company">${escapeHtml(s.company || '—')}${noEmail}</div>
+        <div class="sp-why">${escapeHtml(s.rationale || '')}${link}</div>
+      </div>
+      ${!isExternal ? `<span class="sp-score">${s.score ?? 0} pts</span>` : ''}
+    </div>`;
+}
+
+function toggleAllSuppliers(id) {
+  const st = supplierState[id];
+  if (!st) return;
+  // Preserve what the associate has already ticked across the re-render.
+  const checked = new Set(selectedSupplierValues(id));
+  st.expanded = !st.expanded;
+  renderSuppliers(id);
+  document.querySelectorAll(`input[data-tender="${id}"]`).forEach(cb => {
+    cb.checked = checked.has(cb.value);
+  });
+}
+
+function selectedSupplierValues(id) {
+  return Array.from(document.querySelectorAll(`input[data-tender="${id}"]:checked`))
+              .map(cb => cb.value);
+}
+
+async function generateDrafts(id, btn) {
+  const target = document.getElementById(`sp-drafts-${id}`);
+  const values = selectedSupplierValues(id);
+  const vendorIds = values.filter(v => !v.startsWith('ext:')).map(Number);
+  const externalCount = values.length - vendorIds.length;
+
+  if (!vendorIds.length) {
+    target.innerHTML = '<div class="sp-warn">'
+      + (externalCount
+          ? 'Web results have no stored contact details yet. Add one to Vendors first, '
+            + 'then generate a draft for it.'
+          : 'Select at least one supplier.')
+      + '</div>';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Drafting…';
+  const data = await reviewApi(`/api/tenders/${id}/outreach`, {
+    method: 'POST',
+    body: JSON.stringify({ vendor_ids: vendorIds })
+  });
+  btn.disabled = false;
+  btn.textContent = 'Generate email drafts';
+
+  if (!data || data.error) {
+    target.innerHTML = `<div class="sp-warn">${escapeHtml((data && data.error) || 'Draft generation failed.')}</div>`;
+    return;
+  }
+
+  const drafts = data.drafts || [];
+  window.__spDrafts = window.__spDrafts || {};
+  let html = `<div class="sp-section-note">${drafts.length} draft${drafts.length === 1 ? '' : 's'}
+                ready to copy. Nothing has been sent.</div>`;
+  if (externalCount) {
+    html += `<div class="sp-section-note">${externalCount} web result${externalCount === 1 ? ' was' : 's were'}
+               skipped — add them to Vendors first.</div>`;
+  }
+
+  html += drafts.map((d, i) => {
+    const key = `${id}-${i}`;
+    window.__spDrafts[key] = d;
+    const to = d.missing_email
+      ? '<span class="sp-badge">no email on file</span>'
+      : escapeHtml(d.to);
+    return `
+      <div class="sp-draft">
+        <div class="sp-draft-head">
+          <span class="sp-draft-to">${escapeHtml(d.company)} &middot; ${to}</span>
+          <button class="sp-btn" onclick="event.stopPropagation();copyDraft('${key}',this)">Copy</button>
+        </div>
+        <div class="sp-draft-subject">${escapeHtml(d.subject)}</div>
+        <div class="sp-draft-body">${escapeHtml(d.body)}</div>
+      </div>`;
+  }).join('');
+
+  target.innerHTML = html;
+}
+
+async function copyDraft(key, btn) {
+  const d = (window.__spDrafts || {})[key];
+  if (!d) return;
+  const text = `To: ${d.to}\nSubject: ${d.subject}\n\n${d.body}`;
+  const label = btn.textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (e) {
+    // Clipboard API needs a secure context; fall back to a hidden textarea.
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (_) {}
+    document.body.removeChild(ta);
+  }
+  btn.textContent = 'Copied';
+  setTimeout(() => { btn.textContent = label; }, 1500);
 }
 
 async function acceptReviewTender(id, btn) {
