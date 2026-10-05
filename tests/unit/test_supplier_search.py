@@ -233,3 +233,76 @@ def test_search_uses_the_dynamic_filtering_tool_version(monkeypatch):
     kwargs = fake.Anthropic.return_value.messages.create.call_args.kwargs
     assert kwargs["tools"][0]["type"] == "web_search_20260209"
     assert kwargs["tools"][0]["max_uses"] == supplier_search.MAX_WEB_SEARCHES
+
+
+# ── Timeout configuration (regression: 2026-10-05 retry storm) ──────────────
+
+def test_retries_are_disabled():
+    """The SDK default of 2 turned a slow search into three attempts — up to
+    six minutes at triple the cost, observed in production at 189s."""
+    assert supplier_search.ANTHROPIC_MAX_RETRIES == 0
+
+
+def test_server_worst_case_stays_under_the_ui_deadline():
+    """The UI polls for 5 minutes; one attempt must finish inside that or the
+    panel reports a timeout while the search is still running and billing."""
+    worst_case = supplier_search.ANTHROPIC_TIMEOUT_SECONDS * (
+        supplier_search.ANTHROPIC_MAX_RETRIES + 1)
+    assert worst_case < 300
+
+
+def test_timeout_is_long_enough_for_the_configured_searches():
+    """120s was a guess that proved too tight for MAX_WEB_SEARCHES round trips."""
+    assert supplier_search.ANTHROPIC_TIMEOUT_SECONDS >= 180
+
+
+def test_client_is_constructed_with_both_limits(monkeypatch):
+    fake = _stub_client(monkeypatch, "[]")
+    supplier_search.find_external_suppliers(TENDER, [], [])
+    kwargs = fake.Anthropic.call_args.kwargs
+    assert kwargs["timeout"] == supplier_search.ANTHROPIC_TIMEOUT_SECONDS
+    assert kwargs["max_retries"] == 0
+
+
+@pytest.mark.parametrize("exc", [
+    TimeoutError("request timed out"),
+    Exception("APITimeoutError: Request timed out."),
+])
+def test_timeouts_are_recognised(exc):
+    assert supplier_search.is_timeout(exc) is True
+
+
+@pytest.mark.parametrize("exc", [
+    Exception("Connection refused"),
+    Exception("invalid_request_error"),
+])
+def test_ordinary_failures_are_not_treated_as_timeouts(exc):
+    assert supplier_search.is_timeout(exc) is False
+
+
+def test_timeout_says_it_timed_out_not_that_it_failed(monkeypatch):
+    """'Failed, try again' sends people hunting for a fault that isn't there."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    fake = MagicMock()
+    fake.Anthropic.return_value.messages.create.side_effect = Exception(
+        "Request timed out.")
+    monkeypatch.setitem(sys.modules, "anthropic", fake)
+
+    with pytest.raises(SupplierSearchError) as err:
+        supplier_search.find_external_suppliers(TENDER, [], [])
+    message = err.value.user_message
+    assert "longer than 180 seconds" in message
+    assert "stopped" in message
+
+
+def test_billing_failure_still_wins_over_the_timeout_branch(monkeypatch):
+    """A credit error that happens to mention time must still read as billing."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    fake = MagicMock()
+    fake.Anthropic.return_value.messages.create.side_effect = Exception(
+        "Your credit balance is too low; request timed out waiting.")
+    monkeypatch.setitem(sys.modules, "anthropic", fake)
+
+    with pytest.raises(SupplierSearchError) as err:
+        supplier_search.find_external_suppliers(TENDER, [], [])
+    assert "credit balance is exhausted" in err.value.user_message

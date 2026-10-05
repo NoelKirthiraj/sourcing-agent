@@ -3293,7 +3293,10 @@ async function findExternalSuppliers(id, btn) {
     if (el) el.textContent = `${Math.round((Date.now() - st.searchStarted) / 1000)}s`;
   }, 1000);
 
-  const deadline = Date.now() + 4 * 60 * 1000;
+  // Must outlast the server's single attempt (180s) plus polling slop —
+  // previously 4 min sat *under* the server's 6-min retry worst case, so the
+  // panel reported a timeout while the search was still running and billing.
+  const deadline = Date.now() + 5 * 60 * 1000;
   try {
     while (Date.now() < deadline) {
       await new Promise(r => setTimeout(r, 3000));
