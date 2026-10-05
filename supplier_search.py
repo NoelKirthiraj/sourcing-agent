@@ -24,11 +24,24 @@ log = logging.getLogger(__name__)
 
 ANTHROPIC_MODEL = "claude-sonnet-4-6"
 ANTHROPIC_MAX_TOKENS = 4096
-ANTHROPIC_TIMEOUT_SECONDS = 120.0
 
-# Each search is billed per use on top of tokens, so the model is capped
-# rather than left to search indefinitely.
-MAX_WEB_SEARCHES = 4
+# Four web searches genuinely take this long; the original 120s was a guess
+# that proved too tight and turned ordinary slowness into a retry storm.
+ANTHROPIC_TIMEOUT_SECONDS = 180.0
+
+# No retries. The SDK defaults to 2, so a slow search silently became three
+# attempts — up to six minutes, at triple the cost, while a person watched a
+# spinner. Observed in production: a job still running at 189s on its second
+# retry. One honest attempt, then let the associate decide whether to re-run.
+# (supplier_ai_match keeps the default retries on purpose: it answers in ~6s,
+# so a retry there is cheap and genuinely useful.)
+ANTHROPIC_MAX_RETRIES = 0
+
+# Each search is billed per use on top of tokens, and each is a round trip
+# that adds real wall-clock time. Reduced from 4 after a production run spent
+# 728 seconds without completing: search count is the main lever on duration,
+# so trimming it buys more headroom than raising the timeout alone.
+MAX_WEB_SEARCHES = 3
 
 # A web sweep that returns forty names is noise; the associate has to check
 # each one by hand.
@@ -40,6 +53,17 @@ _LEGAL_SUFFIXES = (
     "incorporated", "corporation", "limited", "company",
     "inc", "llc", "ltd", "corp", "co", "plc", "gmbh", "sa", "srl", "pty", "bv",
 )
+
+
+def is_timeout(exc: Exception) -> bool:
+    """True when the call ran out of time rather than genuinely failing.
+
+    Matched on type name and message because the SDK's timeout class is not
+    imported at module scope — anthropic is a lazy import here.
+    """
+    name = type(exc).__name__.lower()
+    text = str(exc).lower()
+    return "timeout" in name or "timeout" in text or "timed out" in text
 
 
 class SupplierSearchError(Exception):
@@ -195,7 +219,10 @@ def find_external_suppliers(
     try:
         import anthropic
 
-        client = anthropic.Anthropic(timeout=ANTHROPIC_TIMEOUT_SECONDS)
+        client = anthropic.Anthropic(
+            timeout=ANTHROPIC_TIMEOUT_SECONDS,
+            max_retries=ANTHROPIC_MAX_RETRIES,
+        )
         message = client.messages.create(
             model=ANTHROPIC_MODEL,
             max_tokens=ANTHROPIC_MAX_TOKENS,
@@ -210,6 +237,14 @@ def find_external_suppliers(
         if reason := api_unavailable_reason(exc):
             log.error("supplier_search unavailable: %s", reason)
             raise SupplierSearchError(reason) from exc
+        if is_timeout(exc):
+            # Say what actually happened. "Failed, try again" sends people
+            # looking for a fault when the search was simply slow.
+            log.warning("supplier_search timed out after %ss", ANTHROPIC_TIMEOUT_SECONDS)
+            raise SupplierSearchError(
+                f"Web search took longer than {int(ANTHROPIC_TIMEOUT_SECONDS)} seconds "
+                "and was stopped. Try again, or add more detail to the tender "
+                "requirement so the search can be narrower.") from exc
         log.warning("supplier_search failed: %s", exc)
         raise SupplierSearchError(
             "Web search failed. Please try again in a moment.") from exc
