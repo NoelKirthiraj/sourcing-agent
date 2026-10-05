@@ -116,6 +116,12 @@ class APIHandler(BaseHTTPRequestHandler):
                 vendor_routes.handle_get(self, _run_async, parts[3])
             else:
                 self._json_response({"error": "invalid path"}, 400)
+        elif "/suggest-suppliers/external/status/" in path:
+            parts = path.split("/")
+            if parts[-1]:
+                supplier_routes.handle_external_status(self, _run_async, parts[-1])
+            else:
+                self._json_response({"error": "invalid path"}, 400)
         elif path.startswith("/api/tenders/") and path.endswith("/suggestions"):
             supplier_routes.handle_list_suggestions(self, _run_async, path.split("/")[3])
         elif path.startswith("/api/tenders/") and path.endswith("/outreach"):
@@ -187,6 +193,8 @@ class APIHandler(BaseHTTPRequestHandler):
                 self._handle_bulk_accept(ids)
             elif path == "/api/tenders/submit-accepted":
                 self._handle_submit_all_accepted()
+            elif path.startswith("/api/tenders/") and path.endswith("/suggest-suppliers/ai"):
+                supplier_routes.handle_suggest_ai(self, _run_async, path.split("/")[3])
             elif path.startswith("/api/tenders/") and path.endswith("/suggest-suppliers/external"):
                 supplier_routes.handle_suggest_external(self, _run_async, path.split("/")[3])
             elif path.startswith("/api/tenders/") and path.endswith("/suggest-suppliers"):

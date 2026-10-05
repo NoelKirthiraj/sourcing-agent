@@ -5,23 +5,35 @@ Mirrors vendor_routes.py's shape. Each handler takes the request handler
 instance (for response helpers) plus parsed inputs and writes the response.
 The api.py dispatcher decides routing.
 
-Endpoints:
-  POST   /api/tenders/<id>/suggest-suppliers   → 200 {suggestions, counts}
-  GET    /api/tenders/<id>/suggestions          → 200 {internal, external}
-  POST   /api/tenders/<id>/outreach             JSON: {vendor_ids, associate?}
-                                                → 201 [drafts]
-  GET    /api/tenders/<id>/outreach             → 200 [drafts already generated]
+Escalation ladder — each rung is a deliberate click, cheapest first:
+  1. keyword match over the registry   free, instant
+  2. AI match over the registry        a few cents, ~10-30s
+  3. external web search               ~$0.10, 30-120s, async + polled
 
-Matching is SQL/keyword only and runs in well under a second on a registry of
-this size, so unlike PO extraction there is no async job to poll.
+Endpoints:
+  POST  /api/tenders/<id>/suggest-suppliers              → 200 {suggestions, counts}
+  POST  /api/tenders/<id>/suggest-suppliers/ai           → 200 {suggestions, counts}
+  POST  /api/tenders/<id>/suggest-suppliers/external     → 202 {job_id}
+  GET   /api/tenders/<id>/suggest-suppliers/external/status/<job_id>
+                                                         → 200 {status, elapsed, ...}
+  GET   /api/tenders/<id>/suggestions                    → 200 {internal, ai, external}
+  POST  /api/tenders/<id>/outreach   JSON: {vendor_ids, associate?} → 201 [drafts]
+  GET   /api/tenders/<id>/outreach                       → 200 [drafts]
+
+Keyword and AI matching answer inline. Only the web search is a polled job —
+it is the one rung that takes minutes.
 """
 from __future__ import annotations
 
 import logging
+import threading
+import time
 from typing import Any, Optional
 
 import db
+import jobs
 import outreach as outreach_mod
+import supplier_ai_match
 import supplier_matcher
 import supplier_search
 
@@ -99,12 +111,55 @@ def handle_suggest(handler, _run_async, raw_tender_id: str) -> None:
     })
 
 
-def handle_suggest_external(handler, _run_async, raw_tender_id: str) -> None:
-    """POST /api/tenders/<id>/suggest-suppliers/external — search the web.
+def handle_suggest_ai(handler, _run_async, raw_tender_id: str) -> None:
+    """POST /api/tenders/<id>/suggest-suppliers/ai — second rung of the ladder.
 
-    Separate endpoint and separate button because this costs money per use and
-    returns unverified leads. Results are stored under origin='external' so the
-    registry shortlist is untouched, and they never become vendor rows here.
+    Reads the whole registry and picks on meaning rather than shared
+    vocabulary. Costs a few cents, so it is only ever reached by an explicit
+    click after keyword matching has had its turn.
+
+    Stored under origin='ai', which leaves any keyword shortlist intact.
+    """
+    tender_id = _parse_tender_id(handler, raw_tender_id)
+    if tender_id is None:
+        return
+
+    tender = _run_async(db.get_tender(tender_id))
+    if not tender:
+        handler._json_response({"error": "tender not found"}, 404)
+        return
+
+    _, vendors, products_by_vendor = _run_async(db.get_matching_inputs())
+
+    try:
+        suggestions = supplier_ai_match.match_suppliers(
+            tender, vendors, products_by_vendor)
+    except supplier_ai_match.AiMatchError as exc:
+        handler._json_response({"error": exc.user_message}, 503)
+        return
+
+    _run_async(db.replace_suggestions(tender_id, suggestions, origin="ai"))
+
+    log.info("supplier.ai tender=%s results=%d roster=%d",
+             tender_id, len(suggestions), len(vendors))
+    handler._json_response({
+        "suggestions": suggestions,
+        "total": len(suggestions),
+        "contactable": sum(1 for s in suggestions if s["contactable"]),
+    })
+
+
+def handle_suggest_external(handler, _run_async, raw_tender_id: str) -> None:
+    """POST /api/tenders/<id>/suggest-suppliers/external — start a web search.
+
+    Returns 202 with a job id immediately rather than holding the connection.
+    The search itself takes 30–120s; running it inline is what took the whole
+    API down on 2026-10-05, and even with a threaded server a two-minute
+    request is a poor way to report progress. The client polls
+    .../external/status/<job_id>, which also carries elapsed seconds so the UI
+    can be honest about the wait.
+
+    Results are stored under origin='external' and never become vendor rows.
     """
     tender_id = _parse_tender_id(handler, raw_tender_id)
     if tender_id is None:
@@ -119,22 +174,70 @@ def handle_suggest_external(handler, _run_async, raw_tender_id: str) -> None:
     known_companies = [v.get("company", "") for v in vendors]
     known_domains = [v.get("domain", "") for v in vendors if v.get("domain")]
 
-    try:
-        suggestions = supplier_search.find_external_suppliers(
-            tender, known_companies, known_domains)
-    except supplier_search.SupplierSearchError as exc:
-        # Billing, quota and missing-key failures are reported as themselves
-        # rather than as "no suppliers found".
-        handler._json_response({"error": exc.user_message}, 503)
+    job_id = jobs.create()
+    log.info("supplier.external.job.created tender=%s job=%s", tender_id, job_id)
+
+    def _run_search() -> None:
+        jobs.mark_running(job_id)
+        try:
+            suggestions = supplier_search.find_external_suppliers(
+                tender, known_companies, known_domains)
+        except supplier_search.SupplierSearchError as exc:
+            # Billing, quota and missing-key failures are reported as
+            # themselves rather than as "no suppliers found".
+            log.warning("supplier.external.job.failed job=%s: %s", job_id, exc.user_message)
+            jobs.mark_failed(job_id, exc.user_message, 503)
+            return
+        except Exception as exc:                      # last-resort safety net
+            log.exception("supplier.external.job.unexpected job=%s: %s", job_id, exc)
+            jobs.mark_failed(job_id, "Web search failed unexpectedly.", 500)
+            return
+
+        try:
+            _run_async(db.replace_suggestions(tender_id, suggestions, origin="external"))
+        except Exception as exc:
+            log.exception("supplier.external.job.store_failed job=%s: %s", job_id, exc)
+            jobs.mark_failed(job_id, "Search succeeded but results could not be saved.", 500)
+            return
+
+        log.info("supplier.external.job.done job=%s results=%d", job_id, len(suggestions))
+        jobs.mark_done(job_id, {
+            "suggestions": suggestions,
+            "total": len(suggestions),
+            "note": "Web results are unverified and are not in the vendor registry.",
+        })
+
+    threading.Thread(target=_run_search, daemon=True,
+                     name=f"supplier-search-{job_id[:8]}").start()
+
+    handler._json_response({"job_id": job_id, "status": "pending"}, 202)
+
+
+def handle_external_status(handler, _run_async, job_id: str) -> None:
+    """GET /api/tenders/<id>/suggest-suppliers/external/status/<job_id>.
+
+    Always 200 for a known job so the client can distinguish a poll-transport
+    error from a search outcome. `elapsed` drives the progress indicator.
+    """
+    job = jobs.get(job_id)
+    if job is None:
+        handler._json_response({"error": "job not found"}, 404)
         return
 
-    _run_async(db.replace_suggestions(tender_id, suggestions, origin="external"))
+    status = job["status"]
+    elapsed = round(time.time() - job["started_at"], 1)
 
-    log.info("supplier.external tender=%s results=%d", tender_id, len(suggestions))
+    if status in ("pending", "running"):
+        handler._json_response({"status": status, "elapsed": elapsed})
+        return
+    if status == "done":
+        handler._json_response({"status": "done", "elapsed": elapsed, **job["result"]})
+        return
     handler._json_response({
-        "suggestions": suggestions,
-        "total": len(suggestions),
-        "note": "Web results are unverified and are not in the vendor registry.",
+        "status": "failed",
+        "elapsed": elapsed,
+        "error": job.get("error") or "Unknown error",
+        "error_status": job.get("error_status") or 500,
     })
 
 
@@ -151,6 +254,7 @@ def handle_list_suggestions(handler, _run_async, raw_tender_id: str) -> None:
     rows = _run_async(db.list_suggestions(tender_id))
     handler._json_response({
         "internal": [r for r in rows if r.get("origin") == "internal"],
+        "ai": [r for r in rows if r.get("origin") == "ai"],
         "external": [r for r in rows if r.get("origin") == "external"],
         "shortlist_size": supplier_matcher.DEFAULT_SHORTLIST,
     })

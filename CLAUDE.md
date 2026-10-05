@@ -129,8 +129,11 @@ Per-subsystem:
 - **Don't** let an external (web-search) supplier become a registry vendor automatically. `tender_vendor_suggestions.vendor_id` is NULL for external rows on purpose — an unverified company must never silently become a supplier of record.
   **Do** keep them in the `external` list and require a deliberate human action to add one to Vendors.
 
-- **Don't** add AI ranking to `supplier_matcher` without revisiting the rationale text. v1's rationale is a *statement of fact* naming the keyword and product rows that matched, which an associate can verify at a glance.
-  **Do** keep retrieval deterministic; AI ranking slots in behind it if ever needed.
+- **Don't** blur the escalation rungs. Each costs more than the last (free → cents → ~$0.10), so each is a separate endpoint reached by a deliberate click, and each stores under its own `origin` so a later rung never clears an earlier shortlist.
+
+- **Don't** call a slow third party inline in a request handler. External search runs as a `jobs` entry and is polled; running it inline took the whole API down on 2026-10-05 by starving Railway's health probe.
+
+- **Don't** trust vendor ids returned by the AI match. `supplier_ai_match.parse_results` drops any id not in the roster it was given — an invented supplier is worse than no supplier, because someone would email it.
 
 - **Don't** apply CLI overrides by mutating a `Config` in `run.py`. `run_agent()` loads its own config (and in DB mode ignores `Config` entirely), so those mutations are discarded — `--weekly`, `--visible` and `--pages` were dead on the full-run path for months.
   **Do** pass them as `run_agent(weekly=..., headless=..., max_pages=...)` arguments.
