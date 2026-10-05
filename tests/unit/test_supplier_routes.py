@@ -270,3 +270,176 @@ def test_list_outreach_returns_stored_drafts(stub_db):
     data, status = h.responses[0]
     assert status == 200
     assert data[0]["company"] == "Acme Aero"
+
+
+# ── Escalation rung 2: AI match ─────────────────────────────────────────────
+
+@pytest.fixture
+def stub_ai(monkeypatch):
+    calls = {}
+
+    def match_suppliers(tender, vendors, products=None):
+        calls["tender"] = tender
+        if calls.get("raise"):
+            raise supplier_routes.supplier_ai_match.AiMatchError(calls["raise"])
+        return calls.get("result", [{
+            "vendor_id": 1, "company": "Acme Aero", "score": 3,
+            "rationale": "AI match (high confidence): supplies towbars",
+            "origin": "ai", "external_domain": "", "external_source_url": "",
+            "contactable": True,
+        }])
+
+    monkeypatch.setattr(supplier_routes.supplier_ai_match, "match_suppliers", match_suppliers)
+    return calls
+
+
+def test_ai_match_returns_suggestions(stub_db, stub_ai):
+    h = _make_handler()
+    supplier_routes.handle_suggest_ai(h, _run_async, "7")
+    data, status = h.responses[0]
+    assert status == 200
+    assert data["total"] == 1
+    assert data["suggestions"][0]["origin"] == "ai"
+
+
+def test_ai_match_is_stored_under_its_own_origin(stub_db, stub_ai):
+    """Must not clear the keyword shortlist the associate is still reading."""
+    h = _make_handler()
+    supplier_routes.handle_suggest_ai(h, _run_async, "7")
+    _, _, origin = stub_db.saved
+    assert origin == "ai"
+
+
+def test_ai_match_billing_failure_is_503_not_empty_results(stub_db, stub_ai):
+    stub_ai["raise"] = "Anthropic API credit balance is exhausted."
+    h = _make_handler()
+    supplier_routes.handle_suggest_ai(h, _run_async, "7")
+    data, status = h.responses[0]
+    assert status == 503
+    assert "credit balance" in data["error"]
+
+
+def test_ai_match_on_unknown_tender_returns_404(stub_db, stub_ai):
+    h = _make_handler()
+    supplier_routes.handle_suggest_ai(h, _run_async, "999")
+    assert h.responses[0][1] == 404
+
+
+# ── Escalation rung 3: external search is an async job ──────────────────────
+
+@pytest.fixture
+def stub_search(monkeypatch):
+    calls = {}
+
+    def find(tender, companies, domains):
+        calls["known_companies"] = companies
+        if calls.get("raise"):
+            raise supplier_routes.supplier_search.SupplierSearchError(calls["raise"])
+        return calls.get("result", [{
+            "vendor_id": None, "company": "Nova Aero", "score": 0,
+            "rationale": "Found via web search — not verified.",
+            "origin": "external", "external_domain": "novaaero.ca",
+            "external_source_url": "https://novaaero.ca", "contactable": False,
+        }])
+
+    monkeypatch.setattr(supplier_routes.supplier_search, "find_external_suppliers", find)
+    return calls
+
+
+def _await_job(job_id, timeout=5.0):
+    """Poll the in-process job store until the worker thread finishes."""
+    import time as _t
+    deadline = _t.monotonic() + timeout
+    while _t.monotonic() < deadline:
+        job = supplier_routes.jobs.get(job_id)
+        if job and job["status"] in ("done", "failed"):
+            return job
+        _t.sleep(0.02)
+    raise AssertionError("job did not finish")
+
+
+def test_external_search_returns_a_job_id_immediately(stub_db, stub_search):
+    """202 rather than holding the connection for two minutes."""
+    h = _make_handler()
+    supplier_routes.handle_suggest_external(h, _run_async, "7")
+    data, status = h.responses[0]
+    assert status == 202
+    assert data["status"] == "pending"
+    _await_job(data["job_id"])
+
+
+def test_external_job_completes_and_stores_results(stub_db, stub_search):
+    h = _make_handler()
+    supplier_routes.handle_suggest_external(h, _run_async, "7")
+    job = _await_job(h.responses[0][0]["job_id"])
+    assert job["status"] == "done"
+    assert job["result"]["total"] == 1
+    assert stub_db.saved[2] == "external"
+
+
+def test_external_job_records_a_billing_failure_as_failed(stub_db, stub_search):
+    stub_search["raise"] = "Anthropic API credit balance is exhausted."
+    h = _make_handler()
+    supplier_routes.handle_suggest_external(h, _run_async, "7")
+    job = _await_job(h.responses[0][0]["job_id"])
+    assert job["status"] == "failed"
+    assert job["error_status"] == 503
+    assert "credit balance" in job["error"]
+
+
+def test_status_reports_elapsed_for_the_progress_indicator(stub_db, stub_search):
+    h = _make_handler()
+    supplier_routes.handle_suggest_external(h, _run_async, "7")
+    job_id = h.responses[0][0]["job_id"]
+    _await_job(job_id)
+
+    h2 = _make_handler()
+    supplier_routes.handle_external_status(h2, _run_async, job_id)
+    data, status = h2.responses[0]
+    assert status == 200
+    assert data["status"] == "done"
+    assert isinstance(data["elapsed"], float)
+    assert data["suggestions"][0]["company"] == "Nova Aero"
+
+
+def test_status_for_an_unknown_job_is_404(stub_db):
+    h = _make_handler()
+    supplier_routes.handle_external_status(h, _run_async, "nope")
+    assert h.responses[0][1] == 404
+
+
+def test_failed_job_status_is_200_so_the_client_can_tell_them_apart(stub_db, stub_search):
+    """A transport error and a search outcome must not look the same."""
+    stub_search["raise"] = "Web search failed."
+    h = _make_handler()
+    supplier_routes.handle_suggest_external(h, _run_async, "7")
+    job_id = h.responses[0][0]["job_id"]
+    _await_job(job_id)
+
+    h2 = _make_handler()
+    supplier_routes.handle_external_status(h2, _run_async, job_id)
+    data, status = h2.responses[0]
+    assert status == 200
+    assert data["status"] == "failed"
+
+
+def test_external_search_on_unknown_tender_returns_404(stub_db, stub_search):
+    h = _make_handler()
+    supplier_routes.handle_suggest_external(h, _run_async, "999")
+    assert h.responses[0][1] == 404
+
+
+def test_list_suggestions_separates_all_three_origins(stub_db, monkeypatch):
+    async def three(tid):
+        return [
+            {"company": "Keyword Co", "origin": "internal", "score": 5},
+            {"company": "AI Co", "origin": "ai", "score": 3},
+            {"company": "Web Co", "origin": "external", "score": 0},
+        ]
+    stub_db.list_suggestions = three
+    h = _make_handler()
+    supplier_routes.handle_list_suggestions(h, _run_async, "7")
+    data = h.responses[0][0]
+    assert [s["company"] for s in data["internal"]] == ["Keyword Co"]
+    assert [s["company"] for s in data["ai"]] == ["AI Co"]
+    assert [s["company"] for s in data["external"]] == ["Web Co"]

@@ -875,6 +875,43 @@ body::after {
   background: var(--bg-surface);
 }
 .sp-empty { font-size: 0.75rem; color: var(--text-secondary); padding: 8px 0; }
+/* Escalation prompt — shown when a rung finds nothing and the next rung costs
+   money. Phrased as a question so nothing is spent without a deliberate yes. */
+.sp-escalate {
+  font-size: 0.75rem;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--cyan-dim);
+  border-left: 3px solid var(--cyan);
+  margin: 8px 0;
+}
+.sp-escalate .sp-btn { margin-top: 8px; }
+.sp-escalate-cost {
+  display: block;
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+.sp-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.75rem;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  margin: 8px 0;
+}
+.sp-spinner {
+  width: 14px; height: 14px; flex-shrink: 0;
+  border: 2px solid var(--border);
+  border-top-color: var(--cyan);
+  border-radius: 50%;
+  animation: sp-spin 0.8s linear infinite;
+}
+@keyframes sp-spin { to { transform: rotate(360deg); } }
+.sp-elapsed { font-family: var(--font-mono); font-size: 0.6875rem; color: var(--text-secondary); margin-left: auto; }
+.sp-ai { border-left: 3px solid var(--cyan); }
 .sp-warn {
   font-size: 0.75rem;
   padding: 8px 12px;
@@ -3167,7 +3204,6 @@ function renderReviewTender(t) {
         <div class="sp-head">
           <span class="sp-title">Suppliers</span>
           <button class="sp-btn" onclick="event.stopPropagation();findSuppliers(${t.id},this)">Find suppliers</button>
-          <button class="sp-btn ghost" onclick="event.stopPropagation();findExternalSuppliers(${t.id},this)">Search web</button>
         </div>
         <div class="sp-body" id="sp-body-${t.id}"></div>
       </div>` : ''}
@@ -3210,27 +3246,78 @@ async function findSuppliers(id, btn) {
   renderSuppliers(id);
 }
 
-async function findExternalSuppliers(id, btn) {
-  const body = document.getElementById(`sp-body-${id}`);
-  if (!body) return;
+// ── Rung 2: AI match over the registry ──────────────────────────────────
+async function findAiSuppliers(id, btn) {
+  const st = supplierState[id] || (supplierState[id] = {});
   btn.disabled = true;
-  const label = btn.textContent;
-  btn.textContent = 'Searching…';
+  btn.textContent = 'Thinking…';
 
-  const data = await reviewApi(`/api/tenders/${id}/suggest-suppliers/external`, { method: 'POST' });
+  const data = await reviewApi(`/api/tenders/${id}/suggest-suppliers/ai`, { method: 'POST' });
 
   btn.disabled = false;
-  btn.textContent = label;
+  btn.textContent = 'Try intelligent match';
 
-  const st = supplierState[id] || (supplierState[id] = {});
   if (!data || data.error) {
-    st.externalError = (data && data.error) || 'Web search unavailable.';
-    st.external = [];
+    st.aiError = (data && data.error) || 'Intelligent match is unavailable.';
+    st.ai = [];
   } else {
-    st.externalError = '';
-    st.external = data.suggestions || [];
+    st.aiError = '';
+    st.ai = data.suggestions || [];
   }
+  st.aiRun = true;
   renderSuppliers(id);
+}
+
+// ── Rung 3: external web search, polled ─────────────────────────────────
+// Minutes-long, so it runs as a job and the panel reports elapsed time rather
+// than leaving the associate staring at a frozen button.
+async function findExternalSuppliers(id, btn) {
+  const st = supplierState[id] || (supplierState[id] = {});
+  if (st.searching) return;
+  st.searching = true;
+  st.searchStarted = Date.now();
+  st.externalError = '';
+  renderSuppliers(id);
+
+  const started = await reviewApi(`/api/tenders/${id}/suggest-suppliers/external`, { method: 'POST' });
+  if (!started || !started.job_id) {
+    st.searching = false;
+    st.externalError = (started && started.error) || 'Could not start the web search.';
+    renderSuppliers(id);
+    return;
+  }
+
+  // Tick the elapsed counter between polls so the UI visibly moves.
+  const ticker = setInterval(() => {
+    const el = document.getElementById(`sp-elapsed-${id}`);
+    if (el) el.textContent = `${Math.round((Date.now() - st.searchStarted) / 1000)}s`;
+  }, 1000);
+
+  const deadline = Date.now() + 4 * 60 * 1000;
+  try {
+    while (Date.now() < deadline) {
+      await new Promise(r => setTimeout(r, 3000));
+      const poll = await reviewApi(
+        `/api/tenders/${id}/suggest-suppliers/external/status/${started.job_id}`);
+      if (!poll) continue;                       // transient blip — keep polling
+      if (poll.status === 'done') {
+        st.external = poll.suggestions || [];
+        break;
+      }
+      if (poll.status === 'failed') {
+        st.externalError = poll.error || 'Web search failed.';
+        break;
+      }
+    }
+    if (!st.external && !st.externalError) {
+      st.externalError = 'Web search timed out. Please try again.';
+    }
+  } finally {
+    clearInterval(ticker);
+    st.searching = false;
+    st.externalRun = true;
+    renderSuppliers(id);
+  }
 }
 
 function renderSuppliers(id) {
@@ -3239,34 +3326,79 @@ function renderSuppliers(id) {
   if (!body || !st) return;
 
   const internal = st.internal || [];
+  const ai = st.ai || [];
   const shortlist = st.shortlist || 5;
   const shown = st.expanded ? internal : internal.slice(0, shortlist);
   let html = '';
 
-  if (!internal.length) {
-    html += '<div class="sp-empty">No registry supplier matched this tender. '
-          + 'Try “Search web”, or add keywords to the relevant RFP category.</div>';
-  } else {
-    // Only the top N are pre-checked; the rest are opt-in.
+  // ── Rung 1: keyword match ──────────────────────────────────────────────
+  if (internal.length) {
     html += shown.map((s, i) => supplierRow(id, s, i < shortlist, false)).join('');
     if (internal.length > shortlist) {
       html += `<button class="sp-btn ghost" style="margin:4px 0 8px"
                  onclick="event.stopPropagation();toggleAllSuppliers(${id})">`
-            + (st.expanded ? 'Show top ' + shortlist
-                           : `Show all ${internal.length}`) + '</button>';
+            + (st.expanded ? `Show top ${shortlist}` : `Show all ${internal.length}`)
+            + '</button>';
     }
   }
 
-  if (st.externalError) {
-    html += `<div class="sp-warn" style="margin-top:10px">${escapeHtml(st.externalError)}</div>`;
+  // ── Rung 2: offered when keywords found nothing, or found weak matches ──
+  if (!st.aiRun) {
+    html += `<div class="sp-escalate">`
+          + (internal.length
+              ? 'Not seeing the right suppliers? An intelligent match reads your whole '
+                + 'registry and judges on what each supplier actually sells.'
+              : '<strong>No keyword match.</strong> None of your RFP category keywords '
+                + 'appear in this tender. An intelligent match reads your whole registry '
+                + 'and judges on meaning instead.')
+          + `<span class="sp-escalate-cost">Uses AI — a few cents per tender.</span>`
+          + `<button class="sp-btn" onclick="event.stopPropagation();findAiSuppliers(${id},this)">`
+          + `Try intelligent match</button></div>`;
+  } else if (st.aiError) {
+    html += `<div class="sp-warn" style="margin-top:8px">${escapeHtml(st.aiError)}</div>`;
+  } else if (ai.length) {
+    html += '<div class="sp-section-note">Intelligent match — judged on meaning rather than '
+          + 'keywords. Check the reasoning before contacting.</div>';
+    html += ai.map((s, i) => supplierRow(id, s, i < shortlist, false, null, true)).join('');
+  } else {
+    html += '<div class="sp-empty">The intelligent match found nothing suitable in your '
+          + 'registry either.</div>';
+  }
+
+  // ── Rung 3: only after the registry has genuinely been exhausted ────────
+  const registryExhausted = st.aiRun && !ai.length && !internal.length;
+  if (st.searching) {
+    html += `<div class="sp-progress">
+               <span class="sp-spinner"></span>
+               <span>Searching the web for suppliers — this usually takes a minute or two.
+                     You can leave this open.</span>
+               <span class="sp-elapsed" id="sp-elapsed-${id}">0s</span>
+             </div>`;
+  } else if (st.externalError) {
+    html += `<div class="sp-warn" style="margin-top:8px">${escapeHtml(st.externalError)}</div>`;
   } else if (st.external && st.external.length) {
     html += '<div class="sp-section-note">From the web — <strong>not vetted</strong> and not in '
           + 'your registry. Check the company before contacting, and add it to Vendors if it '
           + 'turns out to be a real supplier.</div>';
     html += st.external.map((s, i) => supplierRow(id, s, false, true, i)).join('');
+  } else if (st.externalRun) {
+    html += '<div class="sp-empty">The web search found no new suppliers either.</div>';
+  } else if (registryExhausted) {
+    html += `<div class="sp-escalate">`
+          + '<strong>Nothing in your registry fits.</strong> A web search can look for '
+          + 'suppliers you do not hold yet.'
+          + `<span class="sp-escalate-cost">Uses AI web search — around $0.10, and takes a
+             minute or two.</span>`
+          + `<button class="sp-btn" onclick="event.stopPropagation();findExternalSuppliers(${id},this)">`
+          + `Search the web</button></div>`;
+  } else if (st.aiRun) {
+    // Registry produced something, so web search is available but not pushed.
+    html += `<button class="sp-btn ghost" style="margin:8px 0"
+               onclick="event.stopPropagation();findExternalSuppliers(${id},this)">
+               Also search the web</button>`;
   }
 
-  if (internal.length || (st.external && st.external.length)) {
+  if (internal.length || ai.length || (st.external && st.external.length)) {
     html += `<div class="sp-head" style="margin-top:12px">
                <button class="sp-btn" onclick="event.stopPropagation();generateDrafts(${id},this)">
                  Generate email drafts</button>
@@ -3277,7 +3409,7 @@ function renderSuppliers(id) {
   body.innerHTML = html;
 }
 
-function supplierRow(id, s, checked, isExternal, extIdx) {
+function supplierRow(id, s, checked, isExternal, extIdx, isAi) {
   const value = isExternal ? `ext:${extIdx}` : s.vendor_id;
   const noEmail = !isExternal && !s.contactable
     ? '<span class="sp-badge">no email</span>' : '';
@@ -3285,7 +3417,7 @@ function supplierRow(id, s, checked, isExternal, extIdx) {
     ? ` <a href="${escapeHtml(s.external_source_url)}" target="_blank" rel="noopener"
          style="color:var(--cyan);font-size:0.6875rem">source</a>` : '';
   return `
-    <div class="sp-row${isExternal ? ' sp-external' : ''}">
+    <div class="sp-row${isExternal ? ' sp-external' : (isAi ? ' sp-ai' : '')}">
       <input type="checkbox" data-tender="${id}" value="${escapeHtml(String(value))}"
              ${checked ? 'checked' : ''} onclick="event.stopPropagation()">
       <div class="sp-row-main">
