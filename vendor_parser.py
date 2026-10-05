@@ -142,6 +142,32 @@ def _split_semicolon_list(v: Any) -> list[str]:
     return [part for part in (p.strip() for p in s.split(";")) if part]
 
 
+def _split_keyword_list(v: Any) -> list[str]:
+    """Split a category's keyword cell on commas *or* semicolons.
+
+    Keywords are the one column the source workbook comma-delimits
+    ("aircraft, aerospace, jet") while everything else uses semicolons.
+    Running them through the semicolon splitter produced a single element
+    holding the whole string, which supplier matching then searched for
+    verbatim — so no tender ever matched a category.
+
+    Deliberately NOT applied to the other list columns: product names
+    ("HOSE ASSEMBLY, AIR DUCT") and contact names ("Doe, Jane") legitimately
+    contain commas, and splitting those would shred real values.
+
+    Duplicates are dropped, order preserved.
+    """
+    s = _to_str(v)
+    if not s:
+        return []
+    out: list[str] = []
+    for part in re.split(r"[,;]", s):
+        part = part.strip()
+        if part and part not in out:
+            out.append(part)
+    return out
+
+
 def _to_int(v: Any, *, default: int = 0) -> tuple[int, bool]:
     """Coerce a cell value to int. Returns (value, ok)."""
     if v is None or (isinstance(v, str) and not v.strip()):
@@ -282,7 +308,7 @@ def _parse_categories_sheet(ws) -> tuple[list[dict], list[str]]:
 
         out.append({
             "category":               category,
-            "keywords":               _split_semicolon_list(_cell(row, idx_map, "keywords")),
+            "keywords":               _split_keyword_list(_cell(row, idx_map, "keywords")),
             "vendors_tagged_count":   vt,
             "needs_enrichment_count": ne,
         })
