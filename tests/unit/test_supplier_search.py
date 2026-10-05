@@ -226,12 +226,17 @@ def test_search_caps_the_result_count(monkeypatch):
     assert len(supplier_search.find_external_suppliers(TENDER, [], [])) == supplier_search.MAX_RESULTS
 
 
-def test_search_uses_the_dynamic_filtering_tool_version(monkeypatch):
-    """`_20260209` is the version supporting dynamic filtering on this model."""
+def test_search_uses_the_basic_tool_not_dynamic_filtering(monkeypatch):
+    """Regression: web_search_20260209 never returned on this module's prompt.
+
+    Measured against the identical prompt, _20260209 timed out at 90s, 180s
+    and 240s while the basic tool completed in 22.5s with 8 usable suppliers.
+    Do not "upgrade" this without re-measuring.
+    """
     fake = _stub_client(monkeypatch, "[]")
     supplier_search.find_external_suppliers(TENDER, [], [])
     kwargs = fake.Anthropic.return_value.messages.create.call_args.kwargs
-    assert kwargs["tools"][0]["type"] == "web_search_20260209"
+    assert kwargs["tools"][0]["type"] == "web_search_20250305"
     assert kwargs["tools"][0]["max_uses"] == supplier_search.MAX_WEB_SEARCHES
 
 
@@ -251,9 +256,10 @@ def test_server_worst_case_stays_under_the_ui_deadline():
     assert worst_case < 300
 
 
-def test_timeout_is_long_enough_for_the_configured_searches():
-    """120s was a guess that proved too tight for MAX_WEB_SEARCHES round trips."""
-    assert supplier_search.ANTHROPIC_TIMEOUT_SECONDS >= 180
+def test_timeout_leaves_headroom_over_the_measured_runtime():
+    """22.5s observed end to end on the basic tool; 90s is generous without
+    letting a wedged call hold a thread for minutes."""
+    assert 60 <= supplier_search.ANTHROPIC_TIMEOUT_SECONDS <= 120
 
 
 def test_client_is_constructed_with_both_limits(monkeypatch):
@@ -280,7 +286,7 @@ def test_ordinary_failures_are_not_treated_as_timeouts(exc):
     assert supplier_search.is_timeout(exc) is False
 
 
-def test_timeout_says_it_timed_out_not_that_it_failed(monkeypatch):
+def test_timeout_message_quotes_the_configured_limit(monkeypatch):
     """'Failed, try again' sends people hunting for a fault that isn't there."""
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     fake = MagicMock()
@@ -291,7 +297,7 @@ def test_timeout_says_it_timed_out_not_that_it_failed(monkeypatch):
     with pytest.raises(SupplierSearchError) as err:
         supplier_search.find_external_suppliers(TENDER, [], [])
     message = err.value.user_message
-    assert "longer than 180 seconds" in message
+    assert f"longer than {int(supplier_search.ANTHROPIC_TIMEOUT_SECONDS)} seconds" in message
     assert "stopped" in message
 
 
