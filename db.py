@@ -6,6 +6,7 @@ Requires DATABASE_URL environment variable. Falls back to JSON state if not set.
 """
 import logging
 import os
+import re
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -243,7 +244,45 @@ async def init_schema():
             CREATE INDEX IF NOT EXISTS idx_outreach_vendor ON tender_outreach(vendor_id);
         """)
 
+        await _migrate_split_category_keywords(conn)
+
         log.info("Database schema initialized")
+
+
+async def _migrate_split_category_keywords(conn) -> int:
+    """Split comma-joined keyword cells into individual keywords.
+
+    The source workbook comma-delimits this one column while every other list
+    column uses semicolons, so the semicolon splitter stored all 18 of a
+    category's keywords as a single array element. Supplier matching then
+    searched for that whole string verbatim and never matched anything.
+
+    Done in Python rather than SQL because the string handling is clearer and
+    directly testable. Idempotent: a row is only rewritten if an element still
+    contains a separator, so a second run is a no-op.
+    """
+    rows = await conn.fetch("SELECT id, category, keywords FROM rfp_categories")
+    fixed = 0
+    for row in rows:
+        keywords = list(row["keywords"] or [])
+        if not any(("," in k or ";" in k) for k in keywords):
+            continue
+        split: list[str] = []
+        for item in keywords:
+            for part in re.split(r"[,;]", item):
+                part = part.strip()
+                if part and part not in split:
+                    split.append(part)
+        await conn.execute(
+            "UPDATE rfp_categories SET keywords = $1, updated_at = NOW() WHERE id = $2",
+            split, row["id"],
+        )
+        log.info("keywords split: %s  %d → %d", row["category"], len(keywords), len(split))
+        fixed += 1
+
+    if fixed:
+        log.info("Migrated %d rfp_categories row(s) to split keywords", fixed)
+    return fixed
 
 
 # ── Tender CRUD ──────────────────────────────────────────────────────────────
