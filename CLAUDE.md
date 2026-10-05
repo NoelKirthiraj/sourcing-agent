@@ -126,6 +126,12 @@ Per-subsystem:
 - **Don't** swallow extraction problems silently — reviewers can't see logs.
   **Do** call `db.add_processing_note(tender_id, ...)`; the dashboard surfaces notes in the tender detail view.
 
+- **Don't** let an external (web-search) supplier become a registry vendor automatically. `tender_vendor_suggestions.vendor_id` is NULL for external rows on purpose — an unverified company must never silently become a supplier of record.
+  **Do** keep them in the `external` list and require a deliberate human action to add one to Vendors.
+
+- **Don't** add AI ranking to `supplier_matcher` without revisiting the rationale text. v1's rationale is a *statement of fact* naming the keyword and product rows that matched, which an associate can verify at a glance.
+  **Do** keep retrieval deterministic; AI ranking slots in behind it if ever needed.
+
 - **Don't** apply CLI overrides by mutating a `Config` in `run.py`. `run_agent()` loads its own config (and in DB mode ignores `Config` entirely), so those mutations are discarded — `--weekly`, `--visible` and `--pages` were dead on the full-run path for months.
   **Do** pass them as `run_agent(weekly=..., headless=..., max_pages=...)` arguments.
 

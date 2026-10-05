@@ -198,6 +198,49 @@ async def init_schema():
             );
             CREATE INDEX IF NOT EXISTS idx_pbv_vendor ON products_by_vendor(vendor_id);
             CREATE INDEX IF NOT EXISTS idx_pbv_rfp    ON products_by_vendor(rfp_code);
+
+            -- Supplier shortlist produced when an associate presses "Find
+            -- suppliers" on an accepted tender. Regenerated wholesale on each
+            -- run, so there is no partial-update path to get wrong.
+            --
+            -- vendor_id is NULL for external (web-search) results, which are
+            -- deliberately NOT registry rows until a human vets one: an
+            -- unverified company must never silently become a supplier of
+            -- record. ON DELETE SET NULL keeps the audit trail if a vendor is
+            -- later removed from the registry.
+            CREATE TABLE IF NOT EXISTS tender_vendor_suggestions (
+                id                  SERIAL PRIMARY KEY,
+                tender_id           INTEGER NOT NULL REFERENCES tenders(id) ON DELETE CASCADE,
+                vendor_id           INTEGER REFERENCES vendors(id) ON DELETE SET NULL,
+                company             TEXT NOT NULL,
+                score               INTEGER DEFAULT 0,
+                rationale           TEXT DEFAULT '',
+                origin              VARCHAR(10) NOT NULL DEFAULT 'internal',
+                external_domain     TEXT DEFAULT '',
+                external_source_url TEXT DEFAULT '',
+                contactable         BOOLEAN DEFAULT FALSE,
+                created_at          TIMESTAMPTZ DEFAULT NOW()
+            );
+            CREATE INDEX IF NOT EXISTS idx_tvs_tender ON tender_vendor_suggestions(tender_id);
+            CREATE INDEX IF NOT EXISTS idx_tvs_origin ON tender_vendor_suggestions(tender_id, origin);
+
+            -- One row per generated draft. v1 sends nothing, so `status` is
+            -- 'draft' until the associate copies it; generating a draft is
+            -- what counts as contact (see docs/SCOPE_SUPPLIER_MATCHING.md).
+            CREATE TABLE IF NOT EXISTS tender_outreach (
+                id              SERIAL PRIMARY KEY,
+                tender_id       INTEGER NOT NULL REFERENCES tenders(id) ON DELETE CASCADE,
+                vendor_id       INTEGER REFERENCES vendors(id) ON DELETE SET NULL,
+                company         TEXT NOT NULL,
+                contact_email   TEXT DEFAULT '',
+                subject         TEXT NOT NULL,
+                body            TEXT NOT NULL,
+                status          VARCHAR(10) NOT NULL DEFAULT 'draft',
+                created_by      TEXT DEFAULT '',
+                created_at      TIMESTAMPTZ DEFAULT NOW()
+            );
+            CREATE INDEX IF NOT EXISTS idx_outreach_tender ON tender_outreach(tender_id);
+            CREATE INDEX IF NOT EXISTS idx_outreach_vendor ON tender_outreach(vendor_id);
         """)
 
         log.info("Database schema initialized")
@@ -1070,3 +1113,172 @@ async def merge_vendor_upload(
                 counts["products_inserted"] += 1
 
     return counts
+
+
+# ── Supplier matching & outreach ─────────────────────────────────────────────
+
+async def get_matching_inputs() -> tuple[list[dict], list[dict], dict[int, list[str]]]:
+    """Everything supplier_matcher needs, in one round trip.
+
+    Returns (categories, vendors, products_by_vendor). The registry is small
+    enough (~1k vendors) that loading it whole and scoring in Python is simpler
+    and faster than pushing the scoring rules into SQL, where they would be far
+    harder to test and explain.
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        categories = [dict(r) for r in await conn.fetch(
+            "SELECT category, keywords FROM rfp_categories ORDER BY category"
+        )]
+        vendors = [dict(r) for r in await conn.fetch(
+            """SELECT id, company, rfp_categories, emails, primary_contacts, bid_count
+               FROM vendors"""
+        )]
+        product_rows = await conn.fetch(
+            "SELECT vendor_id, product FROM products_by_vendor WHERE vendor_id IS NOT NULL"
+        )
+
+    products_by_vendor: dict[int, list[str]] = {}
+    for row in product_rows:
+        products_by_vendor.setdefault(row["vendor_id"], []).append(row["product"])
+
+    return categories, vendors, products_by_vendor
+
+
+async def replace_suggestions(tender_id: int, suggestions: list[dict], *,
+                              origin: str = "internal") -> int:
+    """Store a freshly-generated shortlist, replacing the previous one.
+
+    Scoped by origin so re-running the registry match doesn't wipe external
+    search results the associate is still considering, and vice versa. Runs in
+    a transaction: a failed write leaves the old shortlist intact rather than
+    clearing it and showing nothing.
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            await conn.execute(
+                "DELETE FROM tender_vendor_suggestions WHERE tender_id = $1 AND origin = $2",
+                tender_id, origin,
+            )
+            for s in suggestions:
+                await conn.execute(
+                    """
+                    INSERT INTO tender_vendor_suggestions (
+                        tender_id, vendor_id, company, score, rationale,
+                        origin, external_domain, external_source_url, contactable
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                    """,
+                    tender_id,
+                    s.get("vendor_id"),
+                    (s.get("company") or "").strip(),
+                    int(s.get("score") or 0),
+                    s.get("rationale", "") or "",
+                    origin,
+                    s.get("external_domain", "") or "",
+                    s.get("external_source_url", "") or "",
+                    bool(s.get("contactable")),
+                )
+    return len(suggestions)
+
+
+async def list_suggestions(tender_id: int) -> list[dict]:
+    """Stored shortlist for a tender, best score first within each origin."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """SELECT * FROM tender_vendor_suggestions
+               WHERE tender_id = $1
+               ORDER BY origin ASC, score DESC, LOWER(company) ASC""",
+            tender_id,
+        )
+    return [_serialize_suggestion(r) for r in rows]
+
+
+def _serialize_suggestion(row) -> dict:
+    d = dict(row)
+    if d.get("created_at"):
+        d["created_at"] = d["created_at"].isoformat()
+    return d
+
+
+async def create_outreach(tender_id: int, drafts: list[dict], *,
+                          created_by: str = "") -> list[dict]:
+    """Persist generated drafts and record the contact against each vendor.
+
+    Generating a draft is what counts as contact in v1, so this also bumps
+    `inquiry_count` and sets `last_contact` — the two registry fields that have
+    been imported from the spreadsheet but never written to by the system.
+
+    External suggestions have no vendor_id; their drafts are stored for the
+    audit trail but update no registry row, because an unvetted company is not
+    a supplier of record.
+    """
+    pool = await get_pool()
+    stored: list[dict] = []
+
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            for draft in drafts:
+                row = await conn.fetchrow(
+                    """
+                    INSERT INTO tender_outreach (
+                        tender_id, vendor_id, company, contact_email,
+                        subject, body, created_by
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+                    RETURNING *
+                    """,
+                    tender_id,
+                    draft.get("vendor_id"),
+                    (draft.get("company") or "").strip(),
+                    draft.get("to", "") or "",
+                    draft.get("subject", "") or "",
+                    draft.get("body", "") or "",
+                    created_by or "",
+                )
+                stored.append(_serialize_outreach(row))
+
+                if draft.get("vendor_id"):
+                    await conn.execute(
+                        """UPDATE vendors
+                           SET inquiry_count = COALESCE(inquiry_count, 0) + 1,
+                               last_contact  = CURRENT_DATE,
+                               updated_at    = NOW()
+                           WHERE id = $1""",
+                        draft["vendor_id"],
+                    )
+
+    return stored
+
+
+async def list_outreach(tender_id: int) -> list[dict]:
+    """Drafts already generated for a tender, newest first."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT * FROM tender_outreach WHERE tender_id = $1 ORDER BY created_at DESC, id DESC",
+            tender_id,
+        )
+    return [_serialize_outreach(r) for r in rows]
+
+
+def _serialize_outreach(row) -> dict:
+    d = dict(row)
+    if d.get("created_at"):
+        d["created_at"] = d["created_at"].isoformat()
+    return d
+
+
+async def get_vendors_by_ids(vendor_ids: list[int]) -> list[dict]:
+    """Full vendor records for draft generation, in the order requested.
+
+    Order is preserved because the associate's selection order is what the
+    drafts list should mirror.
+    """
+    if not vendor_ids:
+        return []
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch("SELECT * FROM vendors WHERE id = ANY($1::int[])", vendor_ids)
+    by_id = {r["id"]: _vendor_row_to_dict(r) for r in rows}
+    return [by_id[v] for v in vendor_ids if v in by_id]
