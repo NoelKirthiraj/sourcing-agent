@@ -25,9 +25,19 @@ log = logging.getLogger(__name__)
 ANTHROPIC_MODEL = "claude-sonnet-4-6"
 ANTHROPIC_MAX_TOKENS = 4096
 
-# Four web searches genuinely take this long; the original 120s was a guess
-# that proved too tight and turned ordinary slowness into a retry storm.
-ANTHROPIC_TIMEOUT_SECONDS = 180.0
+# Basic web search, deliberately NOT the newer web_search_20260209.
+#
+# The _20260209 variant adds dynamic filtering, which runs code execution
+# server-side to pre-filter results. Measured against this module's own prompt
+# it never returned — timing out at 90s, 180s and 240s — while the identical
+# prompt on the basic tool completed in 22.5s and parsed 8 usable suppliers.
+# The hang is prompt-specific: a short generic query on _20260209 answers in
+# ~29s. Until that is understood, basic search is the one that works.
+WEB_SEARCH_TOOL_TYPE = "web_search_20250305"
+
+# Observed 22.5s end to end on the basic tool. 90s leaves generous headroom
+# without letting a wedged call occupy a thread for minutes.
+ANTHROPIC_TIMEOUT_SECONDS = 90.0
 
 # No retries. The SDK defaults to 2, so a slow search silently became three
 # attempts — up to six minutes, at triple the cost, while a person watched a
@@ -37,11 +47,10 @@ ANTHROPIC_TIMEOUT_SECONDS = 180.0
 # so a retry there is cheap and genuinely useful.)
 ANTHROPIC_MAX_RETRIES = 0
 
-# Each search is billed per use on top of tokens, and each is a round trip
-# that adds real wall-clock time. Reduced from 4 after a production run spent
-# 728 seconds without completing: search count is the main lever on duration,
-# so trimming it buys more headroom than raising the timeout alone.
-MAX_WEB_SEARCHES = 3
+# Each search is billed per use on top of tokens. Back to 4 now that the real
+# cause is known to be the tool variant rather than the search count — one
+# search timed out just as readily as four, so trimming it bought nothing.
+MAX_WEB_SEARCHES = 4
 
 # A web sweep that returns forty names is noise; the associate has to check
 # each one by hand.
@@ -227,7 +236,7 @@ def find_external_suppliers(
             model=ANTHROPIC_MODEL,
             max_tokens=ANTHROPIC_MAX_TOKENS,
             tools=[{
-                "type": "web_search_20260209",
+                "type": WEB_SEARCH_TOOL_TYPE,
                 "name": "web_search",
                 "max_uses": MAX_WEB_SEARCHES,
             }],
