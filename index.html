@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="refresh" content="300">
 <title>RAD Global — Mission Control</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2014,6 +2013,7 @@ let agentProfile = {};
 let liveSolNos = null;
 
 async function loadData() {
+  lastDataLoad = Date.now();
   try {
     const bust = `?_=${Date.now()}`;
     const [histRes, profRes] = await Promise.all([
@@ -3076,6 +3076,7 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
   document.querySelector(`.nav-tab[onclick*="${tab}"]`).classList.add('active');
   document.getElementById(`tab-${tab}`).classList.add('active');
+  if (tab === 'mission' && Date.now() - lastDataLoad > DATA_REFRESH_MS) loadData();
   if (tab === 'review') loadReviewTenders();
   if (tab === 'associates') loadAssociatesTab();
   if (tab === 'po') loadPoTab();
@@ -4011,6 +4012,36 @@ function isClosingSoon(dateStr) {
   }
   return false;
 }
+
+/* Keeping the overview current used to be a `<meta http-equiv="refresh">`,
+   from when this page was static GitHub Pages reading two committed JSON files
+   and a reload was the only way to see a new cron run. Every tab since —
+   review, PO, vendors — is API-driven, so the reload stopped being the
+   mechanism and became a five-minute timer that discarded whatever anyone was
+   in the middle of: a half-assigned tender, an open PO upload, a vendor edit.
+
+   loadData() + render() touch only the Mission Control overview, so this
+   refreshes the same numbers without taking the page out from under anyone. */
+const DATA_REFRESH_MS = 300000;
+let lastDataLoad = 0;
+
+async function refreshOverviewIfIdle() {
+  if (document.hidden) return;                       // nobody is looking
+  if (progressInterval) return;                      // a run is live and drives its own reload
+  const mission = document.getElementById('tab-mission');
+  if (!mission || !mission.classList.contains('active')) return;
+  await loadData();
+}
+
+setInterval(refreshOverviewIfIdle, DATA_REFRESH_MS);
+
+// Coming back to the tab after a while should show current numbers rather than
+// waiting out the rest of the interval.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && Date.now() - lastDataLoad > DATA_REFRESH_MS) {
+    refreshOverviewIfIdle();
+  }
+});
 
 /* Boot */
 loadTheme();
