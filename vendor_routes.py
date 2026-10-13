@@ -148,15 +148,31 @@ def handle_get(handler, _run_async, vendor_uuid: str) -> None:
     handler._json_response(vendor)
 
 
+# Where a manually-created vendor came from. `web_search` marks a company
+# promoted from an external search result, so you can later audit which
+# registry entries originated from search and how they performed — a vendor
+# somebody vetted from a web lead is a different thing from one typed in.
+ALLOWED_SOURCES = ("manual", "web_search")
+
+
 def handle_create(handler, _run_async, body: dict) -> None:
-    """POST /api/vendors — manual create."""
+    """POST /api/vendors — manual create.
+
+    Accepts an optional `source`; anything unrecognised falls back to 'manual'
+    rather than erroring, because provenance is metadata and should never be
+    the reason a vendor fails to save.
+    """
     company = (body.get("company") or "").strip() if isinstance(body, dict) else ""
     if not company:
         handler._json_response({"error": "company is required"}, 400)
         return
 
+    source = (body.get("source") or "manual").strip()
+    if source not in ALLOWED_SOURCES:
+        source = "manual"
+
     try:
-        row = _run_async(db.insert_vendor(body, source="manual"))
+        row = _run_async(db.insert_vendor(body, source=source))
     except Exception as exc:
         # asyncpg UniqueViolationError → 409 conflict on duplicate company.
         msg = str(exc).lower()
