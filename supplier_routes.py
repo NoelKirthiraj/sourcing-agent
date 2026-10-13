@@ -35,6 +35,7 @@ import jobs
 import outreach as outreach_mod
 import supplier_ai_match
 import supplier_matcher
+import supplier_contact
 import supplier_search
 
 log = logging.getLogger(__name__)
@@ -238,6 +239,74 @@ def handle_external_status(handler, _run_async, job_id: str) -> None:
         "elapsed": elapsed,
         "error": job.get("error") or "Unknown error",
         "error_status": job.get("error_status") or 500,
+    })
+
+
+def handle_external_contact(handler, _run_async, raw_tender_id: str, body: dict) -> None:
+    """POST /api/tenders/<id>/suggestions/external/contact — look up one supplier.
+
+    Deliberately per-supplier and deliberately opt-in. The search returns up to
+    eight leads; an associate typically wants to approach one or two. Reading
+    every company's website by default would pull six pages into context that
+    nobody asked about, on every search.
+
+    Inline rather than a job, unlike the search above. One fetch of a short page
+    is a few seconds, not two minutes, and since the server became threaded
+    (PR #71) a request of that length no longer starves the health probe. The
+    45s client timeout caps the worst case well inside Railway's 300s edge.
+    """
+    tender_id = _parse_tender_id(handler, raw_tender_id)
+    if tender_id is None:
+        return
+
+    company = (body.get("company") or "").strip() if isinstance(body, dict) else ""
+    if not company:
+        handler._json_response({"error": "company is required"}, 400)
+        return
+
+    stored = _run_async(db.list_suggestions(tender_id))
+    match = next(
+        (s for s in stored
+         if s.get("origin") == "external"
+         and (s.get("company") or "").lower() == company.lower()),
+        None,
+    )
+    if not match:
+        # Only ever read a page for a company this tender's own search found —
+        # the endpoint must not become a way to fetch an arbitrary URL.
+        handler._json_response(
+            {"error": "no external suggestion by that name for this tender"}, 404)
+        return
+
+    try:
+        contact = supplier_contact.find_contact(
+            company,
+            domain=match.get("external_domain", "") or "",
+            source_url=match.get("external_source_url", "") or "",
+        )
+    except supplier_search.SupplierSearchError as exc:
+        log.warning("supplier.contact.failed tender=%s company=%r: %s",
+                    tender_id, company, exc.user_message)
+        handler._json_response({"error": exc.user_message}, 503)
+        return
+    except Exception as exc:                          # last-resort safety net
+        log.exception("supplier.contact.unexpected tender=%s company=%r: %s",
+                      tender_id, company, exc)
+        handler._json_response({"error": "Contact lookup failed unexpectedly."}, 500)
+        return
+
+    _run_async(db.set_suggestion_contact(tender_id, company, contact))
+
+    found = bool(contact["emails"] or contact["phones"])
+    log.info("supplier.contact tender=%s company=%r emails=%d phones=%d",
+             tender_id, company, len(contact["emails"]), len(contact["phones"]))
+    handler._json_response({
+        "company": company,
+        **contact,
+        "found": found,
+        "note": "" if found else
+                "No contact details are published on that company's website. "
+                "Try the source link, or add them by hand.",
     })
 
 

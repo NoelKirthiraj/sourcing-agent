@@ -66,7 +66,7 @@ python run.py --discover-fields
 python api.py
 
 # Tests — no network, no browser, no DB
-pytest tests/unit/ -q          # 312 tests, ~4 seconds
+pytest tests/unit/ -q          # 618 tests, ~8 seconds
 pytest tests/ -v --tb=short
 
 # Reset dedup state and reprocess all tenders
@@ -77,7 +77,7 @@ python run.py --reset-state
 
 After any change, verify in this order:
 
-1. **Unit tests pass:** `pytest tests/unit/ -q` — 312 passed in under 10 seconds
+1. **Unit tests pass:** `pytest tests/unit/ -q` — 618 passed in under 10 seconds
 2. **Dry-run returns tenders:** `python run.py --dry-run --limit 3` — ≥1 tender with all 11 fields populated; no tracebacks
 3. **Payload is correct:** `solicitation_no` looks like `PW-EZZ-*` or `WS-*`; `inquiry_link` is an absolute `https://canadabuys.canada.ca/...` URL
 4. **Weekly mode works:** `python run.py --dry-run --weekly --limit 3` — more tenders (7-day window, Goods category)
@@ -129,9 +129,12 @@ Per-subsystem:
 - **Don't** let an external (web-search) supplier become a registry vendor automatically. `tender_vendor_suggestions.vendor_id` is NULL for external rows on purpose — an unverified company must never silently become a supplier of record.
   **Do** keep them in the `external` list and require a deliberate human action to add one to Vendors.
 
-- **Don't** blur the escalation rungs. Each costs more than the last (free → cents → ~$0.10), so each is a separate endpoint reached by a deliberate click, and each stores under its own `origin` so a later rung never clears an earlier shortlist.
+- **Don't** blur the escalation rungs. Each costs more than the last (free → cents → ~$0.10 → under a cent per supplier looked up), so each is a separate endpoint reached by a deliberate click, and each stores under its own `origin` so a later rung never clears an earlier shortlist.
 
-- **Don't** call a slow third party inline in a request handler. External search runs as a `jobs` entry and is polled; running it inline took the whole API down on 2026-10-05 by starving Railway's health probe.
+- **Don't** call a slow third party inline in a request handler. External search runs as a `jobs` entry and is polled; running it inline took the whole API down on 2026-10-05 by starving Railway's health probe. The contact lookup (`/suggestions/external/contact`) is the deliberate exception: one fetch of one short page, 45s timeout, and the server has been threaded since PR #71. Judge by call duration, not by "it's an API call".
+
+- **Don't** ask the web search for an email address. It sees the pages the search engine returned — directory listings and catalogues — where an address almost never appears, so it produces `info@<domain>`: well-formed, plausible, often wrong. Someone emails it.
+  **Do** fetch the company's own contact page via `supplier_contact`, one supplier at a time and only when asked. Reading eight sites to approach one is six pages of tokens nobody wanted.
 
 - **Don't** trust vendor ids returned by the AI match. `supplier_ai_match.parse_results` drops any id not in the roster it was given — an invented supplier is worse than no supplier, because someone would email it.
 
@@ -206,6 +209,15 @@ po_jobs.py            # In-memory async job store (not durable across restarts)
 po_routes.py          # /api/po/* handlers
 vendor_parser.py      # xlsx → vendor rows
 vendor_routes.py      # /api/vendors/* handlers
+jobs.py               # In-memory async job store (po_jobs.py is an alias)
+
+supplier_matcher.py   # Rung 1 — keyword match over RFP categories (free)
+supplier_ai_match.py  # Rung 2 — Claude judges the whole registry (cents)
+supplier_search.py    # Rung 3 — Claude web search for suppliers you don't hold (~$0.10)
+supplier_contact.py   # Rung 3.5 — web_fetch one external supplier's contact page, on request
+supplier_routes.py    # /api/tenders/<id>/suggest-suppliers/* + /outreach handlers
+outreach.py           # Template email drafts — no AI, no sending
+llm_errors.py         # Shared credit/quota/auth failure classification
 
 index.html            # Dashboard (Vercel) — hosts po.html + vendors.html iframes
 po.html               # Generate PO tab
@@ -217,7 +229,7 @@ tools/clear_sap_halt.py
 
 data/                 # agent_profile.json + run_history.json (committed by cron)
 tests/
-  unit/               # 312 tests — no network, no browser, no DB
+  unit/               # 618 tests — no network, no browser, no DB
   integration/        # currently empty
   fixtures/           # CanadaBuys HTML + vendors_mini.xlsx
 .github/workflows/
