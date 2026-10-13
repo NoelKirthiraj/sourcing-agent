@@ -1,58 +1,57 @@
-# Account & Billing Setup — Client Instructions
+# Billing Activation — Client Instructions
 
-**For:** the client team member setting up accounts
+**For:** the client team member who attaches payment
 **Prepared:** 13 October 2026
-**Time required:** about 45 minutes, plus waiting on verification emails
+**Time required:** about 15 minutes
 
 ---
 
-## What you are setting up
+## What this is
 
-Four online services run the Sourcing Agent. You create the accounts and add billing; RAD Global does the technical configuration afterwards.
+RAD Global has already created the four online accounts the Sourcing Agent runs on, under your company's name, and has configured them. **Two of them need a company payment card attached before the system can operate.** That is what this document covers.
 
-| # | Service | What it does | Monthly cost |
-|---|---|---|---|
-| 1 | **Anthropic** | Reads tender documents and supplier quotes | **Capped at $40** |
-| 2 | **Railway** | Runs the system and stores all data | **$5** |
-| 3 | **Vercel** | Hosts the dashboard your team opens | **Free** |
-| 4 | **GitHub** | Stores the software and runs the daily job | **Free** |
-| | | **Total** | **$45 / month maximum** |
+You will have received, separately and securely, the login details for each account — plus the email address they are all registered to, which you take ownership of in Section 4.
 
-All prices are **USD**. Only Anthropic varies with use, and it is capped — see Section 1.
+| # | Service | What it does | Your action | Cost |
+|---|---|---|---|---|
+| 1 | **Anthropic** | Reads tender documents and supplier quotes | **Add card, buy $40 credit, turn on auto-reload** | Capped at **$40/month** |
+| 2 | **Railway** | Runs the system and stores all your data | **Add card, upgrade to Hobby** | **$5/month** |
+| 3 | **Vercel** | Hosts the dashboard your team opens | Nothing — free tier | $0 |
+| 4 | **GitHub** | Stores the software, runs the daily job | Nothing — free tier | $0 |
+| | | | **Maximum total** | **$45/month** |
 
-### Before you begin
+All prices are **USD**.
 
-- [ ] A company credit card
-- [ ] A shared company email address for the accounts — for example `procurement-tech@yourcompany.com`
-- [ ] 45 minutes
+### Two deadlines worth knowing
 
-> **Please use a shared mailbox, not a personal one.** These accounts hold billing and production access. When they are tied to one person's address, that person leaving becomes an outage and a password-reset problem. A shared mailbox that two or three people can reach avoids both.
+These are not arbitrary — things break if they are missed.
 
-**Create the accounts in the order below.** Anthropic is first because new organisations occasionally need a short manual review before the account is fully usable, and that clock can run while you do the rest.
+| Action | Needs to be done by | What happens otherwise |
+|---|---|---|
+| **Railway card + Hobby upgrade** | **Before RAD Global migrates your data** | The free trial expires and **deletes the database with it**, including every tender and vendor record migrated into it |
+| **Anthropic card + credit** | Before the first live run | Document reading fails. Everything else works, but no tender gets read. |
+
+Railway is the urgent one. Please do Section 2 first if you are short of time.
 
 ---
 
-## 1. Anthropic — the AI service (capped at $40/month)
+## 1. Anthropic — add payment and credit
 
-This is the only service whose cost depends on how much work the system does. It is set up so it **cannot** exceed $40 in a month.
+Anthropic reads the tender PDFs and supplier quotes. It is the only cost that varies with use, and RAD Global has **already capped it at $40/month** so it cannot run away.
 
-### 1.1 Create the account
+Sign in at **console.anthropic.com** with the details provided.
 
-1. Go to **console.anthropic.com**
-2. Sign up with the shared company email
-3. When asked for an organisation name, enter the **company's legal name**. This is what appears on invoices.
-
-### 1.2 Add a payment method
+### 1.1 Add a payment method
 
 **Settings → Billing → Payment methods → Add**
 
-Anthropic works on **prepaid credits**: you buy credit, and usage draws it down. There is no invoice at month end and no way to accidentally run up a bill — you cannot spend credit you have not bought.
-
-### 1.3 Buy the first $40 of credit
+### 1.2 Buy the first $40 of credit
 
 **Settings → Billing → Buy credits → $40**
 
-### 1.4 Set the top-up — $40 at a time
+Anthropic works on **prepaid credits** — you buy credit and usage draws it down. There is no invoice at month end, and you cannot be billed for credit you have not bought.
+
+### 1.3 Turn on auto-reload
 
 **Settings → Billing → Auto-reload → turn on**
 
@@ -61,189 +60,173 @@ Anthropic works on **prepaid credits**: you buy credit, and usage draws it down.
 | When balance falls below | **$10** |
 | Automatically add | **$40** |
 
-This keeps the system running without anyone watching it. When the balance drops to $10, another $40 is purchased automatically.
+This keeps the system running unattended. When the balance drops to $10, another $40 is purchased.
 
-> **Why $10 and not $0.** If credit runs out completely, document processing stops mid-run and the team sees failures. Topping up at $10 leaves a few days of buffer so the reload happens quietly in the background.
+> **Why $10 and not $0.** If credit runs out entirely, document processing stops part-way through a run and your team sees failures. Reloading at $10 leaves a few days of buffer so it happens quietly instead.
 
-### 1.5 Set the $40 cap — this is the important one
+### 1.4 What is already set up for you
 
-Auto-reload on its own would keep topping up forever. The cap is what makes $40 a genuine ceiling, and it is set on a **Workspace**.
+You do not need to do these — RAD Global has done them:
 
-1. **Settings → Workspaces → Create Workspace**
-2. Name it **`Sourcing Agent`**
-3. Open the workspace → **Limits** tab → **Change Limit**
-4. Set the monthly spend limit to **$40**
-5. On the same tab, add **email notifications at $20 and $32** — these go to the shared mailbox and give you warning before anything stops
+- A workspace named **`Sourcing Agent`** with a **$40/month spend limit**
+- Email alerts at **$20** and **$32** so you get warning before anything stops
+- The API key, created inside that workspace so the limit applies to it
 
-### 1.6 Create the key — inside that workspace
+### 1.5 What happens if the $40 cap is reached
 
-This step is easy to get wrong, and getting it wrong quietly removes the cap.
+- Document reading pauses for the rest of the month
+- The dashboard, tender list, vendor management and everything already captured **keep working normally**
+- Your team sees a clear "AI credit exhausted" message, not a confusing error
 
-1. Go to the **`Sourcing Agent` workspace** you just created
-2. **API Keys → Create Key**
-3. Name it **`sourcing-agent-production`**
-4. **Copy the key immediately** — the console will never show it again
-5. Send it to RAD Global through your password manager's secure-share feature, **not by email or chat**
-
-> **Why this matters.** A spend limit applies to the workspace it is set on. A key created in the default workspace is not covered by the `Sourcing Agent` limit, and would have no cap at all. Create the key from inside the workspace, not from the organisation-level API keys page.
-
-### 1.7 What happens when the cap is reached
-
-Requests stop being accepted for the rest of the month. In practice:
-
-- Tender extraction pauses — the daily job still collects tenders, but documents are not read
-- The dashboard, the review workflow, vendor management and everything already captured **keep working normally**
-- The team sees a clear message saying the AI credit is exhausted, not a generic error
-
-To resume: raise the workspace limit (same screen as 1.5). It takes effect immediately.
+To resume, raise the limit: **Settings → Workspaces → `Sourcing Agent` → Limits → Change Limit**. It takes effect immediately.
 
 ---
 
-### A note on the $40 figure — please read
+### A note on the $40 figure
 
-The cost forecast in the deployment plan estimates **about $68/month** once the system runs at full volume — roughly 400 tenders a month at $0.15 each, plus SAP navigation and purchase orders.
+RAD Global's forecast puts AI cost at roughly **$68/month once the system runs at full volume** — about 400 tenders a month.
 
-**So a $40 cap will be reached before month end at full volume.** That is a deliberate choice, not an oversight, and it is a reasonable one to start with:
+**So $40 is deliberately below the expected steady-state cost.** That is a starting position, not an error:
 
-- The daily schedule is currently **paused**, so actual usage today is near zero
-- Volumes ramp up rather than arriving all at once
-- A low cap for the first month or two tells you what real usage looks like, with a guaranteed ceiling while you find out
+- The daily schedule is currently paused, so real usage today is near zero
+- Volume builds up rather than arriving at once
+- A firm ceiling for the first month or two tells you what usage actually looks like, with no risk of a surprise
 
-**Two ways forward once you have real numbers:**
+Once there are real numbers, there are two ways forward — RAD Global can advise:
 
 | Option | Effect |
 |---|---|
-| Raise the cap to ~$80 | Covers full forecast volume with headroom |
-| Enable batch processing | Cuts AI cost roughly in half, to ~$34/month — comfortably inside $40. Documents are processed within a few hours instead of immediately, which suits an overnight job. Ask RAD Global to turn this on. |
+| Raise the cap to about **$80** | Covers full forecast volume with headroom |
+| Enable **batch processing** | Halves AI cost to about **$34/month**, comfortably inside $40. Documents process within a few hours rather than instantly, which suits an overnight job. |
 
-Either way, start at $40. The notifications at $20 and $32 will tell you well before anything stops.
-
----
-
-## 2. Railway — the system and the database ($5/month)
-
-This runs the software and holds all your data: tenders, vendors, assignments, purchase orders.
-
-1. Go to **railway.app**
-2. **Sign up with GitHub** if you have already done Section 4 — it saves a step later. Otherwise sign up with the shared email.
-3. **Upgrade to the Hobby plan — $5/month.** Settings → Plans.
-4. Add the company card
-
-> **The upgrade is not optional.** The free tier expires after a trial period and **takes the database with it when it does**. This is the one place where not paying $5 loses data. Please complete this step rather than leaving it on the trial.
-
-Billing is a flat $5/month. Usage above the included allowance would add cost, but this system runs far below it.
+Either way, $40 is the right number to start on. The alerts at $20 and $32 give you warning well before anything stops.
 
 ---
 
-## 3. Vercel — the dashboard (free)
+## 2. Railway — add payment and upgrade
 
-This hosts the web page your team opens. It is plain files, so the free tier covers it permanently.
+**Please do this one first.** Railway runs the system and holds all your data: tenders, vendors, assignments, purchase orders.
 
-1. Go to **vercel.com**
-2. **Sign up with GitHub** (do Section 4 first if you have not)
-3. Choose the **Hobby** plan — free
-4. **No payment card required**
+Sign in at **railway.app** with the details provided.
 
-If the company later wants the dashboard on its own web address — `sourcing.yourcompany.com` rather than a Vercel address — that is still free. Tell RAD Global and they will set it up.
+1. **Settings → Plans → upgrade to Hobby — $5/month**
+2. Add the company payment card
 
----
+> **The upgrade is not optional, and the timing matters.** The free tier expires after a trial period and **takes the database with it when it does**. If your historical tender and vendor data has already been migrated in by then, that data goes too. This is the one place in the whole system where not paying $5 loses something that cannot be recovered.
 
-## 4. GitHub — the software and the daily job (free)
-
-This stores the software and runs the scheduled job each morning.
-
-1. Go to **github.com** and sign up with the shared email
-2. Create an **Organisation** (not just a personal account): **Settings → Organisations → New organisation**
-3. Choose the **Free** plan
-4. Name it after the company
-5. **No payment card required**
-
-> **Why an organisation rather than a personal account.** A personal account belongs to one human. If they leave, the company's software sits in an account nobody can reach. An organisation is owned by the company, and people are added to and removed from it as roles change.
-
-Invite RAD Global as an **Owner** so they can complete the technical setup.
+Billing is a flat $5/month. Usage above the included allowance would add cost, but this system runs well below it.
 
 ---
 
-## 5. Hand these to RAD Global
+## 3. Vercel and GitHub — nothing to do
 
-Once all four accounts exist, RAD Global needs the following. **Please share them through your password manager's secure-share feature — not by email, chat, or a document attachment.**
+| Service | Why no action |
+|---|---|
+| **Vercel** | Hosts the dashboard. It is plain files with no server, so the free tier covers it permanently. No card needed. |
+| **GitHub** | Stores the software and runs the daily job. The free allowance is far above what this uses. No card needed. |
 
-| # | Item | Where it came from |
-|---|---|---|
-| 1 | Anthropic API key | Section 1.6 |
-| 2 | Owner invitation to the GitHub organisation | Section 4 |
-| 3 | Confirmation that Railway is on the **paid Hobby plan** | Section 2 |
-| 4 | Confirmation that the Vercel account exists | Section 3 |
-| 5 | SAP Ariba username and password | Your existing SAP account |
-
-> **On the SAP login.** It must be an account used **only** by this system. A login shared with a person caused a two-month outage previously, because SAP Ariba does not allow the same account to be signed in twice at once. If the account you are about to provide is also used by a team member, please create a separate one.
+If you later want the dashboard on your own web address — `sourcing.yourcompany.com` rather than a Vercel address — that is also free. Tell RAD Global.
 
 ---
 
-## 6. Setup checklist
+## 4. Taking ownership — do this last
 
-Work down the list and tick as you go.
+RAD Global created these accounts for you and still holds the credentials. Once billing is attached and the system is confirmed working, complete the handover in the order below.
+
+> **Order matters.** RAD Global needs working access until the first live run has passed. Change things early and they will be locked out mid-task — two-factor especially — and you will both do this twice.
+
+### 4.1 The email account first
+
+All four services were registered to a single email address, which RAD Global created for this purpose. **That mailbox is the recovery route for everything else:** password resets, billing receipts and security alerts all arrive there. Securing it is what actually transfers ownership — the other four passwords are almost a formality by comparison.
+
+Sign in to it with the details provided, then:
+
+1. **Change the password**
+2. **Replace the recovery phone number with one of yours** — Settings → Security → Recovery phone
+3. **Replace the recovery email with one of yours** — same screen
+4. **Turn on 2-Step Verification**, on a device your company controls
+
+> **Step 2 is the one people skip.** Until the recovery phone is changed, a password reset can still be sent to RAD Global's number — so you would hold the password while they hold the recovery route. It takes a minute and it is the difference between owning the account and borrowing it.
+
+### 4.2 Then the four service accounts
+
+For each of Anthropic, Railway, Vercel and GitHub:
+
+1. Change the password to one your company controls
+2. Turn on two-factor authentication, on your own device
+3. Store both in your company password manager
+
+### 4.3 Agree what access RAD Global keeps
+
+Most clients keep them as an invited user on GitHub and Railway so they can continue supporting the system, with no standing access to billing. Whatever you decide, write it down.
+
+Once 4.1 and 4.2 are done, the system is yours in every sense that matters: the billing, the data, the software, and the recovery route all sit with your company.
+
+> **If the email address is a `@gmail.com` one** rather than one on your own domain, that is deliberate — it let RAD Global set everything up without waiting on your IT team. It works indefinitely. If you would prefer it on your company domain later, each service can have its email address changed; ask RAD Global to walk through it.
+
+---
+
+## 5. Checklist
+
+**Railway — do first**
+- [ ] Signed in
+- [ ] **Upgraded to Hobby, $5/month** — not left on the trial
+- [ ] Payment card added
+- [ ] Told RAD Global it is done, so data migration can proceed
 
 **Anthropic**
-- [ ] Account created with the shared company email
-- [ ] Organisation named with the company's legal name
+- [ ] Signed in
 - [ ] Payment method added
-- [ ] $40 of credit purchased
+- [ ] **$40 of credit purchased**
 - [ ] Auto-reload on: below **$10** → add **$40**
-- [ ] Workspace **`Sourcing Agent`** created
-- [ ] Workspace spend limit set to **$40/month**
-- [ ] Email alerts set at **$20** and **$32**
-- [ ] API key created **inside the workspace** and shared securely
+- [ ] Told RAD Global it is done, so the first live run can proceed
 
-**Railway**
-- [ ] Account created
-- [ ] **Upgraded to Hobby — $5/month** (not left on the trial)
-- [ ] Payment method added
-
-**Vercel**
-- [ ] Account created, Hobby plan
-
-**GitHub**
-- [ ] Organisation created, Free plan
-- [ ] RAD Global invited as Owner
-
-**Handover**
-- [ ] All five items from Section 5 shared through the password manager
-- [ ] Credentials stored where more than one person can reach them
+**After the system is confirmed working — Section 4, in this order**
+- [ ] Email account: password changed
+- [ ] Email account: **recovery phone replaced with yours**
+- [ ] Email account: recovery email replaced with yours
+- [ ] Email account: 2-Step Verification on, on your device
+- [ ] Passwords changed on all four service accounts
+- [ ] Two-factor enabled on all four service accounts
+- [ ] Credentials stored where more than one person in the company can reach them
+- [ ] Agreed in writing what access RAD Global retains
 
 ---
 
-## 7. Common questions
+## 6. Common questions
 
 **Can this bill us more than $45 in a month?**
-No. Railway is a flat $5. Vercel and GitHub are free. Anthropic is capped at $40 by the workspace limit in 1.5, and uses prepaid credit, so there is no end-of-month invoice to be surprised by.
+No. Railway is a flat $5. Vercel and GitHub are free. Anthropic is capped at $40 by a spend limit already in place, and runs on prepaid credit — there is no end-of-month invoice to be surprised by.
 
-**What happens if we hit the $40 Anthropic cap?**
-Document reading pauses for the rest of the month. The dashboard, the tender list, vendor management and everything already captured keep working. You will have had email warnings at $20 and $32.
+**Why does RAD Global hold the credentials right now?**
+They created the accounts so you did not have to, and they need working access to finish the technical setup and run the first live test. Section 4 is where that access becomes yours.
 
-**Can we pay annually or by invoice instead of card?**
-Anthropic offers invoicing for larger commitments — contact their sales team. At $40/month it is not usually worth the paperwork. Railway is card only at the Hobby tier.
-
-**Who can see these accounts?**
-Only people you invite. Use the shared mailbox for account recovery and keep every credential in the company password manager.
+**What is the extra email account for?**
+All four services are registered to it, so it receives password resets, billing receipts and security alerts. Having one address rather than four scattered personal ones means ownership transfers in a single step — which is Section 4.1.
 
 **What if we want to stop using the system?**
-Everything is owned by the company. Cancel Railway and the Anthropic credit stops being drawn down; GitHub and Vercel are free and can simply be left. The data can be exported from the database at any time.
+Everything is owned by your company — the accounts, the software and the data. Cancel Railway and the Anthropic credit stops being used. GitHub and Vercel are free and can be left alone. The database can be exported at any time.
+
+**Can we pay by invoice instead of card?**
+Anthropic offers invoicing for larger commitments; at $40/month it is rarely worth the paperwork. Railway's Hobby tier is card only.
+
+**Who can see these accounts?**
+Only the people you invite, plus RAD Global until Section 4 is complete.
 
 ---
 
-## Record of what was set up
-
-Fill this in and keep it with the company's other service records. **Credentials belong in the password manager, not on this sheet.**
+## Record
 
 | Item | Detail |
 |---|---|
-| Shared email used | |
-| Anthropic organisation name | |
-| Anthropic workspace name | `Sourcing Agent` |
-| Anthropic monthly cap | $40 |
-| Anthropic auto-reload | Below $10 → add $40 |
-| GitHub organisation name | |
-| Railway plan | Hobby — $5/month |
-| Date completed | |
+| Email account the services are registered to | |
+| Email password changed | Date: |
+| Email recovery phone replaced | Date: |
+| Railway upgraded to Hobby | Date: |
+| Railway card added | Date: |
+| Anthropic card added | Date: |
+| Anthropic $40 credit purchased | Date: |
+| Anthropic auto-reload enabled | Date: |
+| Passwords changed (Section 4) | Date: |
+| Two-factor enabled (Section 4) | Date: |
 | Completed by | |
