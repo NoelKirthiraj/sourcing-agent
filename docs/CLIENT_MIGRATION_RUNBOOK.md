@@ -2,7 +2,11 @@
 
 **Audience:** the person performing the migration (you)
 **Prepared:** 13 October 2026
-**Companion document:** `CLIENT_DEPLOYMENT_PLAN.md` — *what* the accounts are and what they cost. This document is *how* to move onto them.
+**Companion documents:**
+- `CLIENT_DEPLOYMENT_PLAN.md` — *what* the accounts are and what they cost
+- `CLIENT_BILLING_SETUP.md` — the client-facing instructions for creating the accounts and adding billing. Section 1–3 of this runbook assume the client has worked through it.
+
+This document is *how* to move onto those accounts.
 
 ---
 
@@ -63,14 +67,23 @@ The order is forced by what depends on what. Do not reorder it.
 
 Start here. Nothing else works without it, and a new organisation sometimes needs a manual review before the key will accept production traffic.
 
-1. Go to **console.anthropic.com**, sign up with the client's email.
-2. Create the organisation under the **client's legal name**, not a person's name. This is what appears on invoices.
-3. **Billing → add a payment method.** The key will not work until there is one.
-4. **Set a monthly spend limit.** Recommend **$150/month** to start — forecast usage is well under that (see the deployment plan), and the limit is the safety net against a runaway loop. You can raise it any time; there is no penalty for hitting it other than requests failing.
-5. **API keys → Create key.** Name it `sourcing-agent-production`.
-6. Copy it into your password manager **now**. The console will never show it again.
+> **The client does this part, not you.** `CLIENT_BILLING_SETUP.md` is the client-facing version of this section — hand them that document. What follows is the same sequence so you can check their work and know what to expect.
 
-> **Spend alerts.** Set an email alert at 50% and 80% of the limit. The system has three AI paths with very different costs — extraction (per tender), supplier web search (~$0.10 per use), and contact lookup (under a cent). An unexpected bill is almost always someone exploring the supplier search, and the alert tells you that before the invoice does.
+Anthropic bills on **prepaid credits**, not a monthly invoice, and the spend cap lives on a **Workspace** rather than on the organisation.
+
+1. **console.anthropic.com** → sign up with the client's shared mailbox.
+2. Organisation named with the **client's legal name** — it appears on invoices.
+3. **Settings → Billing → Payment methods → Add.**
+4. **Buy $40 of credit.**
+5. **Settings → Billing → Auto-reload → on**: below **$10**, add **$40**. Not $0 — credit running out mid-run surfaces as failures to the team, where a $10 floor reloads quietly.
+6. **Settings → Workspaces → Create Workspace** named `Sourcing Agent`. Open it → **Limits** → **Change Limit** → **$40/month**. Add email alerts at **$20** and **$32**.
+7. **From inside that workspace**: API Keys → Create Key, named `sourcing-agent-production`. Copy it immediately; it is shown once.
+
+> **The workspace step is the one that fails silently.** A spend limit applies only to the workspace it is set on, and a key created from the organisation-level API keys page is not covered by it — the cap simply does not apply, and nothing says so. If the client reports the key was created before the workspace, have them reissue it from inside the workspace.
+
+> **$40 against a ~$68 forecast.** The deployment plan forecasts ~$68/month at full volume. $40 is deliberately below that: the schedule is paused, real volume is unknown, and a hard ceiling while it is being learned is worth more than uninterrupted throughput. Two ways out once there are real numbers — raise the cap to ~$80, or enable batch processing, which halves AI cost to ~$34 and fits inside $40. The alerts at $20 and $32 arrive well before anything stops.
+
+> **Where the money actually goes.** Three AI paths with very different costs: extraction (~$0.15 per tender, the bulk of it), supplier web search (~$0.10 per use), contact lookup (under a cent). An unexpected spike is almost always someone exploring the supplier search on the Review tab.
 
 **Record:** `ANTHROPIC_API_KEY = sk-ant-…`
 
@@ -419,7 +432,7 @@ Work down it. Every line is a thing that has broken for somebody before.
 - [ ] `curl <NEW_API_URL>/api/tenders/count` → matches the old count from 4.3
 - [ ] Row counts in the new database match Section 4.3 exactly
 - [ ] Railway is on the **Hobby plan**, not an expiring trial
-- [ ] Anthropic has a payment method and a spend limit
+- [ ] Anthropic has a payment method, a `Sourcing Agent` workspace capped at $40/month, auto-reload on, and a key issued **from inside that workspace**
 
 **Dashboard** — open `NEW_DASHBOARD_URL` and confirm each tab
 - [ ] Mission Control shows real run history, not sample data
@@ -464,7 +477,7 @@ Once the new system has run a full week of scheduled jobs without intervention:
 | `pg_restore` errors on roles or ownership | Dumped without `--no-owner --no-acl` | Re-dump with both flags |
 | Workflow fails at the final commit step | Workflow permissions are read-only | Section 6.2 |
 | "Trigger run" button does nothing / 404 | PAT missing, expired, or wrong `GH_OWNER` | Sections 5.2 and 6.3 |
-| AI extraction fails with a credit message | No payment method, or the spend limit is hit | Section 1 — the code reports billing failures as billing, not as a bad PDF |
+| AI extraction fails with a credit message | No payment method, credit exhausted, or the $40 workspace cap is hit | Section 1 — the code reports billing failures as billing, not as a bad PDF |
 | SAP login fails twice then stops trying | Halt guardrail, working as designed | Read the diagnostics artifact first, then `tools/clear_sap_halt.py` |
 | Railway deploy succeeds, service unreachable | No public domain generated | Section 3.3 step 4 |
 
@@ -477,7 +490,7 @@ Fill in as you go. **This sheet belongs in a password manager, not in the repo a
 | Item | Value | Where it is used |
 |---|---|---|
 | Anthropic API key | | GitHub secret, Railway variable, your local `.env` |
-| Anthropic spend limit | $______ /month | |
+| Anthropic workspace cap | $40 /month (workspace `Sourcing Agent`) | |
 | New `DATABASE_URL` | | GitHub secret, Railway variable, your local `.env` |
 | New API URL | | `index.html`, `review.html`, `workload.html` |
 | New dashboard URL | | Shared with the client's team |
