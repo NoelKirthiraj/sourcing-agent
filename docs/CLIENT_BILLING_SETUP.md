@@ -10,7 +10,7 @@
 
 RAD Global has already created the four online accounts the Sourcing Agent runs on, under your company's name, and has configured them. **Two of them need a company payment card attached before the system can operate.** That is what this document covers.
 
-You will have received, separately and securely, the login details for each account.
+You will have received, separately and securely, the login details for each account — plus the email address they are all registered to, which you take ownership of in Section 4.
 
 | # | Service | What it does | Your action | Cost |
 |---|---|---|---|---|
@@ -129,17 +129,40 @@ If you later want the dashboard on your own web address — `sourcing.yourcompan
 
 ---
 
-## 4. Taking ownership of the accounts
+## 4. Taking ownership — do this last
 
-RAD Global created these accounts for you and still holds the credentials. Once billing is attached and the system is confirmed working, please complete the handover:
+RAD Global created these accounts for you and still holds the credentials. Once billing is attached and the system is confirmed working, complete the handover in the order below.
 
-1. **Change the password on each of the four accounts** to one your company controls, and store them in your password manager
-2. **Turn on two-factor authentication** on each, using a device or authenticator your company controls
-3. Decide what access RAD Global keeps — most clients keep them as an invited user on GitHub and Railway for support, with no standing access to Anthropic billing
+> **Order matters.** RAD Global needs working access until the first live run has passed. Change things early and they will be locked out mid-task — two-factor especially — and you will both do this twice.
 
-> **Do this after the system is confirmed working, not before.** RAD Global needs working access to complete setup and run the first live test. Changing credentials partway through means doing that twice. Two-factor in particular will lock them out mid-task if it is enabled early.
+### 4.1 The email account first
 
-Once you have changed the passwords, the accounts are yours in every meaningful sense: the billing, the data, the software and the recovery route all sit with your company.
+All four services were registered to a single email address, which RAD Global created for this purpose. **That mailbox is the recovery route for everything else:** password resets, billing receipts and security alerts all arrive there. Securing it is what actually transfers ownership — the other four passwords are almost a formality by comparison.
+
+Sign in to it with the details provided, then:
+
+1. **Change the password**
+2. **Replace the recovery phone number with one of yours** — Settings → Security → Recovery phone
+3. **Replace the recovery email with one of yours** — same screen
+4. **Turn on 2-Step Verification**, on a device your company controls
+
+> **Step 2 is the one people skip.** Until the recovery phone is changed, a password reset can still be sent to RAD Global's number — so you would hold the password while they hold the recovery route. It takes a minute and it is the difference between owning the account and borrowing it.
+
+### 4.2 Then the four service accounts
+
+For each of Anthropic, Railway, Vercel and GitHub:
+
+1. Change the password to one your company controls
+2. Turn on two-factor authentication, on your own device
+3. Store both in your company password manager
+
+### 4.3 Agree what access RAD Global keeps
+
+Most clients keep them as an invited user on GitHub and Railway so they can continue supporting the system, with no standing access to billing. Whatever you decide, write it down.
+
+Once 4.1 and 4.2 are done, the system is yours in every sense that matters: the billing, the data, the software, and the recovery route all sit with your company.
+
+> **If the email address is a `@gmail.com` one** rather than one on your own domain, that is deliberate — it let RAD Global set everything up without waiting on your IT team. It works indefinitely. If you would prefer it on your company domain later, each service can have its email address changed; ask RAD Global to walk through it.
 
 ---
 
@@ -158,11 +181,15 @@ Once you have changed the passwords, the accounts are yours in every meaningful 
 - [ ] Auto-reload on: below **$10** → add **$40**
 - [ ] Told RAD Global it is done, so the first live run can proceed
 
-**After the system is confirmed working**
-- [ ] Passwords changed on all four accounts
-- [ ] Two-factor authentication enabled on all four
+**After the system is confirmed working — Section 4, in this order**
+- [ ] Email account: password changed
+- [ ] Email account: **recovery phone replaced with yours**
+- [ ] Email account: recovery email replaced with yours
+- [ ] Email account: 2-Step Verification on, on your device
+- [ ] Passwords changed on all four service accounts
+- [ ] Two-factor enabled on all four service accounts
 - [ ] Credentials stored where more than one person in the company can reach them
-- [ ] Agreed what access RAD Global retains
+- [ ] Agreed in writing what access RAD Global retains
 
 ---
 
@@ -173,6 +200,9 @@ No. Railway is a flat $5. Vercel and GitHub are free. Anthropic is capped at $40
 
 **Why does RAD Global hold the credentials right now?**
 They created the accounts so you did not have to, and they need working access to finish the technical setup and run the first live test. Section 4 is where that access becomes yours.
+
+**What is the extra email account for?**
+All four services are registered to it, so it receives password resets, billing receipts and security alerts. Having one address rather than four scattered personal ones means ownership transfers in a single step — which is Section 4.1.
 
 **What if we want to stop using the system?**
 Everything is owned by your company — the accounts, the software and the data. Cancel Railway and the Anthropic credit stops being used. GitHub and Vercel are free and can be left alone. The database can be exported at any time.
@@ -189,6 +219,9 @@ Only the people you invite, plus RAD Global until Section 4 is complete.
 
 | Item | Detail |
 |---|---|
+| Email account the services are registered to | |
+| Email password changed | Date: |
+| Email recovery phone replaced | Date: |
 | Railway upgraded to Hobby | Date: |
 | Railway card added | Date: |
 | Anthropic card added | Date: |

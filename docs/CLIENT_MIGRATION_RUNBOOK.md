@@ -70,19 +70,45 @@ Everything else you can build while waiting. Tell the client about the Railway o
 
 ### The email address — decide this before you create anything
 
-The accounts must be reachable by the client after handover: password resets, billing receipts and security notices all route to whatever address they are registered under. Register them to your own and you have not handed anything over, you have borrowed it.
+Every account is registered to one email address, and that address is the recovery route for all of them: password resets, billing receipts and security notices. Whoever controls it controls the lot. So the mailbox is not an incidental detail — it *is* the handover.
 
-**Preferred.** Ask the client to create one shared mailbox — `procurement-tech@theircompany.com` or similar — and give you access for the duration of the migration. Register all four accounts there. At handover they change the passwords and you lose access cleanly, with nothing to transfer.
+#### Option A — a dedicated Gmail you create, then hand over (default)
 
-**If they cannot provide one quickly.** Have them create the mailbox anyway but keep it; stay on a call while you create the accounts, and they read you each verification code as it arrives. Forty minutes once, and the accounts are correctly owned from the start.
+Create one new Gmail for this system, register all four accounts to it, and hand the client the Gmail at the end along with everything else. The appeal is that handover collapses to a single credential: once they own the mailbox, every downstream account follows, because recovery for all four runs through it.
 
-**Last resort — know what it costs.** Registering to a RAD Global address works today and leaves you owning the client's production accounts. Every one then needs an email change plus re-verification later, Anthropic's organisation ownership is the awkward one, and until that is done the client's recovery route runs through you. Avoid unless there is a deadline that justifies it, and write down that it is outstanding.
+**Creating it**
 
-> **Leave two-factor authentication off while you work.** If you enable it on your own device, the client cannot get in, and you will be reading codes to them for months. They turn it on at handover, on a device they control (`CLIENT_BILLING_SETUP.md` Section 4). GitHub organisations may require 2FA for members — if so, use a TOTP secret stored in the shared password manager rather than one person's phone.
+1. Sign up at **accounts.google.com** with a name that says what it is and whose it is — `<clientname>.sourcing@gmail.com`. Not a personal-sounding address: this will be sending billing alerts to a procurement team for years.
+2. Google will ask for a **recovery phone number**. You will have to give one to get through signup — use yours, and treat replacing it as a required handover step rather than an optional one. Until it is replaced, Google can route account recovery to your phone, and the client cannot recover the account without you. This is the single loose end in Option A.
+3. **Do not enable 2-Step Verification.** The client turns it on at handover, on their own device.
+4. Put the Gmail password in the password manager immediately, alongside the four service credentials it protects.
+
+**Handing it over** — the client does this from `CLIENT_BILLING_SETUP.md` Section 4, but it is on you to make sure it actually happens:
+
+1. They change the Gmail password
+2. They replace the recovery phone and recovery email with their own
+3. They enable 2-Step Verification on their device
+4. Only then are the four service accounts genuinely theirs
+
+**One honest limitation.** `<clientname>.sourcing@gmail.com` is a consumer address, not one on the client's domain. It works, and plenty of small deployments run this way for years, but it is not provably the company's. If the client later wants everything on `procurement-tech@theircompany.com`, each service needs an email change and re-verification. Mention it now so the choice is theirs — and if they already have a company mailbox they are willing to provision, Option B is cleaner.
+
+#### Option B — a shared mailbox on the client's own domain
+
+Ask the client to create `procurement-tech@theircompany.com` and give you access for the duration. Register the four accounts there. At handover they change the password and your access ends cleanly, with no recovery phone to untangle and no consumer address to migrate off later.
+
+Better if they can do it quickly. The reason it is not the default is that it depends on their IT, which is often the slowest thing in the whole migration.
+
+If they will provision the mailbox but not share it: stay on a call while you create the accounts and have them read you each verification code. Forty minutes once, and ownership is correct from the start.
+
+#### What not to do
+
+Registering the accounts to a RAD Global address. It works today and leaves you holding the client's production accounts — every one then needs an email change plus re-verification later, Anthropic's organisation ownership being the awkward one, and until that is done the client's recovery route runs through you. If a deadline forces it, write it down as outstanding with a date.
+
+> **Leave two-factor authentication off everywhere while you work** — the Gmail included. Enabled on your device, the client cannot get in and you will be reading them codes for months. They turn it on at handover, on hardware they control. GitHub organisations may require 2FA for members; if so, use a TOTP secret stored in the shared password manager rather than one person's phone.
 
 ### Before you start — have these ready
 
-- [ ] Access to the client's shared mailbox, or a call booked with someone who has it
+- [ ] Decided Option A (a Gmail you create) or Option B (the client's own mailbox) — and if B, access to it or a call booked
 - [ ] The client's **legal company name** — it goes on the Anthropic organisation and appears on invoices
 - [ ] A name for the GitHub organisation, agreed with the client
 - [ ] A password manager vault to put every credential in as you create it
@@ -102,7 +128,7 @@ Anthropic bills on **prepaid credits**, not a monthly invoice, and the spend cap
 
 **You do steps 1, 2, 5 and 6. The client does 3 and 4 later**, from `CLIENT_BILLING_SETUP.md` Section 1 — they are the only steps that need a card.
 
-1. **console.anthropic.com** → sign up with the client's shared mailbox.
+1. **console.anthropic.com** → sign up with the mailbox from Section 0.
 2. Organisation named with the **client's legal name** — it appears on invoices.
 3. *(client)* Payment method added.
 4. *(client)* $40 of credit bought, auto-reload on: below $10, add $40.
@@ -125,7 +151,7 @@ Anthropic bills on **prepaid credits**, not a monthly invoice, and the spend cap
 
 ### 2.1 Create the organisation
 
-Sign up on the shared mailbox, then create an **organisation** rather than leaving the code in a personal account. A personal account belongs to one human; an organisation belongs to the company, and people are added and removed from it as roles change. Free tier is fine, and the client does not need to do anything here.
+Sign up on the mailbox from Section 0, then create an **organisation** rather than leaving the code in a personal account. A personal account belongs to one human; an organisation belongs to the company, and people are added and removed from it as roles change. Free tier is fine, and the client does not need to do anything here.
 
 - Organisation name: agreed with the client beforehand
 - Add yourself as an **Owner** under your own GitHub login, so you keep working after the client changes the shared-mailbox password at handover
@@ -470,7 +496,7 @@ Work down it. Every line is a thing that has broken for somebody before.
 - [ ] Railway is on the **Hobby plan**, not an expiring trial — verified on the plan page **before** the data migration in Section 4
 - [ ] Anthropic: `Sourcing Agent` workspace capped at **$40/month**, key issued **from inside it**, alerts at $20/$32 reaching the shared mailbox
 - [ ] Anthropic: client has added a card and bought $40 of credit — confirm on the Billing page, not by asking
-- [ ] All four accounts are registered to the **client's** mailbox, not yours
+- [ ] All four accounts are registered to the migration mailbox, not a RAD Global address
 - [ ] Two-factor is still **off** everywhere, for the client to enable at handover
 
 **Dashboard** — open `NEW_DASHBOARD_URL` and confirm each tab
@@ -489,7 +515,7 @@ Work down it. Every line is a thing that has broken for somebody before.
 
 **Handover**
 - [ ] Every credential handed to the client through a password manager, not email or chat
-- [ ] Client has worked through `CLIENT_BILLING_SETUP.md` Section 4: passwords changed on all four accounts, two-factor enabled on their own devices
+- [ ] Client has worked through `CLIENT_BILLING_SETUP.md` Section 4: mailbox password changed, **recovery phone and recovery email replaced with theirs**, passwords changed on all four service accounts, two-factor enabled on their own devices
 - [ ] Agreed in writing what access you keep afterwards — typically a personal Owner seat on GitHub and Railway for support, and none on Anthropic billing
 - [ ] If any account is still registered to a RAD Global address, that is written down as outstanding with a date to fix it
 - [ ] Your local `origin` points at the client repo (`git remote -v`)
@@ -521,6 +547,7 @@ Once the new system has run a full week of scheduled jobs without intervention:
 | AI extraction fails with a credit message | Client has not done `CLIENT_BILLING_SETUP.md` Section 1 yet, credit exhausted, or the $40 workspace cap is hit | Check the Anthropic Billing page. The code reports billing failures as billing, not as a bad PDF. |
 | Everything worked, then the database vanished | Railway was left on the trial and it expired | Unrecoverable. This is why Section 3.1 says verify the Hobby upgrade before Section 4. |
 | Client cannot sign in after handover | Two-factor was enabled on your device during setup | Disable it from your device, have them re-enable on theirs (§0) |
+| Client changed every password but Google still texts *you* on a reset | The mailbox recovery phone was never replaced | §0 Option A, handover step 2 — this is the loose end that outlives the migration |
 | SAP login fails twice then stops trying | Halt guardrail, working as designed | Read the diagnostics artifact first, then `tools/clear_sap_halt.py` |
 | Railway deploy succeeds, service unreachable | No public domain generated | Section 3.3 step 4 |
 
@@ -532,7 +559,9 @@ Fill in as you go. **This sheet belongs in a password manager, not in the repo a
 
 | Item | Value | Where it is used |
 |---|---|---|
-| Shared mailbox the accounts are registered to | | All four account logins |
+| Mailbox the accounts are registered to | | All four account logins — and their recovery |
+| Mailbox password | | Handed to the client at handover |
+| Recovery phone on the mailbox (Option A) | | **Must be replaced by the client** — see Section 0 |
 | Anthropic API key | | GitHub secret, Railway variable, your local `.env` |
 | Anthropic workspace cap | $40 /month (workspace `Sourcing Agent`) | |
 | New `DATABASE_URL` | | GitHub secret, Railway variable, your local `.env` |
