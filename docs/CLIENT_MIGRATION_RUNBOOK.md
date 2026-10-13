@@ -4,7 +4,7 @@
 **Prepared:** 13 October 2026
 **Companion documents:**
 - `CLIENT_DEPLOYMENT_PLAN.md` — *what* the accounts are and what they cost
-- `CLIENT_BILLING_SETUP.md` — the client-facing instructions for creating the accounts and adding billing. Section 1–3 of this runbook assume the client has worked through it.
+- `CLIENT_BILLING_SETUP.md` — what the client does. **You create all four accounts; they attach payment.** Send it with the credentials once Section 3.1 is done, not before — it refers to logins they will not have yet, and Railway is the one they need to act on urgently.
 
 This document is *how* to move onto those accounts.
 
@@ -35,27 +35,58 @@ The order is forced by what depends on what. Do not reorder it.
 1. Anthropic ──────┐
                    ├──► 3. Railway (DB first, then API)
 2. GitHub ─────────┘            │
-                                ▼
-                        4. Database migration
-                                │
-                                ▼
-                        5. Vercel (needs the new API URL)
-                                │
-                                ▼
-                        6. Rewire GitHub secrets + code constants
-                                │
-                                ▼
-                        7. Your local machine
+                                ├──► send the client CLIENT_BILLING_SETUP.md
+                                │         │
+                                │         ├─ Railway card ───┐  needed before 4
+                                │         └─ Anthropic card ─┼─┐ needed before 7.3
+                                ▼                            │ │
+                        4. Database migration  ◄──────────────┘ │
+                                │                               │
+                                ▼                               │
+                        5. Vercel (needs the new API URL)       │
+                                │                               │
+                                ▼                               │
+                        6. Rewire GitHub secrets + constants    │
+                                │                               │
+                                ▼                               │
+                        7. Your local machine ──► 7.3 first run ◄┘
                                 │
                                 ▼
                         8/9. Verify, then decommission
 ```
 
+### Who does what
+
+**You create all four accounts and configure them. The client attaches a payment card to two of them.** They never touch the technical setup, and you never hold their card details.
+
+That split has two consequences on your timeline, and both bite late if you miss them now:
+
+| The client's step | Must land before | If it hasn't |
+|---|---|---|
+| **Railway card + Hobby upgrade** | **Section 4 — data migration** | The trial expires and deletes the database, taking the migrated data with it |
+| **Anthropic card + $40 credit** | **Section 7.3 — first live run** | The API key is valid but has no credit; every extraction fails |
+
+Everything else you can build while waiting. Tell the client about the Railway one specifically — it is the one that destroys data rather than merely blocking progress.
+
+### The email address — decide this before you create anything
+
+The accounts must be reachable by the client after handover: password resets, billing receipts and security notices all route to whatever address they are registered under. Register them to your own and you have not handed anything over, you have borrowed it.
+
+**Preferred.** Ask the client to create one shared mailbox — `procurement-tech@theircompany.com` or similar — and give you access for the duration of the migration. Register all four accounts there. At handover they change the passwords and you lose access cleanly, with nothing to transfer.
+
+**If they cannot provide one quickly.** Have them create the mailbox anyway but keep it; stay on a call while you create the accounts, and they read you each verification code as it arrives. Forty minutes once, and the accounts are correctly owned from the start.
+
+**Last resort — know what it costs.** Registering to a RAD Global address works today and leaves you owning the client's production accounts. Every one then needs an email change plus re-verification later, Anthropic's organisation ownership is the awkward one, and until that is done the client's recovery route runs through you. Avoid unless there is a deadline that justifies it, and write down that it is outstanding.
+
+> **Leave two-factor authentication off while you work.** If you enable it on your own device, the client cannot get in, and you will be reading codes to them for months. They turn it on at handover, on a device they control (`CLIENT_BILLING_SETUP.md` Section 4). GitHub organisations may require 2FA for members — if so, use a TOTP secret stored in the shared password manager rather than one person's phone.
+
 ### Before you start — have these ready
 
-- [ ] The client's billing card or invoicing details
-- [ ] A client-controlled email address for each account (ideally a shared mailbox, not one person's)
-- [ ] The current **SAP Ariba** username and password
+- [ ] Access to the client's shared mailbox, or a call booked with someone who has it
+- [ ] The client's **legal company name** — it goes on the Anthropic organisation and appears on invoices
+- [ ] A name for the GitHub organisation, agreed with the client
+- [ ] A password manager vault to put every credential in as you create it
+- [ ] The current **SAP Ariba** username and password — a dedicated account, not one a person also signs into
 - [ ] Decision: does the client want a custom domain for the dashboard? (Section 5.4)
 - [ ] `psql` and `pg_dump` installed locally — check with `pg_dump --version`
 
@@ -67,25 +98,26 @@ The order is forced by what depends on what. Do not reorder it.
 
 Start here. Nothing else works without it, and a new organisation sometimes needs a manual review before the key will accept production traffic.
 
-> **The client does this part, not you.** `CLIENT_BILLING_SETUP.md` is the client-facing version of this section — hand them that document. What follows is the same sequence so you can check their work and know what to expect.
-
 Anthropic bills on **prepaid credits**, not a monthly invoice, and the spend cap lives on a **Workspace** rather than on the organisation.
+
+**You do steps 1, 2, 5 and 6. The client does 3 and 4 later**, from `CLIENT_BILLING_SETUP.md` Section 1 — they are the only steps that need a card.
 
 1. **console.anthropic.com** → sign up with the client's shared mailbox.
 2. Organisation named with the **client's legal name** — it appears on invoices.
-3. **Settings → Billing → Payment methods → Add.**
-4. **Buy $40 of credit.**
-5. **Settings → Billing → Auto-reload → on**: below **$10**, add **$40**. Not $0 — credit running out mid-run surfaces as failures to the team, where a $10 floor reloads quietly.
-6. **Settings → Workspaces → Create Workspace** named `Sourcing Agent`. Open it → **Limits** → **Change Limit** → **$40/month**. Add email alerts at **$20** and **$32**.
-7. **From inside that workspace**: API Keys → Create Key, named `sourcing-agent-production`. Copy it immediately; it is shown once.
+3. *(client)* Payment method added.
+4. *(client)* $40 of credit bought, auto-reload on: below $10, add $40.
+5. **Settings → Workspaces → Create Workspace** named `Sourcing Agent`. Open it → **Limits** → **Change Limit** → **$40/month**. Add email alerts at **$20** and **$32**, going to the shared mailbox.
+6. **From inside that workspace**: API Keys → Create Key, named `sourcing-agent-production`. Copy it immediately; it is shown once.
 
-> **The workspace step is the one that fails silently.** A spend limit applies only to the workspace it is set on, and a key created from the organisation-level API keys page is not covered by it — the cap simply does not apply, and nothing says so. If the client reports the key was created before the workspace, have them reissue it from inside the workspace.
+> **Step 5 before step 6, always.** A spend limit applies only to the workspace it is set on. A key created from the organisation-level API keys page is not covered by it — the cap simply does not apply, and nothing tells you. If you create the key first and the workspace after, reissue the key from inside the workspace.
+
+> **The key works before the client pays, but does nothing.** You can set the workspace limit and issue the key with no payment method on the account. Every call then fails for want of credit. So the key being present in Section 6.1 is not evidence the AI path works — Section 7.3 is the first point where that is actually proven, and it needs the client's step 4 done.
 
 > **$40 against a ~$68 forecast.** The deployment plan forecasts ~$68/month at full volume. $40 is deliberately below that: the schedule is paused, real volume is unknown, and a hard ceiling while it is being learned is worth more than uninterrupted throughput. Two ways out once there are real numbers — raise the cap to ~$80, or enable batch processing, which halves AI cost to ~$34 and fits inside $40. The alerts at $20 and $32 arrive well before anything stops.
 
 > **Where the money actually goes.** Three AI paths with very different costs: extraction (~$0.15 per tender, the bulk of it), supplier web search (~$0.10 per use), contact lookup (under a cent). An unexpected spike is almost always someone exploring the supplier search on the Review tab.
 
-**Record:** `ANTHROPIC_API_KEY = sk-ant-…`
+**Record:** `ANTHROPIC_API_KEY = sk-ant-…` — straight into the password manager. It is shown once, and reissuing it means updating it in three places (GitHub secret, Railway variable, your `.env`).
 
 ---
 
@@ -93,10 +125,12 @@ Anthropic bills on **prepaid credits**, not a monthly invoice, and the spend cap
 
 ### 2.1 Create the organisation
 
-Sign up as the client, then create an **organisation** rather than using a personal account. A personal repo belongs to one human and becomes a problem when that human leaves. Free tier is fine.
+Sign up on the shared mailbox, then create an **organisation** rather than leaving the code in a personal account. A personal account belongs to one human; an organisation belongs to the company, and people are added and removed from it as roles change. Free tier is fine, and the client does not need to do anything here.
 
-- Organisation name: e.g. `radglobal-client` (the client decides)
-- Invite yourself as an **Owner** so you can keep working
+- Organisation name: agreed with the client beforehand
+- Add yourself as an **Owner** under your own GitHub login, so you keep working after the client changes the shared-mailbox password at handover
+
+> **That second point matters more than it looks.** Everything else you build is reachable through the shared mailbox, which stops being yours at handover. Your personal Owner seat on the org is what lets you keep supporting the repo afterwards without holding the client's credentials. Agree with the client whether you keep it.
 
 ### 2.2 Create the repository
 
@@ -139,9 +173,11 @@ Railway hosts two things that are easy to confuse: the **API process** and the *
 
 ### 3.1 Account
 
-1. **railway.app** → sign up with the client's email, ideally **"Continue with GitHub"** using the new client GitHub account, which makes repo connection one click later.
-2. **Upgrade to the Hobby plan ($5/month).** The free trial expires and takes the database with it. This is the only fixed cost in the entire system.
-3. Add the client's payment method.
+1. **railway.app** → sign up, choosing **"Continue with GitHub"** on the client organisation account from Section 2. That makes connecting the repo in 3.3 one click.
+2. The account starts on the **free trial**, which is fine for now — you can provision the database and deploy the API on it.
+3. **Send the client `CLIENT_BILLING_SETUP.md` now**, with the logins for all four accounts through your password manager's secure-share. This is the right moment: every account exists, and Railway — the urgent one — is sitting on a trial clock.
+
+> **Do not reach Section 4 on a trial account.** The trial expires and takes the database with it. Provisioning an empty database on a trial costs nothing if it lapses; migrating the client's entire tender and vendor history onto one and then having it expire is unrecoverable. Confirm the upgrade on the plan page — not from a verbal yes — before you run `pg_restore`.
 
 ### 3.2 Create the project and the database
 
@@ -270,7 +306,7 @@ A plausible count rather than `0` means the API is reading real migrated data.
 
 ### 5.1 Account
 
-**vercel.com** → sign up, again preferring **"Continue with GitHub"** on the client account. Hobby tier is free and sufficient; the dashboard is static HTML and JSON.
+**vercel.com** → sign up with **"Continue with GitHub"** on the client organisation. Hobby tier is free and permanent — the dashboard is static HTML and JSON, no server and no build step — so there is nothing for the client to do here.
 
 ### 5.2 Point the dashboard at the new API — code change
 
@@ -431,8 +467,11 @@ Work down it. Every line is a thing that has broken for somebody before.
 - [ ] `curl <NEW_API_URL>/api/health` → `{"status": "ok"}`
 - [ ] `curl <NEW_API_URL>/api/tenders/count` → matches the old count from 4.3
 - [ ] Row counts in the new database match Section 4.3 exactly
-- [ ] Railway is on the **Hobby plan**, not an expiring trial
-- [ ] Anthropic has a payment method, a `Sourcing Agent` workspace capped at $40/month, auto-reload on, and a key issued **from inside that workspace**
+- [ ] Railway is on the **Hobby plan**, not an expiring trial — verified on the plan page **before** the data migration in Section 4
+- [ ] Anthropic: `Sourcing Agent` workspace capped at **$40/month**, key issued **from inside it**, alerts at $20/$32 reaching the shared mailbox
+- [ ] Anthropic: client has added a card and bought $40 of credit — confirm on the Billing page, not by asking
+- [ ] All four accounts are registered to the **client's** mailbox, not yours
+- [ ] Two-factor is still **off** everywhere, for the client to enable at handover
 
 **Dashboard** — open `NEW_DASHBOARD_URL` and confirm each tab
 - [ ] Mission Control shows real run history, not sample data
@@ -449,8 +488,10 @@ Work down it. Every line is a thing that has broken for somebody before.
 - [ ] "Trigger run" button works with the new PAT
 
 **Handover**
-- [ ] Every credential is in the client's password manager, not only yours
-- [ ] Client has Owner access to all four accounts
+- [ ] Every credential handed to the client through a password manager, not email or chat
+- [ ] Client has worked through `CLIENT_BILLING_SETUP.md` Section 4: passwords changed on all four accounts, two-factor enabled on their own devices
+- [ ] Agreed in writing what access you keep afterwards — typically a personal Owner seat on GitHub and Railway for support, and none on Anthropic billing
+- [ ] If any account is still registered to a RAD Global address, that is written down as outstanding with a date to fix it
 - [ ] Your local `origin` points at the client repo (`git remote -v`)
 - [ ] A test commit pushed from your machine deploys to the client's Vercel and Railway
 
@@ -477,7 +518,9 @@ Once the new system has run a full week of scheduled jobs without intervention:
 | `pg_restore` errors on roles or ownership | Dumped without `--no-owner --no-acl` | Re-dump with both flags |
 | Workflow fails at the final commit step | Workflow permissions are read-only | Section 6.2 |
 | "Trigger run" button does nothing / 404 | PAT missing, expired, or wrong `GH_OWNER` | Sections 5.2 and 6.3 |
-| AI extraction fails with a credit message | No payment method, credit exhausted, or the $40 workspace cap is hit | Section 1 — the code reports billing failures as billing, not as a bad PDF |
+| AI extraction fails with a credit message | Client has not done `CLIENT_BILLING_SETUP.md` Section 1 yet, credit exhausted, or the $40 workspace cap is hit | Check the Anthropic Billing page. The code reports billing failures as billing, not as a bad PDF. |
+| Everything worked, then the database vanished | Railway was left on the trial and it expired | Unrecoverable. This is why Section 3.1 says verify the Hobby upgrade before Section 4. |
+| Client cannot sign in after handover | Two-factor was enabled on your device during setup | Disable it from your device, have them re-enable on theirs (§0) |
 | SAP login fails twice then stops trying | Halt guardrail, working as designed | Read the diagnostics artifact first, then `tools/clear_sap_halt.py` |
 | Railway deploy succeeds, service unreachable | No public domain generated | Section 3.3 step 4 |
 
@@ -489,6 +532,7 @@ Fill in as you go. **This sheet belongs in a password manager, not in the repo a
 
 | Item | Value | Where it is used |
 |---|---|---|
+| Shared mailbox the accounts are registered to | | All four account logins |
 | Anthropic API key | | GitHub secret, Railway variable, your local `.env` |
 | Anthropic workspace cap | $40 /month (workspace `Sourcing Agent`) | |
 | New `DATABASE_URL` | | GitHub secret, Railway variable, your local `.env` |
