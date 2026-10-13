@@ -866,6 +866,12 @@ body::after {
 /* External results are visually separated so an unvetted web hit can never
    be mistaken for a registry supplier. */
 .sp-external { border-left: 3px solid var(--amber, #F59E0B); }
+.sp-ext-actions { display: flex; gap: 6px; flex-shrink: 0; align-items: flex-start; }
+.sp-contact { margin-top: 4px; font-size: 0.6875rem; display: flex; flex-wrap: wrap; gap: 10px; }
+.sp-contact a { color: var(--cyan); text-decoration: none; }
+.sp-contact a:hover { text-decoration: underline; }
+.sp-contact span { color: var(--text-secondary); }
+.sp-contact-src { opacity: 0.7; font-style: italic; }
 .sp-section-note {
   font-size: 0.6875rem;
   color: var(--text-secondary);
@@ -3477,6 +3483,9 @@ function renderSuppliers(id) {
           + 'your registry. Check the company before contacting, and add it to Vendors if it '
           + 'turns out to be a real supplier.</div>';
     html += st.external.map((s, i) => supplierRow(id, s, false, true, i)).join('');
+    if (st.contactError) {
+      html += `<div class="sp-warn" style="margin-top:6px">${escapeHtml(st.contactError)}</div>`;
+    }
   } else if (st.externalRun) {
     html += '<div class="sp-empty">The web search found no new suppliers either.</div>';
   } else if (registryExhausted) {
@@ -3521,6 +3530,25 @@ function supplierRow(id, s, checked, isExternal, extIdx, isAi) {
         : `<button class="sp-btn ghost" style="flex-shrink:0"
              onclick="event.stopPropagation();toggleAddVendor(${id},${extIdx})">Add to Vendors</button>`)
     : '';
+
+  // Contact details are looked up one supplier at a time, never for the whole
+  // shortlist — reading eight company websites to approach one of them is
+  // tokens spent on six pages nobody asked about.
+  const emails = (s.external_emails || []);
+  const phones = (s.external_phones || []);
+  const contactBtn = (isExternal && !added && !emails.length && !phones.length)
+    ? `<button class="sp-btn ghost" style="flex-shrink:0"
+         onclick="event.stopPropagation();findContact(${id},${extIdx},this)">Find contact</button>`
+    : '';
+  const contactLine = (isExternal && (emails.length || phones.length))
+    ? `<div class="sp-contact">`
+      + emails.map(e => `<a href="mailto:${escapeHtml(e)}">${escapeHtml(e)}</a>`).join(' ')
+      + phones.map(t => `<span>${escapeHtml(t)}</span>`).join(' ')
+      + (s.external_contact_url
+          ? ` <a href="${escapeHtml(s.external_contact_url)}" target="_blank" rel="noopener"
+               class="sp-contact-src">from their site</a>` : '')
+      + '</div>'
+    : '';
   return `
     <div class="sp-row${isExternal ? ' sp-external' : (isAi ? ' sp-ai' : '')}">
       <input type="checkbox" data-tender="${id}" value="${escapeHtml(String(value))}"
@@ -3528,8 +3556,10 @@ function supplierRow(id, s, checked, isExternal, extIdx, isAi) {
       <div class="sp-row-main">
         <div class="sp-company">${escapeHtml(s.company || '—')}${noEmail}</div>
         <div class="sp-why">${escapeHtml(s.rationale || '')}${link}</div>
+        ${contactLine}
       </div>
-      ${!isExternal ? `<span class="sp-score">${s.score ?? 0} pts</span>` : addBtn}
+      ${!isExternal ? `<span class="sp-score">${s.score ?? 0} pts</span>`
+                    : `<div class="sp-ext-actions">${contactBtn}${addBtn}</div>`}
     </div>
     ${isExternal ? `<div id="sp-add-${id}-${extIdx}"></div>` : ''}`;
 }
@@ -3542,6 +3572,43 @@ async function loadRfpCategories() {
   const rows = await reviewApi('/api/rfp-categories');
   rfpCategoryCache = Array.isArray(rows) ? rows.map(r => r.category).filter(Boolean) : [];
   return rfpCategoryCache;
+}
+
+async function findContact(id, extIdx, btn) {
+  const st = supplierState[id];
+  const s = (st?.external || [])[extIdx];
+  if (!s) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Reading site…';
+  const res = await reviewApi(`/api/tenders/${id}/suggestions/external/contact`, {
+    method: 'POST',
+    body: JSON.stringify({ company: s.company }),
+  });
+
+  if (!res || res.error) {
+    btn.disabled = false;
+    btn.textContent = 'Find contact';
+    st.contactError = (res && res.error) || 'Could not read that supplier\'s website.';
+    renderSuppliers(id);
+    return;
+  }
+
+  st.contactError = '';
+  if (!res.found) {
+    // Nothing published is an answer, not a failure — say so on the row rather
+    // than leaving a button that looks like it did nothing.
+    btn.disabled = true;
+    btn.textContent = 'No contact published';
+    s.external_no_contact = true;
+    return;
+  }
+
+  s.external_emails = res.emails || [];
+  s.external_phones = res.phones || [];
+  s.external_contact_name = res.contact_name || '';
+  s.external_contact_url = res.source_url || '';
+  renderSuppliers(id);
 }
 
 async function toggleAddVendor(id, extIdx) {
@@ -3559,8 +3626,10 @@ async function toggleAddVendor(id, extIdx) {
       <div class="sp-add-grid">
         <label>Company</label><input id="av-co-${id}-${extIdx}" value="${escapeHtml(s.company || '')}">
         <label>Domain</label><input id="av-dom-${id}-${extIdx}" value="${escapeHtml(s.external_domain || '')}">
-        <label>Email *</label><input id="av-em-${id}-${extIdx}" placeholder="sales@example.com">
-        <label>Contact</label><input id="av-ct-${id}-${extIdx}" placeholder="optional">
+        <label>Email *</label><input id="av-em-${id}-${extIdx}"
+          value="${escapeHtml((s.external_emails || [])[0] || '')}" placeholder="sales@example.com">
+        <label>Contact</label><input id="av-ct-${id}-${extIdx}"
+          value="${escapeHtml(s.external_contact_name || '')}" placeholder="optional">
       </div>
       <div style="font-size:0.6875rem;color:var(--text-secondary);margin-bottom:4px">
         Categories * — these decide whether this supplier is found by future tenders.
@@ -3607,6 +3676,7 @@ async function saveNewVendor(id, extIdx, btn) {
     company,
     domain: val('dom'),
     emails: [email],
+    phones: s.external_phones || [],
     primary_contacts: val('ct') ? [val('ct')] : [],
     websites: s.external_source_url ? [s.external_source_url] : [],
     rfp_categories: categories,

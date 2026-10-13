@@ -443,3 +443,129 @@ def test_list_suggestions_separates_all_three_origins(stub_db, monkeypatch):
     assert [s["company"] for s in data["internal"]] == ["Keyword Co"]
     assert [s["company"] for s in data["ai"]] == ["AI Co"]
     assert [s["company"] for s in data["external"]] == ["Web Co"]
+
+
+# ── Contact lookup: opt-in, per supplier, scoped to this tender's own results ─
+
+_EXT_SUGGESTION = {
+    "company": "Nova Aero", "origin": "external", "vendor_id": None,
+    "external_domain": "novaaero.ca",
+    "external_source_url": "https://directory.example/nova",
+}
+
+
+def _patch_suggestions(monkeypatch, rows):
+    import db
+    async def list_suggestions(_tender_id):
+        return rows
+    async def set_contact(*_a, **_kw):
+        return None
+    monkeypatch.setattr(db, "list_suggestions", list_suggestions)
+    monkeypatch.setattr(db, "set_suggestion_contact", set_contact)
+
+
+def test_contact_lookup_returns_what_the_page_published(monkeypatch):
+    import db, supplier_contact
+    _patch_suggestions(monkeypatch, [_EXT_SUGGESTION])
+    monkeypatch.setattr(db, "get_tender", lambda _i: TENDER)
+    monkeypatch.setattr(supplier_contact, "find_contact", lambda *a, **kw: {
+        "emails": ["sales@novaaero.ca"], "phones": [], "contact_name": "",
+        "source_url": "https://novaaero.ca/contact"})
+
+    h = _make_handler()
+    supplier_routes.handle_external_contact(h, _run_async, "7", {"company": "Nova Aero"})
+    data, status = h.responses[0]
+    assert status == 200
+    assert data["emails"] == ["sales@novaaero.ca"]
+    assert data["found"] is True
+
+
+def test_lookup_is_refused_for_a_company_this_tender_never_found(monkeypatch):
+    """Otherwise the endpoint is a way to make the server fetch any site at all."""
+    import db, supplier_contact
+    _patch_suggestions(monkeypatch, [_EXT_SUGGESTION])
+    called = []
+    monkeypatch.setattr(supplier_contact, "find_contact",
+                        lambda *a, **kw: called.append(1) or {})
+
+    h = _make_handler()
+    supplier_routes.handle_external_contact(
+        h, _run_async, "7", {"company": "Totally Unrelated Ltd"})
+    assert h.responses[0][1] == 404
+    assert not called
+
+
+def test_lookup_is_refused_for_a_registry_suggestion(monkeypatch):
+    """Registry contact details come from the vendor row, never from a web page."""
+    import db, supplier_contact
+    _patch_suggestions(monkeypatch, [
+        {"company": "Acme Aero", "origin": "internal", "vendor_id": 1}])
+    called = []
+    monkeypatch.setattr(supplier_contact, "find_contact",
+                        lambda *a, **kw: called.append(1) or {})
+
+    h = _make_handler()
+    supplier_routes.handle_external_contact(h, _run_async, "7", {"company": "Acme Aero"})
+    assert h.responses[0][1] == 404
+    assert not called
+
+
+def test_nothing_published_is_an_answer_not_an_error(monkeypatch):
+    import db, supplier_contact
+    _patch_suggestions(monkeypatch, [_EXT_SUGGESTION])
+    monkeypatch.setattr(supplier_contact, "find_contact", lambda *a, **kw: {
+        "emails": [], "phones": [], "contact_name": "", "source_url": ""})
+
+    h = _make_handler()
+    supplier_routes.handle_external_contact(h, _run_async, "7", {"company": "Nova Aero"})
+    data, status = h.responses[0]
+    assert status == 200
+    assert data["found"] is False
+    assert data["note"]
+
+
+def test_lookup_failure_is_surfaced_with_its_own_reason(monkeypatch):
+    import db, supplier_contact, supplier_search
+    _patch_suggestions(monkeypatch, [_EXT_SUGGESTION])
+
+    def boom(*_a, **_kw):
+        raise supplier_search.SupplierSearchError("Credit balance is exhausted.")
+    monkeypatch.setattr(supplier_contact, "find_contact", boom)
+
+    h = _make_handler()
+    supplier_routes.handle_external_contact(h, _run_async, "7", {"company": "Nova Aero"})
+    data, status = h.responses[0]
+    assert status == 503
+    assert "Credit balance" in data["error"]
+
+
+def test_missing_company_is_rejected_before_any_lookup(monkeypatch):
+    import supplier_contact
+    called = []
+    monkeypatch.setattr(supplier_contact, "find_contact",
+                        lambda *a, **kw: called.append(1) or {})
+    h = _make_handler()
+    supplier_routes.handle_external_contact(h, _run_async, "7", {})
+    assert h.responses[0][1] == 400
+    assert not called
+
+
+def test_found_details_are_persisted_against_the_suggestion(monkeypatch):
+    import db, supplier_contact
+    saved = {}
+
+    async def list_suggestions(_tid):
+        return [_EXT_SUGGESTION]
+    async def set_contact(tender_id, company, contact):
+        saved.update(tender_id=tender_id, company=company, contact=contact)
+        return None
+    monkeypatch.setattr(db, "list_suggestions", list_suggestions)
+    monkeypatch.setattr(db, "set_suggestion_contact", set_contact)
+    monkeypatch.setattr(supplier_contact, "find_contact", lambda *a, **kw: {
+        "emails": ["sales@novaaero.ca"], "phones": ["+1 613 555 0199"],
+        "contact_name": "", "source_url": "https://novaaero.ca/contact"})
+
+    h = _make_handler()
+    supplier_routes.handle_external_contact(h, _run_async, "7", {"company": "Nova Aero"})
+    assert saved["tender_id"] == 7
+    assert saved["contact"]["emails"] == ["sales@novaaero.ca"]

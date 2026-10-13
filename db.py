@@ -225,6 +225,19 @@ async def init_schema():
             CREATE INDEX IF NOT EXISTS idx_tvs_tender ON tender_vendor_suggestions(tender_id);
             CREATE INDEX IF NOT EXISTS idx_tvs_origin ON tender_vendor_suggestions(tender_id, origin);
 
+            -- Contact details for an external result, filled in only when
+            -- somebody asks for them (supplier_contact.find_contact). Kept on
+            -- the suggestion rather than promoted to a vendor row: knowing a
+            -- company's email is not the same as deciding to supply from them.
+            ALTER TABLE tender_vendor_suggestions
+                ADD COLUMN IF NOT EXISTS external_emails TEXT[] DEFAULT '{}';
+            ALTER TABLE tender_vendor_suggestions
+                ADD COLUMN IF NOT EXISTS external_phones TEXT[] DEFAULT '{}';
+            ALTER TABLE tender_vendor_suggestions
+                ADD COLUMN IF NOT EXISTS external_contact_name TEXT DEFAULT '';
+            ALTER TABLE tender_vendor_suggestions
+                ADD COLUMN IF NOT EXISTS external_contact_url TEXT DEFAULT '';
+
             -- One row per generated draft. v1 sends nothing, so `status` is
             -- 'draft' until the associate copies it; generating a draft is
             -- what counts as contact (see docs/SCOPE_SUPPLIER_MATCHING.md).
@@ -1232,6 +1245,38 @@ async def list_suggestions(tender_id: int) -> list[dict]:
             tender_id,
         )
     return [_serialize_suggestion(r) for r in rows]
+
+
+async def set_suggestion_contact(tender_id: int, company: str, contact: dict) -> Optional[dict]:
+    """Attach looked-up contact details to one external suggestion.
+
+    Matched on company rather than id because the UI holds the suggestion as it
+    was rendered, and a re-run of the search rewrites ids. Scoped to `external`
+    so this can never overwrite a registry row's details — those come from the
+    vendor table, not from a web page.
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """UPDATE tender_vendor_suggestions
+                  SET external_emails       = $3,
+                      external_phones       = $4,
+                      external_contact_name = $5,
+                      external_contact_url  = $6,
+                      contactable           = $7
+                WHERE tender_id = $1
+                  AND LOWER(company) = LOWER($2)
+                  AND origin = 'external'
+            RETURNING *""",
+            tender_id,
+            (company or "").strip(),
+            contact.get("emails") or [],
+            contact.get("phones") or [],
+            contact.get("contact_name", "") or "",
+            contact.get("source_url", "") or "",
+            bool(contact.get("emails")),
+        )
+    return _serialize_suggestion(row) if row else None
 
 
 def _serialize_suggestion(row) -> dict:

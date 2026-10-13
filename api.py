@@ -197,6 +197,8 @@ class APIHandler(BaseHTTPRequestHandler):
                 supplier_routes.handle_suggest_ai(self, _run_async, path.split("/")[3])
             elif path.startswith("/api/tenders/") and path.endswith("/suggest-suppliers/external"):
                 supplier_routes.handle_suggest_external(self, _run_async, path.split("/")[3])
+            elif path.startswith("/api/tenders/") and path.endswith("/suggestions/external/contact"):
+                supplier_routes.handle_external_contact(self, _run_async, path.split("/")[3], body)
             elif path.startswith("/api/tenders/") and path.endswith("/suggest-suppliers"):
                 supplier_routes.handle_suggest(self, _run_async, path.split("/")[3])
             elif path.startswith("/api/tenders/") and path.endswith("/outreach"):
