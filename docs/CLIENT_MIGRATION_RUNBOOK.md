@@ -4,7 +4,7 @@
 **Prepared:** 13 October 2026
 **Companion documents:**
 - `CLIENT_DEPLOYMENT_PLAN.md` — *what* the accounts are and what they cost
-- `CLIENT_BILLING_SETUP.md` — the client-facing instructions for creating the accounts and adding billing. Section 1–3 of this runbook assume the client has worked through it.
+- `CLIENT_BILLING_SETUP.md` — the client-facing instructions for creating the accounts and adding billing. **Send this first.** Sections 1, 2.1, 3.1 and 5.1 of this runbook verify its results rather than repeat them.
 
 This document is *how* to move onto those accounts.
 
@@ -51,11 +51,20 @@ The order is forced by what depends on what. Do not reorder it.
                         8/9. Verify, then decommission
 ```
 
+### Who does what
+
+The client creates the four accounts and adds billing, working from
+`CLIENT_BILLING_SETUP.md`. You do everything technical on top of them. Send
+them that document first — the accounts are a precondition for Sections 1–5,
+and Anthropic in particular can sit in verification for a while.
+
 ### Before you start — have these ready
 
-- [ ] The client's billing card or invoicing details
-- [ ] A client-controlled email address for each account (ideally a shared mailbox, not one person's)
-- [ ] The current **SAP Ariba** username and password
+- [ ] **The client has completed `CLIENT_BILLING_SETUP.md`** and all four accounts exist
+- [ ] The Anthropic API key, **issued from inside the `Sourcing Agent` workspace** (see Section 1)
+- [ ] Owner access for you on the client's GitHub organisation
+- [ ] Confirmation that Railway is on the **paid Hobby plan**, not an expiring trial
+- [ ] The current **SAP Ariba** username and password — a dedicated account, not one a person also signs into
 - [ ] Decision: does the client want a custom domain for the dashboard? (Section 5.4)
 - [ ] `psql` and `pg_dump` installed locally — check with `pg_dump --version`
 
@@ -67,7 +76,7 @@ The order is forced by what depends on what. Do not reorder it.
 
 Start here. Nothing else works without it, and a new organisation sometimes needs a manual review before the key will accept production traffic.
 
-> **The client does this part, not you.** `CLIENT_BILLING_SETUP.md` is the client-facing version of this section — hand them that document. What follows is the same sequence so you can check their work and know what to expect.
+> **The client does this, not you.** `CLIENT_BILLING_SETUP.md` Section 1 is their version. What follows is the same sequence, so you can check their work before relying on it. Verify rather than assume — the last step fails silently.
 
 Anthropic bills on **prepaid credits**, not a monthly invoice, and the spend cap lives on a **Workspace** rather than on the organisation.
 
@@ -85,18 +94,21 @@ Anthropic bills on **prepaid credits**, not a monthly invoice, and the spend cap
 
 > **Where the money actually goes.** Three AI paths with very different costs: extraction (~$0.15 per tender, the bulk of it), supplier web search (~$0.10 per use), contact lookup (under a cent). An unexpected spike is almost always someone exploring the supplier search on the Review tab.
 
-**Record:** `ANTHROPIC_API_KEY = sk-ant-…`
+**Record:** `ANTHROPIC_API_KEY = sk-ant-…` — the client sends this through their password manager's secure-share, per `CLIENT_BILLING_SETUP.md` Section 5. If it arrived by email or chat, have it rotated: a key that has been in a mailbox is a key that stays in a mailbox.
 
 ---
 
 ## 2. GitHub — code and the scheduled job
 
-### 2.1 Create the organisation
+### 2.1 Confirm the organisation
 
-Sign up as the client, then create an **organisation** rather than using a personal account. A personal repo belongs to one human and becomes a problem when that human leaves. Free tier is fine.
+The client creates this (`CLIENT_BILLING_SETUP.md` Section 4) — an **organisation**, not a personal account, because a personal repo belongs to one human and becomes a problem when that human leaves. Free tier is fine.
 
-- Organisation name: e.g. `radglobal-client` (the client decides)
-- Invite yourself as an **Owner** so you can keep working
+Before continuing, confirm:
+
+- [ ] It is an organisation, not a personal account
+- [ ] You are an **Owner**, not a member — you need to create repos and manage secrets
+- [ ] You have the organisation's exact name, which becomes `GH_OWNER` in Section 5.2
 
 ### 2.2 Create the repository
 
@@ -137,11 +149,15 @@ The CI runs 618 unit tests in under a minute. Making it a gate costs nothing and
 
 Railway hosts two things that are easy to confuse: the **API process** and the **PostgreSQL database**. Create the database first, because the API needs its connection string.
 
-### 3.1 Account
+### 3.1 Confirm the account
 
-1. **railway.app** → sign up with the client's email, ideally **"Continue with GitHub"** using the new client GitHub account, which makes repo connection one click later.
-2. **Upgrade to the Hobby plan ($5/month).** The free trial expires and takes the database with it. This is the only fixed cost in the entire system.
-3. Add the client's payment method.
+The client creates this (`CLIENT_BILLING_SETUP.md` Section 2). Confirm before building anything on it:
+
+- [ ] **Hobby plan, $5/month — not the free trial.** The trial expires and takes the database with it. Everything from Section 4 onwards would be lost. This is the single most expensive thing to get wrong in the whole migration, so check the plan page rather than taking a yes for it.
+- [ ] Payment method present
+- [ ] You have access to the account, or the client is on hand to click through it with you
+
+If they signed up with **"Continue with GitHub"** on the new client org, connecting the repo in 3.3 is one click. If not, Railway will ask for GitHub authorisation at that point instead — no harm, just a longer step.
 
 ### 3.2 Create the project and the database
 
@@ -268,9 +284,12 @@ A plausible count rather than `0` means the API is reading real migrated data.
 
 ## 5. Vercel — the dashboard
 
-### 5.1 Account
+### 5.1 Confirm the account
 
-**vercel.com** → sign up, again preferring **"Continue with GitHub"** on the client account. Hobby tier is free and sufficient; the dashboard is static HTML and JSON.
+The client creates this (`CLIENT_BILLING_SETUP.md` Section 3). Hobby tier is free and permanent here — the dashboard is static HTML and JSON, with no server and no build step.
+
+- [ ] Account exists and you can reach it
+- [ ] If they signed up with **"Continue with GitHub"** on the client org, importing the repo in 5.3 is one click
 
 ### 5.2 Point the dashboard at the new API — code change
 
