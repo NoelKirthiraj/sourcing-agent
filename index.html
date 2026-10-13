@@ -912,6 +912,60 @@ body::after {
 @keyframes sp-spin { to { transform: rotate(360deg); } }
 .sp-elapsed { font-family: var(--font-mono); font-size: 0.6875rem; color: var(--text-secondary); margin-left: auto; }
 .sp-ai { border-left: 3px solid var(--cyan); }
+
+/* Promote-to-registry form. Pre-filled with what the search found; the fields
+   it could not find (email, categories) are required, because those are the
+   judgement a person has to supply before an unverified lead becomes a
+   supplier of record. */
+.sp-add {
+  margin: 4px 0 10px 24px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  border-left: 3px solid var(--amber, #F59E0B);
+}
+.sp-add-grid {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 6px 10px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.sp-add-grid label { font-size: 0.6875rem; color: var(--text-secondary); }
+.sp-add-grid input {
+  font-family: inherit;
+  font-size: 0.75rem;
+  padding: 5px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-deep, rgba(0,0,0,0.15));
+  color: inherit;
+  width: 100%;
+}
+.sp-add-grid input:focus { outline: 1px solid var(--cyan); }
+.sp-add-cats { display: flex; flex-wrap: wrap; gap: 6px; }
+.sp-add-cats label {
+  font-size: 0.6875rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border-radius: 10px;
+  background: var(--bg-deep, rgba(0,0,0,0.15));
+  cursor: pointer;
+}
+.sp-add-msg { font-size: 0.6875rem; margin-top: 6px; }
+.sp-add-msg.err { color: var(--red); }
+.sp-add-msg.ok { color: var(--green); }
+.sp-added-badge {
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--green-dim);
+  color: var(--green);
+  margin-left: 6px;
+}
 .sp-warn {
   font-size: 0.75rem;
   padding: 8px 12px;
@@ -3419,6 +3473,15 @@ function supplierRow(id, s, checked, isExternal, extIdx, isAi) {
   const link = isExternal && s.external_source_url
     ? ` <a href="${escapeHtml(s.external_source_url)}" target="_blank" rel="noopener"
          style="color:var(--cyan);font-size:0.6875rem">source</a>` : '';
+  // A web lead can be promoted into the registry, but only through a form that
+  // makes someone supply the contact and categories the search could not find.
+  const added = isExternal && (supplierState[id]?.added || {})[s.company];
+  const addBtn = isExternal
+    ? (added
+        ? '<span class="sp-added-badge">in vendors</span>'
+        : `<button class="sp-btn ghost" style="flex-shrink:0"
+             onclick="event.stopPropagation();toggleAddVendor(${id},${extIdx})">Add to Vendors</button>`)
+    : '';
   return `
     <div class="sp-row${isExternal ? ' sp-external' : (isAi ? ' sp-ai' : '')}">
       <input type="checkbox" data-tender="${id}" value="${escapeHtml(String(value))}"
@@ -3427,8 +3490,106 @@ function supplierRow(id, s, checked, isExternal, extIdx, isAi) {
         <div class="sp-company">${escapeHtml(s.company || '—')}${noEmail}</div>
         <div class="sp-why">${escapeHtml(s.rationale || '')}${link}</div>
       </div>
-      ${!isExternal ? `<span class="sp-score">${s.score ?? 0} pts</span>` : ''}
+      ${!isExternal ? `<span class="sp-score">${s.score ?? 0} pts</span>` : addBtn}
+    </div>
+    ${isExternal ? `<div id="sp-add-${id}-${extIdx}"></div>` : ''}`;
+}
+
+// Categories are fetched once and reused — the list changes rarely and the
+// form needs it to make categorisation a choice rather than free text.
+let rfpCategoryCache = null;
+async function loadRfpCategories() {
+  if (rfpCategoryCache) return rfpCategoryCache;
+  const rows = await reviewApi('/api/rfp-categories');
+  rfpCategoryCache = Array.isArray(rows) ? rows.map(r => r.category).filter(Boolean) : [];
+  return rfpCategoryCache;
+}
+
+async function toggleAddVendor(id, extIdx) {
+  const host = document.getElementById(`sp-add-${id}-${extIdx}`);
+  const st = supplierState[id];
+  if (!host || !st) return;
+  if (host.innerHTML) { host.innerHTML = ''; return; }   // second click closes
+
+  const s = (st.external || [])[extIdx];
+  if (!s) return;
+  const cats = await loadRfpCategories();
+
+  host.innerHTML = `
+    <div class="sp-add">
+      <div class="sp-add-grid">
+        <label>Company</label><input id="av-co-${id}-${extIdx}" value="${escapeHtml(s.company || '')}">
+        <label>Domain</label><input id="av-dom-${id}-${extIdx}" value="${escapeHtml(s.external_domain || '')}">
+        <label>Email *</label><input id="av-em-${id}-${extIdx}" placeholder="sales@example.com">
+        <label>Contact</label><input id="av-ct-${id}-${extIdx}" placeholder="optional">
+      </div>
+      <div style="font-size:0.6875rem;color:var(--text-secondary);margin-bottom:4px">
+        Categories * — these decide whether this supplier is found by future tenders.
+      </div>
+      <div class="sp-add-cats">
+        ${cats.map((c, i) => `<label><input type="checkbox" class="av-cat-${id}-${extIdx}"
+            value="${escapeHtml(c)}">${escapeHtml(c)}</label>`).join('')
+          || '<span style="font-size:0.6875rem;color:var(--text-secondary)">No categories defined yet.</span>'}
+      </div>
+      <div style="margin-top:8px;display:flex;gap:6px">
+        <button class="sp-btn" onclick="event.stopPropagation();saveNewVendor(${id},${extIdx},this)">Save to Vendors</button>
+        <button class="sp-btn ghost" onclick="event.stopPropagation();toggleAddVendor(${id},${extIdx})">Cancel</button>
+      </div>
+      <div class="sp-add-msg" id="av-msg-${id}-${extIdx}"></div>
     </div>`;
+}
+
+async function saveNewVendor(id, extIdx, btn) {
+  const st = supplierState[id];
+  const s = (st.external || [])[extIdx];
+  const msg = document.getElementById(`av-msg-${id}-${extIdx}`);
+  const val = sel => (document.getElementById(`av-${sel}-${id}-${extIdx}`)?.value || '').trim();
+
+  const company = val('co');
+  const email = val('em');
+  const categories = Array.from(
+    document.querySelectorAll(`.av-cat-${id}-${extIdx}:checked`)).map(c => c.value);
+
+  if (!company) { msg.className = 'sp-add-msg err'; msg.textContent = 'Company is required.'; return; }
+  if (!email || !email.includes('@')) {
+    msg.className = 'sp-add-msg err';
+    msg.textContent = 'A contact email is required — without it this supplier cannot be emailed.';
+    return;
+  }
+  if (!categories.length) {
+    msg.className = 'sp-add-msg err';
+    msg.textContent = 'Pick at least one category, or this supplier will never match a future tender.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  const payload = {
+    company,
+    domain: val('dom'),
+    emails: [email],
+    primary_contacts: val('ct') ? [val('ct')] : [],
+    websites: s.external_source_url ? [s.external_source_url] : [],
+    rfp_categories: categories,
+    source: 'web_search',
+    notes: `Added from a web search for tender ${id}.`
+         + (s.external_source_url ? ` Source: ${s.external_source_url}` : ''),
+  };
+  const res = await reviewApi('/api/vendors', { method: 'POST', body: JSON.stringify(payload) });
+  btn.disabled = false;
+  btn.textContent = 'Save to Vendors';
+
+  if (!res || res.error) {
+    msg.className = 'sp-add-msg err';
+    msg.textContent = (res && res.error) || 'Could not save. Try again.';
+    return;
+  }
+
+  st.added = st.added || {};
+  st.added[s.company] = true;
+  msg.className = 'sp-add-msg ok';
+  msg.textContent = `${company} added. It will be matched by keyword search on future tenders.`;
+  setTimeout(() => renderSuppliers(id), 1200);
 }
 
 function toggleAllSuppliers(id) {

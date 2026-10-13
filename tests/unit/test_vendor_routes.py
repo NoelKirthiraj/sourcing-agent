@@ -308,3 +308,71 @@ def test_handle_list_categories(monkeypatch):
     h = _make_handler()
     vendor_routes.handle_list_categories(h, _run_passthrough)
     assert h.responses[0] == ([{"category": "Aerospace"}], 200)
+
+
+# ── Provenance for suppliers promoted from a web search ─────────────────────
+
+def test_web_search_source_is_recorded(monkeypatch):
+    """A vendor somebody vetted from a web lead is a different thing from one
+    typed in, and the registry should be able to tell them apart later."""
+    import vendor_routes, db
+    captured = {}
+
+    async def insert_vendor(payload, *, source="manual"):
+        captured["source"] = source
+        captured["payload"] = payload
+        return {"id": 1, "company": payload["company"], "source": source}
+
+    monkeypatch.setattr(db, "insert_vendor", insert_vendor)
+    h = _make_handler()
+    vendor_routes.handle_create(h, _run_passthrough, {
+        "company": "Nova Aero", "emails": ["s@nova.ca"],
+        "rfp_categories": ["Aerospace/Aircraft"], "source": "web_search",
+    })
+    assert h.responses[0][1] == 201
+    assert captured["source"] == "web_search"
+
+
+def test_unknown_source_falls_back_to_manual(monkeypatch):
+    """Provenance is metadata — it must never be why a vendor fails to save."""
+    import vendor_routes, db
+    captured = {}
+
+    async def insert_vendor(payload, *, source="manual"):
+        captured["source"] = source
+        return {"id": 1, "company": payload["company"]}
+
+    monkeypatch.setattr(db, "insert_vendor", insert_vendor)
+    h = _make_handler()
+    vendor_routes.handle_create(h, _run_passthrough, {"company": "X", "source": "nonsense"})
+    assert h.responses[0][1] == 201
+    assert captured["source"] == "manual"
+
+
+def test_source_defaults_to_manual_when_absent(monkeypatch):
+    import vendor_routes, db
+    captured = {}
+
+    async def insert_vendor(payload, *, source="manual"):
+        captured["source"] = source
+        return {"id": 1, "company": payload["company"]}
+
+    monkeypatch.setattr(db, "insert_vendor", insert_vendor)
+    h = _make_handler()
+    vendor_routes.handle_create(h, _run_passthrough, {"company": "X"})
+    assert captured["source"] == "manual"
+
+
+def test_duplicate_company_from_web_search_is_a_409(monkeypatch):
+    """Promoting a company already in the registry must say so, not 500."""
+    import vendor_routes, db
+
+    async def insert_vendor(payload, *, source="manual"):
+        raise Exception("duplicate key value violates unique constraint")
+
+    monkeypatch.setattr(db, "insert_vendor", insert_vendor)
+    h = _make_handler()
+    vendor_routes.handle_create(h, _run_passthrough, {"company": "Acme", "source": "web_search"})
+    data, status = h.responses[0]
+    assert status == 409
+    assert "already exists" in data["error"]
