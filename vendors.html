@@ -322,6 +322,10 @@ table.vendors {
 }
 .overlay.show { display: block; }
 .drawer {
+  /* Standalone, these are right. Inside the dashboard iframe the parent
+     overrides top/height via postMessage — the iframe has no scrollbar of
+     its own, so 100vh here means its full 1600px and the drawer body would
+     never scroll. */
   position: fixed;
   top: 0; right: 0;
   width: min(640px, 100vw);
@@ -988,6 +992,7 @@ function openDrawer(title, v) {
   document.getElementById('drawer-title').textContent = title;
   document.getElementById('overlay').classList.add('show');
   document.getElementById('drawer').classList.add('show');
+  notifyDrawer(true);
 
   // Scalar fields
   document.getElementById('f-company').value = v.company || '';
@@ -1061,7 +1066,38 @@ function openDrawer(title, v) {
 function closeDrawer() {
   document.getElementById('overlay').classList.remove('show');
   document.getElementById('drawer').classList.remove('show');
+  notifyDrawer(false);
 }
+
+/* ─── Drawer geometry when embedded ─────────────────────────────────────
+   The dashboard sizes this iframe to 1600px with no inner scrollbar, so a
+   `position: fixed` drawer spans the whole frame and the wheel scrolls the
+   parent page instead of the drawer body. The parent answers with the band
+   of the iframe that is actually on screen, and freezes its own scroll
+   while the drawer is open. Standalone there is no parent and the CSS
+   100vh is already correct. */
+const EMBEDDED = window.parent && window.parent !== window;
+
+function notifyDrawer(open) {
+  if (!EMBEDDED) return;
+  try {
+    window.parent.postMessage({ type: 'vendor-drawer', open }, '*');
+  } catch (_) {/* cross-origin parent — fall back to the CSS default */}
+  if (!open) {
+    const d = document.getElementById('drawer');
+    d.style.top = '';
+    d.style.height = '';
+  }
+}
+
+window.addEventListener('message', ev => {
+  const m = ev.data;
+  if (!m || m.type !== 'vendor-drawer-geometry') return;
+  const d = document.getElementById('drawer');
+  if (!d.classList.contains('show')) return;
+  d.style.top = Math.max(0, m.top) + 'px';
+  d.style.height = m.height + 'px';
+});
 
 function renderListEditor(field) {
   const el = document.querySelector(`.list-editor[data-list="${field}"]`);
@@ -1069,7 +1105,21 @@ function renderListEditor(field) {
   el.innerHTML = items.map((item, i) => `
     <span class="chip">${escapeHtml(item)}<span class="x" data-i="${i}" data-f="${field}">×</span></span>
   `).join('') +
-  `<input class="add-input" data-f="${field}" placeholder="add…" />`;
+  `<input class="add-input" data-f="${field}" placeholder="add…"
+      ${field === 'rfp_categories' ? 'list="cat-options" autocomplete="off"' : ''} />`;
+
+  // A category typed slightly differently is a category that never matches a
+  // tender again, so offer the registry's own list rather than free text.
+  if (field === 'rfp_categories') {
+    let dl = document.getElementById('cat-options');
+    if (!dl) {
+      dl = document.createElement('datalist');
+      dl.id = 'cat-options';
+      document.body.appendChild(dl);
+    }
+    dl.innerHTML = (state.categories || [])
+      .map(c => `<option value="${escapeHtml(c.category || c)}"></option>`).join('');
+  }
 
   el.querySelectorAll('.x').forEach(x => {
     x.addEventListener('click', () => {
